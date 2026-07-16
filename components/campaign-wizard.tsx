@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Sparkles } from "lucide-react";
+import { FileText, Sparkles } from "lucide-react";
 import { Stepper } from "@/components/stepper";
 import { StepPrompt } from "@/components/step-prompt";
 import { StepTargeting } from "@/components/step-targeting";
@@ -264,13 +264,22 @@ export function CampaignWizard() {
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-8 px-4 py-10">
       <header className="flex flex-col gap-2">
-        <div className="flex items-center gap-2">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Sparkles className="h-5 w-5" aria-hidden />
-          </span>
-          <h1 className="text-xl font-bold text-foreground">
-            캠페인 자동 추천 시스템
-          </h1>
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <Sparkles className="h-5 w-5" aria-hidden />
+            </span>
+            <h1 className="text-xl font-bold text-foreground">
+              캠페인 자동 생성 시스템
+            </h1>
+          </div>
+          <a
+            href="/system-report.html"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <FileText className="h-4 w-4" aria-hidden />
+            시스템 보고서
+          </a>
         </div>
         <p className="text-sm text-muted-foreground">
           목표만 입력하면 타겟팅부터 메시지, 예상 클릭률까지 한 번에 추천해
