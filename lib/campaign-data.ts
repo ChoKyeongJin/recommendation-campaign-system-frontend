@@ -66,6 +66,60 @@ export type CampaignExperimentAnalysis = {
   suggested_message?: string | null;
 };
 
+export type CampaignCtrScoreValue = {
+  key?: string;
+  label: string;
+  displayValue: string;
+  reason?: string;
+};
+
+export type CampaignCtrDisplayValue = {
+  displayValue: string;
+};
+
+export type CampaignCtrScoreSummary = {
+  appliedRuleCount?: number;
+  notAppliedRuleCount?: number;
+  appliedAdjustmentTotal?: CampaignCtrDisplayValue;
+  calibrationAdjustmentTotal?: CampaignCtrDisplayValue;
+  totalDeltaFromBase?: CampaignCtrDisplayValue;
+};
+
+export type CampaignCtrRuleEvaluation = {
+  key?: string;
+  applied?: boolean;
+  appliedDelta?: CampaignCtrDisplayValue;
+  reason?: string;
+};
+
+export type CampaignCtrScoreBreakdown = {
+  explanationBullets?: string[];
+  ruleEvaluations?: CampaignCtrRuleEvaluation[];
+};
+
+export type CampaignCtrVariantScore = {
+  variantCode: string;
+  rank?: number;
+  name: string;
+  isSelected?: boolean;
+  predictedClickProbability?: number;
+  displayValue: string;
+  deltaVsBest?: CampaignCtrDisplayValue;
+  scoreSummary?: CampaignCtrScoreSummary;
+  scoreBreakdown?: CampaignCtrScoreBreakdown;
+};
+
+export type CampaignCtrScore = {
+  title: string;
+  selectedVariantCode?: string;
+  modelVersion?: string;
+  variantScores?: CampaignCtrVariantScore[];
+  baseScore?: CampaignCtrScoreValue;
+  adjustments?: CampaignCtrScoreValue[];
+  calibrationAdjustments?: CampaignCtrScoreValue[];
+  predictedCtr?: CampaignCtrScoreValue;
+};
+
 export type CampaignExperimentResult = {
   is_success?: boolean;
   status?: string;
@@ -91,6 +145,7 @@ export type CampaignExperimentResult = {
   skipped?: { userId?: string; reason?: string }[];
   analysis?: CampaignExperimentAnalysis;
   performance?: MessagePerformance[];
+  ctrScore?: CampaignCtrScore;
 };
 
 // 간단한 문자열 해시로 프롬프트에 따라 결과가 달라지도록 함 (목업)
