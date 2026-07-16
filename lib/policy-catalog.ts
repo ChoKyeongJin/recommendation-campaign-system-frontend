@@ -25,6 +25,25 @@ export type PolicySchema = {
  * name → 스키마.
  */
 export const POLICY_CATALOG: Record<string, PolicySchema> = {
+  "message-generation-policy": {
+    title: "메시지 생성 정책",
+    description:
+      "채널 메시지 생성에 사용할 LLM 파라미터를 관리합니다. temperature가 높을수록 다양하고 창의적인 문구가 생성됩니다.",
+    fields: [
+      {
+        key: "temperature",
+        label: "temperature (창의성)",
+        type: "number",
+        default: 0.7,
+        description:
+          "0에 가까울수록 안정적·반복적이고, 높을수록 다양하고 창의적인 메시지가 생성됩니다.",
+        widget: "slider",
+        min: 0,
+        max: 2,
+        step: 0.1,
+      },
+    ],
+  },
   "ctr-model-policy": {
     title: "CTR 모델 선택/탐험 정책",
     description: "CTR 스코어링에 사용할 모델 버전과 ε-greedy 탐험 정책을 관리합니다.",
