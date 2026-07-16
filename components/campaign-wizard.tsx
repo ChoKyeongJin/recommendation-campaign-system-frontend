@@ -321,6 +321,9 @@ export function CampaignWizard() {
           onNext={predictClickRates}
           isNextLoading={isPredictingClicks}
           nextError={predictionError}
+          onRegenerate={recommendMessages}
+          isRegenerating={isGeneratingMessages}
+          regenerateError={messageError}
         />
       )}
       {step === 3 && experimentResult && (
