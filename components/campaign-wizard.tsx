@@ -9,6 +9,7 @@ import { StepMessages } from "@/components/step-messages";
 import { StepResults } from "@/components/step-results";
 import {
   type CampaignMessage,
+  type CampaignCtrScore,
   type CampaignExperimentResult,
   type Channel,
   type TargetingResult,
@@ -31,6 +32,48 @@ export function CampaignWizard() {
 
   const getVariantCode = (index: number) =>
     String.fromCharCode("A".charCodeAt(0) + index);
+
+  const getCtrScore = async ({
+    campaignId,
+    experimentResult,
+  }: {
+    campaignId: string;
+    experimentResult: CampaignExperimentResult;
+  }) => {
+    const response = await fetch("/api/ai/ctr/score", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+      },
+      body: JSON.stringify({
+        campaignId,
+        experimentId:
+          experimentResult.experimentId ??
+          experimentResult.experiment?.experiment_id,
+        prompt: prompt.trim(),
+        channel: channel.toLowerCase(),
+        variants: messages.map((message, index) => ({
+          code: getVariantCode(index),
+          name: message.title || message.tone || `시안 ${message.id}`,
+          messageBody: message.body,
+          isControl: index === 0,
+        })),
+      }),
+      cache: "no-store",
+    });
+
+    const data = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      const message =
+        data && typeof data.error === "string"
+          ? data.error
+          : "클릭률 근거 조회에 실패했습니다.";
+      throw new Error(message);
+    }
+
+    return data as CampaignCtrScore;
+  };
 
   const updatePrompt = (value: string) => {
     setPrompt(value);
@@ -186,7 +229,16 @@ export function CampaignWizard() {
         throw new Error(message);
       }
 
-      setExperimentResult(data as CampaignExperimentResult);
+      const nextExperimentResult = data as CampaignExperimentResult;
+      const ctrScore = await getCtrScore({
+        campaignId,
+        experimentResult: nextExperimentResult,
+      }).catch(() => null);
+
+      setExperimentResult({
+        ...nextExperimentResult,
+        ...(ctrScore ? { ctrScore } : {}),
+      });
       setStep(3);
     } catch (error) {
       setPredictionError(
