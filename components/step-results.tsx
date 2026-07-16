@@ -31,6 +31,9 @@ import {
 } from "@/components/ui/chart";
 import type {
   CampaignExperimentVariant,
+  CampaignCtrScore,
+  CampaignCtrScoreSummary,
+  CampaignCtrScoreValue,
   CampaignExperimentResult,
   Channel,
 } from "@/lib/campaign-data";
@@ -94,23 +97,7 @@ export function StepResults({
         </CardHeader>
       </Card>
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard
-          icon={Send}
-          label="실험 ID"
-          value={result.experimentId ? `#${result.experimentId}` : "-"}
-        />
-        <StatCard
-          icon={MousePointerClick}
-          label="배정 / 스킵"
-          value={`${(result.createdAssignmentCount ?? 0).toLocaleString()} / ${(result.skippedAssignmentCount ?? 0).toLocaleString()}`}
-        />
-        <StatCard
-          icon={TrendingUp}
-          label="분석 신뢰도"
-          value={formatConfidence(analysis?.confidence)}
-        />
-      </div>
+      {result.ctrScore && <CtrScoreCard score={result.ctrScore} />}
 
       {performance.length > 0 ? (
         <>
@@ -168,7 +155,9 @@ export function StepResults({
                       dataKey="ctr"
                       position="top"
                       className="fill-foreground text-xs"
-                      formatter={(v: number) => `${v}%`}
+                      formatter={(value) =>
+                        typeof value === "number" ? `${value}%` : ""
+                      }
                     />
                   </Bar>
                 </BarChart>
@@ -295,6 +284,305 @@ export function StepResults({
   );
 }
 
+function CtrScoreCard({ score }: { score: CampaignCtrScore }) {
+  const variantScores = Array.isArray(score.variantScores)
+    ? score.variantScores
+    : [];
+
+  if (variantScores.length > 0) {
+    return <VariantCtrScoreCard score={score} variantScores={variantScores} />;
+  }
+
+  const adjustments = Array.isArray(score.adjustments) ? score.adjustments : [];
+  const calibrationAdjustments = Array.isArray(score.calibrationAdjustments)
+    ? score.calibrationAdjustments
+    : [];
+  const rows = [score.baseScore, ...adjustments, ...calibrationAdjustments].filter(
+    isScoreValue,
+  );
+  const predictedCtr: CampaignCtrScoreValue = isScoreValue(score.predictedCtr)
+    ? score.predictedCtr
+    : { label: "예측 CTR", displayValue: "-" };
+
+  if (rows.length === 0) {
+    return null;
+  }
+
+  const rowValues = rows.map((row) => parsePercentDisplay(row.displayValue));
+  const predictedValue = parsePercentDisplay(predictedCtr.displayValue);
+  const maxValue = Math.max(...rowValues, predictedValue, 1);
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <CardTitle className="text-base">{score.title}</CardTitle>
+              {score.selectedVariantCode && (
+                <Badge>시안 {score.selectedVariantCode}</Badge>
+              )}
+              {score.modelVersion && (
+                <Badge variant="secondary">{score.modelVersion}</Badge>
+              )}
+            </div>
+            <CardDescription>
+              선택된 시안의 예측 클릭률을 구성하는 주요 요인입니다.
+            </CardDescription>
+          </div>
+          <div className="rounded-lg bg-primary px-4 py-3 text-right text-primary-foreground">
+            <p className="text-xs font-medium opacity-80">
+              {predictedCtr.label}
+            </p>
+            <p className="text-2xl font-bold leading-none">
+              {predictedCtr.displayValue}
+            </p>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        {rows.map((row, index) => {
+          const value = rowValues[index];
+          const barWidth = Math.max((value / maxValue) * 100, 6);
+          const isBaseScore = index === 0;
+
+          return (
+            <div key={`${row.label}-${row.displayValue}`} className="grid gap-2">
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-foreground">
+                    {row.label}
+                  </span>
+                  {isBaseScore && <Badge variant="secondary">기준</Badge>}
+                  {index > adjustments.length && (
+                    <Badge variant="outline">보정</Badge>
+                  )}
+                </div>
+                <span className="font-semibold tabular-nums text-foreground">
+                  {row.displayValue}
+                </span>
+              </div>
+              {row.reason && (
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  {row.reason}
+                </p>
+              )}
+              <div className="h-2 overflow-hidden rounded-full bg-secondary">
+                <div
+                  className={
+                    isBaseScore
+                      ? "h-full rounded-full bg-muted-foreground/40"
+                      : index > adjustments.length
+                        ? "h-full rounded-full bg-chart-3"
+                      : "h-full rounded-full bg-primary"
+                  }
+                  style={{ width: `${barWidth}%` }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </CardContent>
+    </Card>
+  );
+}
+
+function VariantCtrScoreCard({
+  score,
+  variantScores,
+}: {
+  score: CampaignCtrScore;
+  variantScores: NonNullable<CampaignCtrScore["variantScores"]>;
+}) {
+  const sortedScores = [...variantScores].sort((a, b) => {
+    if (typeof a.rank === "number" && typeof b.rank === "number") {
+      return a.rank - b.rank;
+    }
+
+    return getCtrDisplayNumber(b.displayValue) - getCtrDisplayNumber(a.displayValue);
+  });
+  const selected =
+    sortedScores.find((item) => item.isSelected) ??
+    sortedScores.find((item) => item.variantCode === score.selectedVariantCode) ??
+    sortedScores.find((item) => item.rank === 1) ??
+    sortedScores[0];
+  const maxValue = Math.max(
+    ...sortedScores.map((item) => getCtrDisplayNumber(item.displayValue)),
+    1,
+  );
+  const explanationBullets = selected?.scoreBreakdown?.explanationBullets ?? [];
+  const appliedRules = (selected?.scoreBreakdown?.ruleEvaluations ?? []).filter(
+    (rule) => rule.applied,
+  );
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <CardTitle className="text-base">{score.title}</CardTitle>
+              {selected?.variantCode && <Badge>시안 {selected.variantCode}</Badge>}
+              {typeof selected?.rank === "number" && (
+                <Badge variant="secondary">{selected.rank}위</Badge>
+              )}
+            </div>
+            <CardDescription>
+              CTR 스코어 API가 계산한 메시지 시안별 순위와 예측 근거입니다.
+            </CardDescription>
+          </div>
+          {selected && (
+            <div className="rounded-lg bg-primary px-4 py-3 text-right text-primary-foreground">
+              <p className="text-xs font-medium opacity-80">선택 시안 CTR</p>
+              <p className="text-2xl font-bold leading-none">
+                {selected.displayValue}
+              </p>
+            </div>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-5">
+        {selected?.scoreSummary && <CtrSummaryGrid summary={selected.scoreSummary} />}
+
+        <div className="flex flex-col gap-3">
+        {sortedScores.map((item) => {
+          const value = getCtrDisplayNumber(item.displayValue);
+          const barWidth = Math.max((value / maxValue) * 100, 6);
+          const isSelected =
+            item.isSelected || item.variantCode === selected?.variantCode;
+
+          return (
+            <div key={item.variantCode} className="grid gap-2">
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <div className="flex min-w-0 items-center gap-2">
+                  {typeof item.rank === "number" && (
+                    <Badge variant={isSelected ? "default" : "outline"}>
+                      {item.rank}위
+                    </Badge>
+                  )}
+                  <Badge variant={isSelected ? "default" : "secondary"}>
+                    {item.variantCode}
+                  </Badge>
+                  <span className="truncate font-medium text-foreground">
+                    {item.name}
+                  </span>
+                  {isSelected && <Badge variant="outline">선택</Badge>}
+                </div>
+                <span className="shrink-0 font-semibold tabular-nums text-foreground">
+                  {item.displayValue}
+                </span>
+              </div>
+              {item.deltaVsBest?.displayValue && (
+                <p className="text-xs text-muted-foreground">
+                  최고 시안 대비 {item.deltaVsBest.displayValue}
+                </p>
+              )}
+              <div className="h-2 overflow-hidden rounded-full bg-secondary">
+                <div
+                  className={
+                    isSelected
+                      ? "h-full rounded-full bg-primary"
+                      : "h-full rounded-full bg-muted-foreground/40"
+                  }
+                  style={{ width: `${barWidth}%` }}
+                />
+              </div>
+            </div>
+          );
+        })}
+        </div>
+
+        {explanationBullets.length > 0 && (
+          <div className="rounded-lg border border-border bg-secondary p-4">
+            <h3 className="text-sm font-semibold text-secondary-foreground">
+              선택 시안 산출 근거
+            </h3>
+            <ul className="mt-3 flex flex-col gap-2 text-sm text-secondary-foreground">
+              {explanationBullets.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {appliedRules.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <h3 className="text-sm font-semibold text-foreground">
+              주요 적용 규칙
+            </h3>
+            <div className="flex flex-col gap-2">
+              {appliedRules.map((rule) => (
+                <div
+                  key={`${rule.key}-${rule.reason}`}
+                  className="rounded-lg border border-border p-3 text-sm"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="font-medium text-foreground">
+                      {formatRuleKey(rule.key)}
+                    </span>
+                    {rule.appliedDelta?.displayValue && (
+                      <span className="font-semibold tabular-nums text-primary">
+                        {rule.appliedDelta.displayValue}
+                      </span>
+                    )}
+                  </div>
+                  {rule.reason && (
+                    <p className="mt-2 text-muted-foreground">{rule.reason}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function CtrSummaryGrid({ summary }: { summary: CampaignCtrScoreSummary }) {
+  const items = [
+    {
+      label: "적용 규칙",
+      value:
+        typeof summary.appliedRuleCount === "number"
+          ? `${summary.appliedRuleCount}개`
+          : "-",
+    },
+    {
+      label: "미적용 규칙",
+      value:
+        typeof summary.notAppliedRuleCount === "number"
+          ? `${summary.notAppliedRuleCount}개`
+          : "-",
+    },
+    {
+      label: "규칙 반영",
+      value: summary.appliedAdjustmentTotal?.displayValue ?? "-",
+    },
+    {
+      label: "보정값",
+      value: summary.calibrationAdjustmentTotal?.displayValue ?? "-",
+    },
+    {
+      label: "총 변화",
+      value: summary.totalDeltaFromBase?.displayValue ?? "-",
+    },
+  ];
+
+  return (
+    <div className="grid gap-2 sm:grid-cols-5">
+      {items.map((item) => (
+        <div key={item.label} className="rounded-lg border border-border p-3">
+          <p className="text-xs text-muted-foreground">{item.label}</p>
+          <p className="mt-1 font-semibold tabular-nums text-foreground">
+            {item.value}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function StatCard({
   icon: Icon,
   label,
@@ -400,16 +688,6 @@ function formatStatus(value: string) {
   return labels[value] ?? value;
 }
 
-function formatConfidence(value?: string) {
-  const labels: Record<string, string> = {
-    low: "낮음",
-    medium: "보통",
-    high: "높음",
-  };
-
-  return value ? (labels[value] ?? value) : "-";
-}
-
 function formatReason(value?: string) {
   const labels: Record<string, string> = {
     already_assigned: "이미 배정됨",
@@ -435,4 +713,43 @@ function formatLengthGroup(value: string) {
   };
 
   return labels[value] ?? value;
+}
+
+function formatRuleKey(value?: string) {
+  if (!value) {
+    return "적용 규칙";
+  }
+
+  const labels: Record<string, string> = {
+    campaign_category_interest_match: "관심사 일치",
+    high_price_sensitivity_with_price_offer: "가격 민감도",
+    personalized_lifecycle_match: "라이프사이클",
+    message_length_long: "메시지 길이 long",
+    message_length_medium: "메시지 길이 medium",
+    message_length_short: "메시지 길이 short",
+    preferred_channel: "선호 채널",
+    control_variant: "대조군",
+  };
+
+  return labels[value] ?? value;
+}
+
+function parsePercentDisplay(value: string) {
+  const normalized = Number(value.replace(/[^0-9.-]/g, ""));
+  return Number.isFinite(normalized) ? Math.abs(normalized) : 0;
+}
+
+function getCtrDisplayNumber(value: string) {
+  return parsePercentDisplay(value);
+}
+
+function isScoreValue(value: unknown): value is CampaignCtrScoreValue {
+  const record = value as Partial<CampaignCtrScoreValue> | null;
+
+  return (
+    record !== null &&
+    typeof record === "object" &&
+    typeof record.label === "string" &&
+    typeof record.displayValue === "string"
+  );
 }
