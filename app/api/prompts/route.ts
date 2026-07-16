@@ -1,0 +1,19 @@
+import { NextResponse } from "next/server";
+
+import { promptApiUrl, proxyPromptResponse } from "@/lib/prompt-api";
+
+// GET /api/prompts → 프롬프트 목록 조회
+export async function GET() {
+  try {
+    const response = await fetch(promptApiUrl("/prompts"), {
+      cache: "no-store",
+    });
+    return proxyPromptResponse(response);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "알 수 없는 오류";
+    return NextResponse.json(
+      { detail: `prompt_api_unreachable:${message}` },
+      { status: 502 },
+    );
+  }
+}
