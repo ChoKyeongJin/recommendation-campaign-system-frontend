@@ -4,7 +4,7 @@ import { type MessagePerformance } from "@/lib/campaign-data";
 
 const PYTHON_CAMPAIGN_EXPERIMENTS_RUN_URL =
   process.env.PYTHON_CAMPAIGN_EXPERIMENTS_RUN_URL ??
-  "http://localhost:8000/campaign-experiments/run";
+  "http://127.0.0.1:8000/campaign-experiments/run";
 
 function asRecord(value: unknown) {
   return value && typeof value === "object"

@@ -7,7 +7,7 @@ import {
 } from "@/lib/campaign-data";
 
 const PYTHON_TARGET_SQL_URL =
-  process.env.PYTHON_TARGET_SQL_URL ?? "http://localhost:8000/target-sql";
+  process.env.PYTHON_TARGET_SQL_URL ?? "http://127.0.0.1:8000/target-sql";
 
 const channelDescriptions: Record<Channel, string> = {
   LMS: "장문 문자 메시지, 텍스트 중심",

@@ -4,7 +4,7 @@ import { type CampaignMessage, type Channel } from "@/lib/campaign-data";
 
 const PYTHON_CHANNEL_MESSAGES_URL =
   process.env.PYTHON_CHANNEL_MESSAGES_URL ??
-  "http://localhost:8000/channel-messages";
+  "http://127.0.0.1:8000/channel-messages";
 
 function isChannel(value: unknown): value is Channel {
   return value === "LMS" || value === "RCS";

@@ -1,5 +1,5 @@
 const PROMPT_API_BASE =
-  process.env.PYTHON_PROMPT_API_BASE ?? "http://localhost:8000";
+  process.env.PYTHON_PROMPT_API_BASE ?? "http://127.0.0.1:8000";
 
 export function promptApiUrl(path: string) {
   return `${PROMPT_API_BASE.replace(/\/$/, "")}${path}`;

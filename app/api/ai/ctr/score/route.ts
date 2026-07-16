@@ -10,7 +10,7 @@ import {
 } from "@/lib/campaign-data";
 
 const PYTHON_CTR_SCORE_URL =
-  process.env.PYTHON_CTR_SCORE_URL ?? "http://localhost:8000/ai/ctr/score";
+  process.env.PYTHON_CTR_SCORE_URL ?? "http://127.0.0.1:8000/ai/ctr/score";
 
 function asRecord(value: unknown) {
   return value && typeof value === "object"
