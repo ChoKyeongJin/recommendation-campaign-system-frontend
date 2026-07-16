@@ -7,8 +7,8 @@ const geistSans = Geist({ subsets: ['latin'], variable: '--font-geist-sans' })
 const geistMono = Geist_Mono({ subsets: ['latin'], variable: '--font-geist-mono' })
 
 export const metadata: Metadata = {
-  title: '캠페인 자동 추천 시스템',
-  description: '프롬프트 기반 타겟팅과 채널 메시지를 자동으로 추천하는 캠페인 도구',
+  title: '캠페인 자동 생성 시스템',
+  description: '프롬프트 기반 타겟팅과 채널 메시지를 자동으로 생성하는 캠페인 도구',
   generator: 'v0.app',
   icons: {
     icon: [
