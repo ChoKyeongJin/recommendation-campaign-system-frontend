@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs";
 import {
   ChartContainer,
   ChartTooltip,
@@ -79,6 +80,18 @@ export function StepResults({
     ctr: p.ctr,
   }));
 
+  const skipped = result.skipped ?? [];
+  const analysisTabAvailable = hasAnalysisDetails || skipped.length > 0;
+
+  const tabs = [
+    { value: "ctr", label: "클릭률 예측", available: Boolean(result.ctrScore) },
+    { value: "performance", label: "성과 지표", available: true },
+    { value: "variants", label: "메시지 시안", available: variants.length > 0 },
+    { value: "analysis", label: "분석 요약", available: analysisTabAvailable },
+  ].filter((tab) => tab.available);
+
+  const defaultTab = tabs[0]?.value ?? "ctr";
+
   return (
     <div className="flex flex-col gap-6">
       <Card>
@@ -97,180 +110,207 @@ export function StepResults({
         </CardHeader>
       </Card>
 
-      {result.ctrScore && <CtrScoreCard score={result.ctrScore} />}
-
-      {performance.length > 0 ? (
-        <>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <StatCard
-              icon={Send}
-              label="총 발송"
-              value={`${totalSent.toLocaleString()}명`}
-            />
-            <StatCard
-              icon={MousePointerClick}
-              label="예상 총 클릭"
-              value={`${totalClicks.toLocaleString()}회`}
-            />
-            <StatCard
-              icon={TrendingUp}
-              label="평균 클릭률"
-              value={`${avgCtr}%`}
-            />
-          </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">
-                메시지 시안별 클릭률 비교
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ChartContainer config={chartConfig} className="h-64 w-full">
-                <BarChart
-                  accessibilityLayer
-                  data={chartData}
-                  margin={{ top: 24 }}
-                >
-                  <CartesianGrid vertical={false} />
-                  <XAxis
-                    dataKey="name"
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={8}
-                  />
-                  <YAxis
-                    tickLine={false}
-                    axisLine={false}
-                    width={36}
-                    unit="%"
-                  />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar
-                    dataKey="ctr"
-                    fill="var(--color-ctr)"
-                    radius={[6, 6, 0, 0]}
-                  >
-                    <LabelList
-                      dataKey="ctr"
-                      position="top"
-                      className="fill-foreground text-xs"
-                      formatter={(value) =>
-                        typeof value === "number" ? `${value}%` : ""
-                      }
-                    />
-                  </Bar>
-                </BarChart>
-              </ChartContainer>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">시안별 상세 지표</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-3">
-              {performance.map((p) => {
-                const isBest = p.id === best?.id;
-                return (
-                  <div
-                    key={p.id}
-                    className="flex items-center justify-between gap-4 rounded-lg border border-border p-4"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-medium text-foreground">
-                        시안 {p.id}
-                      </span>
-                      <span className="text-sm text-muted-foreground">
-                        {p.title}
-                      </span>
-                      {isBest && <Badge>추천</Badge>}
-                    </div>
-                    <div className="flex items-center gap-6 text-right">
-                      <div className="hidden sm:block">
-                        <p className="text-xs text-muted-foreground">클릭</p>
-                        <p className="text-sm font-medium text-foreground">
-                          {p.clicks.toLocaleString()}회
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">클릭률</p>
-                        <p className="text-lg font-bold text-primary">
-                          {p.ctr}%
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </CardContent>
-          </Card>
-        </>
-      ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">클릭률 데이터 수집 대기</CardTitle>
-            <CardDescription>
-              {analysis?.summary ??
-                "아직 분석 가능한 variant 데이터가 없습니다."}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="rounded-lg border border-dashed border-border bg-secondary p-4 text-sm text-secondary-foreground">
-            선택 지표:{" "}
-            {analysis?.primaryMetricUsed ?? experiment?.primary_metric ?? "ctr"}
-            . 분모 이벤트가 수집되면 시안별 클릭률 차트가 표시됩니다.
-          </CardContent>
-        </Card>
-      )}
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">메시지 시안</CardTitle>
-          <CardDescription>
-            실험에 등록된 variant와 AI 분석 특성입니다.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-3 lg:grid-cols-3">
-          {variants.map((variant, index) => (
-            <VariantCard
-              key={variant.variant_id ?? variant.variant_code ?? index}
-              variant={variant}
-              index={index}
-            />
+      <Tabs defaultValue={defaultTab}>
+        <TabsList>
+          {tabs.map((tab) => (
+            <TabsTab key={tab.value} value={tab.value}>
+              {tab.label}
+            </TabsTab>
           ))}
-        </CardContent>
-      </Card>
+        </TabsList>
 
-      {hasAnalysisDetails && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">분석 요약</CardTitle>
-            <CardDescription>{analysis?.summary}</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-2">
-            <InsightList title="리스크" items={analysis?.risks ?? []} />
-            <InsightList
-              title="다음 액션"
-              items={analysis?.next_actions ?? []}
-            />
-          </CardContent>
-        </Card>
-      )}
+        {result.ctrScore && (
+          <TabsPanel value="ctr">
+            <CtrScoreCard score={result.ctrScore} />
+          </TabsPanel>
+        )}
 
-      {result.skipped && result.skipped.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">스킵된 대상</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-wrap gap-2">
-            {result.skipped.map((item) => (
-              <Badge key={`${item.userId}-${item.reason}`} variant="secondary">
-                {item.userId}: {formatReason(item.reason)}
-              </Badge>
-            ))}
-          </CardContent>
-        </Card>
-      )}
+        <TabsPanel value="performance">
+          {performance.length > 0 ? (
+            <>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <StatCard
+                  icon={Send}
+                  label="총 발송"
+                  value={`${totalSent.toLocaleString()}명`}
+                />
+                <StatCard
+                  icon={MousePointerClick}
+                  label="예상 총 클릭"
+                  value={`${totalClicks.toLocaleString()}회`}
+                />
+                <StatCard
+                  icon={TrendingUp}
+                  label="평균 클릭률"
+                  value={`${avgCtr}%`}
+                />
+              </div>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">
+                    메시지 시안별 클릭률 비교
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ChartContainer config={chartConfig} className="h-64 w-full">
+                    <BarChart
+                      accessibilityLayer
+                      data={chartData}
+                      margin={{ top: 24 }}
+                    >
+                      <CartesianGrid vertical={false} />
+                      <XAxis
+                        dataKey="name"
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                      />
+                      <YAxis
+                        tickLine={false}
+                        axisLine={false}
+                        width={36}
+                        unit="%"
+                      />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Bar
+                        dataKey="ctr"
+                        fill="var(--color-ctr)"
+                        radius={[6, 6, 0, 0]}
+                      >
+                        <LabelList
+                          dataKey="ctr"
+                          position="top"
+                          className="fill-foreground text-xs"
+                          formatter={(value) =>
+                            typeof value === "number" ? `${value}%` : ""
+                          }
+                        />
+                      </Bar>
+                    </BarChart>
+                  </ChartContainer>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">시안별 상세 지표</CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-3">
+                  {performance.map((p) => {
+                    const isBest = p.id === best?.id;
+                    return (
+                      <div
+                        key={p.id}
+                        className="flex items-center justify-between gap-4 rounded-lg border border-border p-4"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-medium text-foreground">
+                            시안 {p.id}
+                          </span>
+                          <span className="text-sm text-muted-foreground">
+                            {p.title}
+                          </span>
+                          {isBest && <Badge>추천</Badge>}
+                        </div>
+                        <div className="flex items-center gap-6 text-right">
+                          <div className="hidden sm:block">
+                            <p className="text-xs text-muted-foreground">클릭</p>
+                            <p className="text-sm font-medium text-foreground">
+                              {p.clicks.toLocaleString()}회
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">클릭률</p>
+                            <p className="text-lg font-bold text-primary">
+                              {p.ctr}%
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            </>
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">클릭률 데이터 수집 대기</CardTitle>
+                <CardDescription>
+                  {analysis?.summary ??
+                    "아직 분석 가능한 variant 데이터가 없습니다."}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="rounded-lg border border-dashed border-border bg-secondary p-4 text-sm text-secondary-foreground">
+                선택 지표:{" "}
+                {analysis?.primaryMetricUsed ?? experiment?.primary_metric ?? "ctr"}
+                . 분모 이벤트가 수집되면 시안별 클릭률 차트가 표시됩니다.
+              </CardContent>
+            </Card>
+          )}
+        </TabsPanel>
+
+        {variants.length > 0 && (
+          <TabsPanel value="variants">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">메시지 시안</CardTitle>
+                <CardDescription>
+                  실험에 등록된 variant와 AI 분석 특성입니다.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-3 lg:grid-cols-3">
+                {variants.map((variant, index) => (
+                  <VariantCard
+                    key={variant.variant_id ?? variant.variant_code ?? index}
+                    variant={variant}
+                    index={index}
+                  />
+                ))}
+              </CardContent>
+            </Card>
+          </TabsPanel>
+        )}
+
+        {analysisTabAvailable && (
+          <TabsPanel value="analysis">
+            {hasAnalysisDetails && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">분석 요약</CardTitle>
+                  <CardDescription>{analysis?.summary}</CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-4 sm:grid-cols-2">
+                  <InsightList title="리스크" items={analysis?.risks ?? []} />
+                  <InsightList
+                    title="다음 액션"
+                    items={analysis?.next_actions ?? []}
+                  />
+                </CardContent>
+              </Card>
+            )}
+
+            {skipped.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">스킵된 대상</CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-wrap gap-2">
+                  {skipped.map((item) => (
+                    <Badge
+                      key={`${item.userId}-${item.reason}`}
+                      variant="secondary"
+                    >
+                      {item.userId}: {formatReason(item.reason)}
+                    </Badge>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+          </TabsPanel>
+        )}
+      </Tabs>
 
       <div className="flex justify-between">
         <Button variant="outline" onClick={onBack}>
