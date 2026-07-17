@@ -8,6 +8,12 @@ export type TargetSegment = {
 export type TargetSegmentGroup = {
   title: string;
   segments: TargetSegment[];
+  /** segment_composition 의 원본 키 (relevance 매핑용) */
+  key?: string;
+  /** 1 = 질문이 직접 지정한 핵심 조건, 2 = 목적/발송을 위한 보조 조건 */
+  priority?: number;
+  /** 이 그룹을 노출하는 이유 (질문과의 관련성) */
+  reason?: string;
 };
 
 export type TargetingResult = {
@@ -17,6 +23,8 @@ export type TargetingResult = {
   targetCampaignCount?: number | null;
   segments: TargetSegment[];
   segmentGroups?: TargetSegmentGroup[];
+  /** 질문과 무관해 기본 접어두는 프로필/통계 그룹 (사용자가 요청 시 노출) */
+  hiddenSegmentGroups?: TargetSegmentGroup[];
   sql: string;
   message?: string;
   sampleRows?: Record<string, string | number | null>[];
