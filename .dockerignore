@@ -1,0 +1,17 @@
+node_modules
+.next
+.git
+.github
+.vercel
+.snowflake
+.v0-trash
+npm-debug.log*
+Dockerfile
+.dockerignore
+.gitignore
+.env*.local
+*.md
+*.png
+.DS_Store
+.claude
+tsconfig.tsbuildinfo
