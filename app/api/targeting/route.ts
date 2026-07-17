@@ -453,12 +453,21 @@ function getCompositionItemLabel(
   return normalizeValue(item.value);
 }
 
-function getSegmentGroupsFromPythonResponse(
-  data: unknown,
-): TargetSegmentGroup[] {
+function getSegmentPresentationRecord(data: unknown) {
+  const apiResponse = getApiResponse(data);
+  const databaseExecution = asRecord(apiResponse?.database_execution);
+  return (
+    asRecord(apiResponse?.segment_presentation) ??
+    asRecord(databaseExecution?.segment_presentation) ??
+    null
+  );
+}
+
+function buildSegmentGroupsByKey(data: unknown) {
   const composition = getSegmentCompositionRecord(data);
+  const groups = new Map<string, TargetSegmentGroup>();
   if (!composition) {
-    return [];
+    return groups;
   }
 
   const groupTitles: Record<string, string> = {
@@ -477,7 +486,7 @@ function getSegmentGroupsFromPythonResponse(
     campaign_target_segments: "캠페인 타겟 세그먼트",
   };
 
-  return Object.entries(groupTitles).flatMap(([key, title]) => {
+  for (const [key, title] of Object.entries(groupTitles)) {
     const items = getArrayValue(composition, key);
     const segments = items.flatMap((item) => {
       const record = asRecord(item);
@@ -490,8 +499,80 @@ function getSegmentGroupsFromPythonResponse(
       return label ? [{ label, ...(count !== null ? { count } : {}) }] : [];
     });
 
-    return segments.length > 0 ? [{ title, segments }] : [];
+    if (segments.length > 0) {
+      groups.set(key, { key, title, segments });
+    }
+  }
+
+  return groups;
+}
+
+/**
+ * segment_presentation(백엔드가 질문 기준으로 판단한 relevant/hidden)을 이용해
+ * 화면에 기본 노출할 그룹과 접어둘 그룹을 분리한다.
+ * presentation 이 없으면(구버전 Python) 기존처럼 전체를 노출한다.
+ */
+function getSegmentGroupsFromPythonResponse(data: unknown): {
+  segmentGroups: TargetSegmentGroup[];
+  hiddenSegmentGroups: TargetSegmentGroup[];
+} {
+  const groupsByKey = buildSegmentGroupsByKey(data);
+  const presentation = getSegmentPresentationRecord(data);
+
+  if (!presentation) {
+    return {
+      segmentGroups: [...groupsByKey.values()],
+      hiddenSegmentGroups: [],
+    };
+  }
+
+  const usedKeys = new Set<string>();
+
+  const segmentGroups = getArrayValue(presentation, "relevant_groups").flatMap(
+    (entry) => {
+      const record = asRecord(entry);
+      const key = getStringValue(record, ["key"]);
+      const group = key ? groupsByKey.get(key) : undefined;
+      if (!group) {
+        return [];
+      }
+
+      usedKeys.add(key);
+      const priority = getNumberValue(record, ["priority"]);
+      const reason = getStringValue(record, ["reason"]);
+      return [
+        {
+          ...group,
+          ...(priority !== null ? { priority } : {}),
+          ...(reason ? { reason } : {}),
+        },
+      ];
+    },
+  );
+
+  const hiddenSegmentGroups = getArrayValue(
+    presentation,
+    "hidden_group_keys",
+  ).flatMap((entry) => {
+    const record = asRecord(entry);
+    const key = getStringValue(record, ["key"]);
+    const group = key ? groupsByKey.get(key) : undefined;
+    if (!group) {
+      return [];
+    }
+
+    usedKeys.add(key);
+    return [group];
   });
+
+  // presentation 이 다루지 않은 잔여 그룹은 보수적으로 접어둔다.
+  for (const [key, group] of groupsByKey) {
+    if (!usedKeys.has(key)) {
+      hiddenSegmentGroups.push(group);
+    }
+  }
+
+  return { segmentGroups, hiddenSegmentGroups };
 }
 
 function getSampleRowsFromPythonResponse(data: unknown) {
@@ -583,6 +664,8 @@ export async function POST(request: Request) {
     }
 
     const sql = getSqlFromPythonResponse(data);
+    const { segmentGroups, hiddenSegmentGroups } =
+      getSegmentGroupsFromPythonResponse(data);
 
     return NextResponse.json({
       campaignId: getCampaignIdFromPythonResponse(data),
@@ -590,7 +673,8 @@ export async function POST(request: Request) {
       resultRowCount: getResultRowCountFromPythonResponse(data),
       targetCampaignCount: getCampaignCountFromPythonResponse(data),
       segments: getSegmentsFromPythonResponse(data, sql),
-      segmentGroups: getSegmentGroupsFromPythonResponse(data),
+      segmentGroups,
+      hiddenSegmentGroups,
       sql,
       message: getStringValue(getApiResponse(data), ["message"]),
       sampleRows: getSampleRowsFromPythonResponse(data),
