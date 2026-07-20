@@ -456,6 +456,7 @@
       <li><a href="#s8">A/B/C Variant 실험 · 클릭률 예측</a></li>
       <li><a href="#s10">예측 모델 · 품질 지표 · 실측</a></li>
       <li><a href="#s-fail">실패 · 복원 동작</a></li>
+      <li><a href="#s-libs">사용 라이브러리 · 근거</a></li>
     </ol>
   </nav>
 
@@ -1037,6 +1038,92 @@
         <span class="n-tag">질의 해석 보정</span>
         <b>발송 채널</b>(예: “발송 채널: RCS”)은 타겟 조건이 아니라 발송 수단이므로 SQL(오디언스·캠페인 필터)에 넣지 않고 <b>캠페인 목적(objective)</b>만 반영한다.
         또한 “신제품 출시 소식을 알리고 싶어요”처럼 (신제품)알림·홍보 아웃리치 질의는 단순 세그먼트 조회가 아니라 <b>캠페인 추천(recommend_campaign)</b>으로 해석해, 타겟팅과 메시지 생성까지 자연스럽게 이어지도록 한다.
+      </div>
+    </section>
+
+    <!-- 12: 사용 라이브러리 -->
+    <section id="s-libs">
+      <h2><span class="num">12</span>사용 라이브러리</h2>
+      <div class="h2title">이 시스템이 쓰는 주요 프로그램(라이브러리)과 하는 일</div>
+      <p class="lead">직접 처음부터 다 만들지 않고, 이미 잘 만들어진 “도구 꾸러미”(라이브러리)를 가져다 조합했다.
+        각 도구가 <b>무슨 일을 하는지</b>를 전문 용어 없이 쉬운 말로 정리했다.</p>
+
+      <h3>서버를 돌리고 데이터를 다루는 기본 도구</h3>
+      <p class="muted" style="font-size:14px;margin:-4px 0 12px;">화면의 요청을 받아 처리하고, 데이터를 저장·조회하는 밑바탕.</p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>도구</th><th>하는 일 (쉽게)</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>fastapi</code></td>
+              <td>화면(앱)이 보내는 요청을 받아 처리하고 결과를 돌려주는 <b>“접수 창구”</b>. 이 시스템의 모든 기능이 이 창구를 통해 오간다.</td>
+            </tr>
+            <tr>
+              <td><code>uvicorn</code></td>
+              <td>위의 창구 프로그램을 실제로 <b>켜서 계속 돌아가게 하는 “시동 장치”</b>. 이게 있어야 서버가 켜진 상태로 대기한다.</td>
+            </tr>
+            <tr>
+              <td><code>psycopg</code></td>
+              <td>데이터베이스(고객·캠페인·실험 기록이 담긴 창고)와 대화하는 <b>“통역사”</b>. 데이터를 읽고 저장하는 일을 맡는다.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>질문을 이해하고 관련 정보를 찾아오는 도구</h3>
+      <p class="muted" style="font-size:14px;margin:-4px 0 12px;">사람이 쓴 문장을 알아듣고, 뜻이 비슷한 자료·관계를 찾아 답을 만드는 부분.</p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>도구</th><th>하는 일 (쉽게)</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>openai</code></td>
+              <td>글을 이해하고 대신 써주는 <b>AI(챗봇 두뇌)</b>. 사람이 쓴 요청을 알아듣고, 문자 문구를 지어내는 데 쓴다.</td>
+            </tr>
+            <tr>
+              <td><code>fastembed</code></td>
+              <td>문장을 컴퓨터가 비교할 수 있는 <b>숫자(지문)로 바꿔주는 도구</b>. 이 지문이 있어야 “뜻이 비슷한지”를 계산할 수 있다. 외부 유료 서비스 없이 자체 처리한다.</td>
+            </tr>
+            <tr>
+              <td><code>qdrant-client</code></td>
+              <td>위에서 만든 숫자 지문을 모아 둔 <b>“의미 기반 검색 창고”</b>에 연결하는 도구. 글자가 달라도 <b>뜻이 비슷한 자료</b>를 찾아준다.</td>
+            </tr>
+            <tr>
+              <td><code>networkx</code></td>
+              <td>고객·상품·캠페인이 서로 어떻게 <b>연결돼 있는지(관계망)를 지도로 그리고 따라가는 도구</b>. “이 고객과 비슷한 사람은 어떤 캠페인에 반응했나” 같은 관계를 찾는다.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>어떤 문구가 잘 눌릴지 예측하는 도구</h3>
+      <p class="muted" style="font-size:14px;margin:-4px 0 12px;">과거 데이터를 학습해 “클릭 확률”을 계산하는 부분.</p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>도구</th><th>하는 일 (쉽게)</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>lightgbm</code></td>
+              <td>과거 데이터를 학습해 <b>“이 문자를 누가 클릭할까”를 예측하는 인공지능 모델</b> 본체.</td>
+            </tr>
+            <tr>
+              <td><code>scikit-learn</code></td>
+              <td>그 예측 모델이 <b>얼마나 잘 맞히는지 점수로 채점</b>하는 도구.</td>
+            </tr>
+            <tr>
+              <td><code>pandas</code></td>
+              <td>데이터를 <b>엑셀 표처럼 정리해서 다루는 도구</b>. 학습에 쓸 자료를 불러오고 가공한다.</td>
+            </tr>
+            <tr>
+              <td><code>numpy</code></td>
+              <td>많은 숫자를 <b>빠르게 계산해주는 도구</b>. 위 표 계산과 모델 학습의 밑바탕이 된다.</td>
+            </tr>
+            <tr>
+              <td><code>joblib</code></td>
+              <td>학습이 끝난 모델을 <b>파일로 저장했다가 다시 불러오는 도구</b>. 매번 새로 학습하지 않아도 되게 해준다.</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </section>
 
