@@ -307,6 +307,8 @@ export function CampaignWizard() {
       {step === 1 && targeting && (
         <StepTargeting
           result={targeting}
+          prompt={prompt}
+          channel={channel}
           onBack={() => setStep(0)}
           onNext={recommendMessages}
           isNextLoading={isGeneratingMessages}

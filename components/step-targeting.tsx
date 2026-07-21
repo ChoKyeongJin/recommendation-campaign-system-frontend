@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Database, Megaphone, Users } from "lucide-react";
+import { Database, MessageSquareText, Users } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -11,7 +11,12 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import type { TargetSegment, TargetSegmentGroup, TargetingResult } from "@/lib/campaign-data";
+import type {
+  Channel,
+  TargetSegment,
+  TargetSegmentGroup,
+  TargetingResult,
+} from "@/lib/campaign-data";
 
 // 롱테일(자유형 행동·관심사 등)로 그룹이 길어지는 것을 막기 위한 기본 표시 개수.
 const DEFAULT_VISIBLE_SEGMENTS = 6;
@@ -80,17 +85,22 @@ function SegmentGroupCard({ group }: { group: TargetSegmentGroup }) {
 
 export function StepTargeting({
   result,
+  prompt,
+  channel,
   onBack,
   onNext,
   isNextLoading = false,
   nextError = null,
 }: {
   result: TargetingResult;
+  prompt?: string;
+  channel?: Channel;
   onBack: () => void;
   onNext: () => void | Promise<void>;
   isNextLoading?: boolean;
   nextError?: string | null;
 }) {
+  const trimmedPrompt = prompt?.trim();
   const segmentGroups = result.segmentGroups?.length
     ? result.segmentGroups
     : [{ title: "타겟 조건", segments: result.segments }];
@@ -103,12 +113,6 @@ export function StepTargeting({
       value: result.total,
       suffix: "명",
       icon: Users,
-    },
-    {
-      label: "추천 캠페인 수",
-      value: result.targetCampaignCount,
-      suffix: "개",
-      icon: Megaphone,
     },
     {
       label: "조회 결과 행 수",
@@ -128,7 +132,30 @@ export function StepTargeting({
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
-          <div className="grid gap-3 sm:grid-cols-3">
+          {trimmedPrompt && (
+            <div className="flex gap-3 rounded-lg border border-border bg-accent p-4">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <MessageSquareText className="h-5 w-5" aria-hidden />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    입력한 프롬프트
+                  </p>
+                  {channel && (
+                    <Badge variant="secondary" className="text-[10px]">
+                      {channel}
+                    </Badge>
+                  )}
+                </div>
+                <p className="mt-1 whitespace-pre-wrap break-words text-sm text-foreground">
+                  {trimmedPrompt}
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div className="grid gap-3 sm:grid-cols-2">
             {metrics.map((metric) => {
               const Icon = metric.icon;
               return (
