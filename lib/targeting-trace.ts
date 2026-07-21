@@ -1,6 +1,7 @@
 import type {
   TargetingTrace,
   TargetingTraceHit,
+  TargetingTracePathNode,
   TargetingTraceStep,
 } from "@/lib/campaign-data";
 
@@ -202,6 +203,41 @@ function toSearchHit(entry: unknown): TargetingTraceHit | null {
   };
 }
 
+/** reached_via 문자열("seed=..., distance=N")들에서 최소 홉 수를 뽑는다. path 가 없을 때의 폴백. */
+function distanceFromReachedVia(reachedVia: string[]): number | null {
+  let min: number | null = null;
+  for (const reason of reachedVia) {
+    const match = reason.match(/distance\s*=\s*(\d+)/i);
+    if (match) {
+      const value = Number(match[1]);
+      if (Number.isFinite(value) && (min === null || value < min)) {
+        min = value;
+      }
+    }
+  }
+  return min;
+}
+
+/** context_nodes[].path (출발점→목표 경로)를 화면용 노드 배열로 정규화한다. */
+function toPathNodes(entry: Rec): TargetingTracePathNode[] {
+  return getArray(entry, ["path"]).flatMap((node) => {
+    const record = asRecord(node);
+    const label = getString(record, ["title", "label", "id"]);
+    if (!label) {
+      return [];
+    }
+    const type = getString(record, ["type"]);
+    const relation = getString(record, ["relation"]);
+    return [
+      {
+        label,
+        ...(type ? { type } : {}),
+        ...(relation ? { relation } : {}),
+      },
+    ];
+  });
+}
+
 function toContextNode(entry: unknown): TargetingTraceHit | null {
   const record = asRecord(entry);
   if (!record) {
@@ -216,10 +252,19 @@ function toContextNode(entry: unknown): TargetingTraceHit | null {
   const type = getString(record, ["type"]);
   const meta = isSeed ? "seed" : type || undefined;
   const reachedVia = toStringList(getArray(record, ["reached_via"]));
+  const path = toPathNodes(record);
+  // distance: 경로 길이(-1) 우선, 없으면 reached_via 파싱, 그래도 없고 seed 면 0.
+  const distance =
+    path.length > 0
+      ? path.length - 1
+      : (distanceFromReachedVia(reachedVia) ?? (isSeed ? 0 : null));
   return {
     label,
     ...(score !== null ? { score } : {}),
     ...(meta ? { meta } : {}),
+    ...(type ? { nodeType: type } : {}),
+    ...(distance !== null ? { distance } : {}),
+    ...(path.length > 0 ? { path } : {}),
     ...(reachedVia.length > 0 ? { note: clampNote(reachedVia.join(" · ")) } : {}),
   };
 }
