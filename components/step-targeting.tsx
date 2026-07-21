@@ -16,6 +16,8 @@ import type {
   TargetSegment,
   TargetSegmentGroup,
   TargetingResult,
+  TargetingTrace,
+  TargetingTraceStep,
 } from "@/lib/campaign-data";
 
 // 롱테일(자유형 행동·관심사 등)로 그룹이 길어지는 것을 막기 위한 기본 표시 개수.
