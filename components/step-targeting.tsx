@@ -625,6 +625,16 @@ export function StepTargeting({
                 <p className="mt-1 whitespace-pre-wrap break-words text-sm text-foreground">
                   {trimmedPrompt}
                 </p>
+                {showNormalizedPrompt && (
+                  <div className="mt-3 border-t border-border/60 pt-3">
+                    <p className="text-xs font-medium text-muted-foreground">
+                      정규화된 프롬프트
+                    </p>
+                    <p className="mt-1 whitespace-pre-wrap break-words text-sm text-foreground">
+                      {normalizedPrompt}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           )}
