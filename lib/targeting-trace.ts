@@ -279,17 +279,19 @@ function buildStepFromStage(stage: Rec): TargetingTraceStep | null {
   // STEP 1 — 의미 추론
   if (step === 1 || /의미|planning|normal/i.test(title)) {
     const intent = getString(stage, ["intent"]);
-    const details: string[] = [];
+    const plain: string[] = []; // 사람 말 설명 (상위 노출)
+    const details: string[] = []; // 내부 값·JSON 등 기술 정보 ('자세히'로)
 
     for (const entry of getArray(stage, ["matched_terms"])) {
       const record = asRecord(entry);
       if (!record) continue;
       const from = getString(record, ["matched_text", "source_term"]);
       const canonical = getString(record, ["canonical", "rule_id"]);
-      const matchType = getString(record, ["match_type"]);
-      if (from || canonical) {
-        const arrow = from && canonical ? `${from} → ${canonical}` : from || canonical;
-        details.push(`정규화 매칭: ${arrow}${matchType ? ` (${matchType})` : ""}`);
+      // match_type(ko_label 등)은 내부 값이라 사람 말 설명에서는 뺀다.
+      if (from && canonical) {
+        plain.push(`고객 문장의 ‘${from}’를 시스템 용어 ${canonical}로 이해했어요.`);
+      } else if (from || canonical) {
+        plain.push(`인식한 조건: ${from || canonical}`);
       }
     }
 
@@ -316,13 +318,14 @@ function buildStepFromStage(stage: Rec): TargetingTraceStep | null {
       details.push(`retrieval_terms: ${retrievalTerms.join(", ")}`);
     }
 
-    if (!intent && details.length === 0) {
+    if (!intent && plain.length === 0 && details.length === 0) {
       return null;
     }
     return {
       step: step ?? undefined,
       title,
       summary: intent ? `intent=${intent}` : undefined,
+      plain: plain.length > 0 ? plain : undefined,
       details: details.length > 0 ? details : undefined,
       status: "info",
     };

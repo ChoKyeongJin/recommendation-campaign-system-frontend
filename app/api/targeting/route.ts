@@ -589,6 +589,13 @@ function getNormalizedPromptFromPythonResponse(data: unknown) {
   return normalized.replace(/\s*발송\s*채널\s*:[\s\S]*$/, "").trim();
 }
 
+// 백엔드가 재작성 시 함께 뽑아주는 "오디언스만" 담은 타겟팅 라벨. offer(쿠폰)·행동·"캠페인"·발송채널이
+// 빠진 값이라 화면 "타겟팅 프롬프트"에 이걸 우선 쓴다. 값이 없으면 normalized_query 로 폴백한다.
+function getTargetingLabelFromPythonResponse(data: unknown) {
+  const apiResponse = getApiResponse(data);
+  return getStringValue(apiResponse, ["targeting_label", "targetingLabel"]).trim();
+}
+
 function getSampleRowsFromPythonResponse(data: unknown) {
   const targetingResult = getTargetingResultRecord(data);
   const sampleRows = getArrayValue(targetingResult, "sample_rows");
@@ -690,6 +697,7 @@ export async function POST(request: Request) {
       segmentGroups,
       hiddenSegmentGroups,
       normalizedPrompt: getNormalizedPromptFromPythonResponse(data),
+      targetingLabel: getTargetingLabelFromPythonResponse(data),
       sql,
       message: getStringValue(getApiResponse(data), ["message"]),
       sampleRows: getSampleRowsFromPythonResponse(data),

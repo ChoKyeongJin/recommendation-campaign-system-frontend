@@ -27,6 +27,8 @@ export type TargetingResult = {
   hiddenSegmentGroups?: TargetSegmentGroup[];
   /** 오타·띄어쓰기 등을 정리한 정규화 프롬프트 (원문과 다를 때만 표시) */
   normalizedPrompt?: string;
+  /** 오디언스(누구를 타겟하는가)만 담은 표시용 라벨. offer·행동·채널이 빠진 값이라 "타겟팅 프롬프트"에 우선 사용 */
+  targetingLabel?: string;
   sql: string;
   message?: string;
   sampleRows?: Record<string, string | number | null>[];
@@ -64,7 +66,9 @@ export type TargetingTraceStep = {
   title: string;
   /** 한 줄 요약 (예: intent=recommend_campaign, 8건) */
   summary?: string;
-  /** 세부 설명 라인들 */
+  /** 비즈니스 사용자용 사람 말 설명 라인들 (details보다 상위에 노출) */
+  plain?: string[];
+  /** 세부 설명 라인들 (내부 값·JSON 등 기술 정보 → '자세히' 토글로) */
   details?: string[];
   /** 검색 히트/그래프 노드 (score 있으면 막대로 표시) */
   hits?: TargetingTraceHit[];

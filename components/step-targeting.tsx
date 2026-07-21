@@ -115,6 +115,41 @@ function nodeTypeLabel(type?: string) {
   return NODE_TYPE_LABELS[type] ?? type;
 }
 
+// intent 코드 → 사람이 읽는 요청 유형.
+const INTENT_LABELS: Record<string, string> = {
+  recommend_campaign: "캠페인 추천",
+  recommend_message: "메시지 추천",
+  target_only: "타겟 고객 추출",
+};
+
+// summary("intent=recommend_campaign", "8건" 등)를 사람 말로 바꾼다.
+function friendlySummary(summary?: string): string | undefined {
+  if (!summary) return undefined;
+  const intentMatch = summary.match(/^intent=(.+)$/);
+  if (intentMatch) {
+    const key = intentMatch[1].trim();
+    return `요청 유형 · ${INTENT_LABELS[key] ?? key}`;
+  }
+  return summary;
+}
+
+// "sql_example:23" → "23", "schema_column:A.B" → "A.B".
+// 타입 접두어는 한글 배지로 따로 보여주므로 라벨에서 제거한다.
+function cleanHitLabel(label: string): string {
+  const idx = label.indexOf(":");
+  if (idx > 0 && NODE_TYPE_LABELS[label.slice(0, idx)]) {
+    return label.slice(idx + 1);
+  }
+  return label;
+}
+
+// hit.meta(원본 type) → 한글 배지 문구.
+function hitMetaLabel(meta?: string): string {
+  if (!meta) return "";
+  if (meta === "seed") return "출발점";
+  return NODE_TYPE_LABELS[meta] ?? meta;
+}
+
 function relationLabel(relation?: string) {
   if (!relation) return "연관";
   return RELATION_LABELS[relation] ?? relation;
@@ -275,16 +310,30 @@ function TraceStepCard({
   step: TargetingTraceStep;
   index: number;
 }) {
-  const maxScore = Math.max(
-    ...(step.hits ?? []).map((hit) => hit.score ?? 0),
-    0,
-  );
-  const shownHits = (step.hits ?? []).slice(0, 6);
-  const overflowHits = (step.hits ?? []).length - shownHits.length;
+  const hits = step.hits ?? [];
+  const maxScore = Math.max(...hits.map((hit) => hit.score ?? 0), 0);
+  const shownHits = hits.slice(0, 6);
+  const overflowHits = hits.length - shownHits.length;
   // 관계 그래프(확장) 단계는 distance/path 를 가진 전용 뷰로 렌더링한다.
   const isGraphStep =
-    (step.hits ?? []).some((hit) => typeof hit.distance === "number") ||
+    hits.some((hit) => typeof hit.distance === "number") ||
     /관계 그래프|graph|확장/i.test(step.title);
+
+  const summaryText = friendlySummary(step.summary);
+
+  // '자세히(기술 정보)' 토글에 모을 라인들:
+  //  - step.details(내부 값·JSON 등)
+  //  - 검색 단계면 히트의 원본 ID·관련도 점수(주 화면에선 숨김)
+  const technicalLines: string[] = [...(step.details ?? [])];
+  if (!isGraphStep) {
+    for (const hit of shownHits) {
+      const parts = [hit.label];
+      if (typeof hit.score === "number") {
+        parts.push(`관련도 점수 ${hit.score.toFixed(2)}`);
+      }
+      technicalLines.push(parts.join(" · "));
+    }
+  }
 
   return (
     <li className="flex gap-3">
@@ -297,78 +346,108 @@ function TraceStepCard({
       <div className="min-w-0 flex-1 pb-5">
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-sm font-semibold text-foreground">{step.title}</p>
-          {step.summary && (
+          {summaryText && (
             <Badge
               variant={step.status === "fail" ? "destructive" : "secondary"}
-              className="font-mono text-[10px]"
+              className="text-[10px] font-normal"
             >
-              {step.summary}
+              {summaryText}
             </Badge>
           )}
         </div>
 
-        {step.details && step.details.length > 0 && (
-          <ul className="mt-2 flex flex-col gap-1">
-            {step.details.map((detail, i) => (
+        {/* 사람 말 설명 (예: 1단계 요청 이해) */}
+        {step.plain && step.plain.length > 0 && (
+          <ul className="mt-2 flex flex-col gap-1.5">
+            {step.plain.map((line, i) => (
               <li
                 key={i}
-                className="whitespace-pre-wrap break-words font-mono text-xs leading-relaxed text-muted-foreground"
+                className="flex gap-2 text-sm leading-relaxed text-foreground"
               >
-                {detail}
+                <span
+                  className="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-primary"
+                  aria-hidden
+                />
+                <span className="min-w-0 break-words">{line}</span>
               </li>
             ))}
           </ul>
         )}
 
-        {isGraphStep && (step.hits?.length ?? 0) > 0 ? (
-          <GraphExpansionView hits={step.hits ?? []} />
+        {isGraphStep && hits.length > 0 ? (
+          <GraphExpansionView hits={hits} />
         ) : (
           shownHits.length > 0 && (
-            <div className="mt-2 flex flex-col gap-2">
-              {shownHits.map((hit, i) => (
-                <div key={`${hit.label}-${i}`} className="flex flex-col gap-0.5">
-                  <div className="flex items-center justify-between gap-3 text-xs">
-                    <span className="flex min-w-0 items-center gap-1.5">
-                      <span className="min-w-0 truncate font-mono text-foreground">
-                        {hit.label}
-                      </span>
-                      {hit.meta && (
+            <div className="mt-3 flex flex-col gap-2.5">
+              <p className="text-[11px] font-medium text-muted-foreground">
+                찾은 지식 · 관련도 순
+              </p>
+              {shownHits.map((hit, i) => {
+                const primary = hit.note || cleanHitLabel(hit.label);
+                const metaLabel = hitMetaLabel(hit.meta);
+                return (
+                  <div key={`${hit.label}-${i}`} className="flex flex-col gap-1">
+                    <div className="flex items-start gap-2 text-xs">
+                      {metaLabel && (
                         <Badge
-                          variant={hit.meta === "seed" ? "default" : "outline"}
-                          className="shrink-0 text-[9px]"
+                          variant="outline"
+                          className="mt-px shrink-0 text-[9px] font-normal"
                         >
-                          {hit.meta}
+                          {metaLabel}
                         </Badge>
                       )}
-                    </span>
-                    {typeof hit.score === "number" && (
-                      <span className="shrink-0 font-mono text-muted-foreground">
-                        {hit.score.toFixed(hit.score < 10 ? 3 : 2)}
+                      <span className="min-w-0 break-words leading-relaxed text-foreground">
+                        {primary}
                       </span>
+                    </div>
+                    {typeof hit.score === "number" && maxScore > 0 && (
+                      <div
+                        className="h-1.5 w-full overflow-hidden rounded-full bg-secondary"
+                        title="관련도"
+                      >
+                        <div
+                          className="h-full rounded-full bg-primary"
+                          style={{
+                            width: `${Math.max((hit.score / maxScore) * 100, 4)}%`,
+                          }}
+                        />
+                      </div>
                     )}
                   </div>
-                  {typeof hit.score === "number" && maxScore > 0 && (
-                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
-                      <div
-                        className="h-full rounded-full bg-primary"
-                        style={{ width: `${(hit.score / maxScore) * 100}%` }}
-                      />
-                    </div>
-                  )}
-                  {hit.note && (
-                    <p className="truncate text-[11px] text-muted-foreground">
-                      {hit.note}
-                    </p>
-                  )}
-                </div>
-              ))}
+                );
+              })}
               {overflowHits > 0 && (
                 <p className="text-[11px] text-muted-foreground">
-                  외 {overflowHits}건
+                  외 {overflowHits}건을 더 참고했어요
                 </p>
               )}
             </div>
           )
+        )}
+
+        {/* 내부 값·점수·JSON 등은 기본으로 접어 둔다(실패 단계는 펼침). */}
+        {technicalLines.length > 0 && (
+          <details open={step.status === "fail"} className="group mt-3">
+            <summary className="flex w-fit cursor-pointer list-none items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground">
+              <span
+                className="transition-transform group-open:rotate-90"
+                aria-hidden
+              >
+                ▸
+              </span>
+              자세히 (기술 정보)
+            </summary>
+            <ul className="mt-2 flex flex-col gap-1 border-l-2 border-border pl-3">
+              {technicalLines.map((line, i) => (
+                <li
+                  key={i}
+                  className="whitespace-pre-wrap break-words font-mono text-[11px] leading-relaxed text-muted-foreground"
+                >
+                  {line}
+                </li>
+              ))}
+            </ul>
+          </details>
         )}
       </div>
     </li>
@@ -571,9 +650,14 @@ export function StepTargeting({
 }) {
   const trimmedPrompt = prompt?.trim();
   const normalizedPrompt = result.normalizedPrompt?.trim();
-  // 원문과 실제로 달라졌을 때만 정규화 결과를 따로 보여준다(동일하면 중복 표시 방지).
-  const showNormalizedPrompt = Boolean(
-    normalizedPrompt && normalizedPrompt !== trimmedPrompt,
+  const targetingLabel = result.targetingLabel?.trim();
+  // 타겟팅 기준 프롬프트: 오디언스만 담은 라벨(offer·행동·채널 제외)이 있으면 그것을 우선 쓰고,
+  // 없으면 전체 재작성(normalizedPrompt), 그마저 없으면 원본을 쓴다. 실제 타겟 SQL·세그먼트는
+  // 백엔드 effective_query(=normalizedPrompt)를 기준으로 만들어진다(표시값과 별개).
+  const targetingPrompt = targetingLabel || normalizedPrompt || trimmedPrompt;
+  // 원본과 실제로 달라졌을 때만 원본을 따로 보여준다(동일하면 중복 표시 방지).
+  const showOriginalPrompt = Boolean(
+    trimmedPrompt && trimmedPrompt !== targetingPrompt,
   );
   const segmentGroups = result.segmentGroups?.length
     ? result.segmentGroups
@@ -602,37 +686,40 @@ export function StepTargeting({
         <CardHeader>
           <CardTitle>타겟팅 결과</CardTitle>
           <CardDescription>
-            입력한 조건으로 SQL을 실행한 결과입니다.
+            타겟팅 프롬프트를 기준으로 SQL을 실행한 결과입니다.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
-          {trimmedPrompt && (
+          {targetingPrompt && (
             <div className="flex gap-3 rounded-lg border border-border bg-accent p-4">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                 <MessageSquareText className="h-5 w-5" aria-hidden />
               </span>
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <p className="text-xs font-medium text-muted-foreground">
-                    입력한 프롬프트
-                  </p>
-                  {channel && (
-                    <Badge variant="secondary" className="text-[10px]">
-                      {channel}
-                    </Badge>
-                  )}
-                </div>
-                <p className="mt-1 whitespace-pre-wrap break-words text-sm text-foreground">
-                  {trimmedPrompt}
+                <p className="text-xs font-medium text-muted-foreground">
+                  타겟팅 프롬프트
                 </p>
-                {showNormalizedPrompt && (
+                <p className="mt-1 whitespace-pre-wrap break-words text-sm text-foreground">
+                  {targetingPrompt}
+                </p>
+                {(showOriginalPrompt || channel) && (
                   <div className="mt-3 border-t border-border/60 pt-3">
-                    <p className="text-xs font-medium text-muted-foreground">
-                      정규화된 프롬프트
-                    </p>
-                    <p className="mt-1 whitespace-pre-wrap break-words text-sm text-foreground">
-                      {normalizedPrompt}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs font-medium text-muted-foreground">
+                        입력한 프롬프트
+                      </p>
+                      {/* 발송 채널(LMS/RCS)은 타겟 조건이 아니라 발송 채널이므로 입력 프롬프트 옆에 표시한다. */}
+                      {channel && (
+                        <Badge variant="secondary" className="text-[10px]">
+                          {channel}
+                        </Badge>
+                      )}
+                    </div>
+                    {showOriginalPrompt && (
+                      <p className="mt-1 whitespace-pre-wrap break-words text-sm text-muted-foreground">
+                        {trimmedPrompt}
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
