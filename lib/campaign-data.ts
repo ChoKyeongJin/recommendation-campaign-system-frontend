@@ -30,6 +30,52 @@ export type TargetingResult = {
   sampleRows?: Record<string, string | number | null>[];
 };
 
+export type TargetingTraceHit = {
+  label: string;
+  score?: number;
+  /** 유형 태그 등 (예: normalization_rule, sql_example, seed) */
+  meta?: string;
+  /** 스니펫·도달 경로 등 부가 설명 (한 줄) */
+  note?: string;
+};
+
+export type TargetingTraceStep = {
+  /** 원본 stage 번호 (1~5) */
+  step?: number;
+  /** 단계 제목 (stage.name 우선) */
+  title: string;
+  /** 한 줄 요약 (예: intent=recommend_campaign, 8건) */
+  summary?: string;
+  /** 세부 설명 라인들 */
+  details?: string[];
+  /** 검색 히트/그래프 노드 (score 있으면 막대로 표시) */
+  hits?: TargetingTraceHit[];
+  /** 히트 총 건수 (목록보다 많을 수 있음) */
+  hitCount?: number | null;
+  status?: "success" | "fail" | "info";
+};
+
+export type TargetingTrace = {
+  /** 원본 질의문 */
+  query?: string;
+  steps: TargetingTraceStep[];
+  result?: {
+    status?: string;
+    success?: boolean | null;
+    message?: string;
+  };
+  execution?: {
+    success?: boolean | null;
+    targetCustomerCount?: number | null;
+    resultRowCount?: number | null;
+    targetCampaignCount?: number | null;
+  };
+  /** 단계별 소요 시간 (ms) */
+  timings?: { label: string; ms: number }[];
+  /** 단계를 하나도 복원하지 못했을 때 원본 확인용 */
+  raw?: unknown;
+};
+
 export type CampaignMessage = {
   id: number;
   title: string;
