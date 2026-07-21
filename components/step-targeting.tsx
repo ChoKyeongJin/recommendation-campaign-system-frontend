@@ -281,6 +281,10 @@ function TraceStepCard({
   );
   const shownHits = (step.hits ?? []).slice(0, 6);
   const overflowHits = (step.hits ?? []).length - shownHits.length;
+  // 관계 그래프(확장) 단계는 distance/path 를 가진 전용 뷰로 렌더링한다.
+  const isGraphStep =
+    (step.hits ?? []).some((hit) => typeof hit.distance === "number") ||
+    /관계 그래프|graph|확장/i.test(step.title);
 
   return (
     <li className="flex gap-3">
