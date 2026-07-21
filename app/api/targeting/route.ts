@@ -575,6 +575,20 @@ function getSegmentGroupsFromPythonResponse(data: unknown): {
   return { segmentGroups, hiddenSegmentGroups };
 }
 
+function getNormalizedPromptFromPythonResponse(data: unknown) {
+  const apiResponse = getApiResponse(data);
+  const normalized = getStringValue(apiResponse, [
+    "normalized_query",
+    "normalizedQuery",
+  ]);
+  if (!normalized) {
+    return "";
+  }
+
+  // 프론트가 파이썬 호출용으로 덧붙인 "발송 채널: ..." 접미어는 표시에서 제외한다.
+  return normalized.replace(/\s*발송\s*채널\s*:[\s\S]*$/, "").trim();
+}
+
 function getSampleRowsFromPythonResponse(data: unknown) {
   const targetingResult = getTargetingResultRecord(data);
   const sampleRows = getArrayValue(targetingResult, "sample_rows");
@@ -675,6 +689,7 @@ export async function POST(request: Request) {
       segments: getSegmentsFromPythonResponse(data, sql),
       segmentGroups,
       hiddenSegmentGroups,
+      normalizedPrompt: getNormalizedPromptFromPythonResponse(data),
       sql,
       message: getStringValue(getApiResponse(data), ["message"]),
       sampleRows: getSampleRowsFromPythonResponse(data),
