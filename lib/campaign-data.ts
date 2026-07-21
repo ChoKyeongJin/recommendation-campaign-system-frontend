@@ -25,9 +25,21 @@ export type TargetingResult = {
   segmentGroups?: TargetSegmentGroup[];
   /** 질문과 무관해 기본 접어두는 프로필/통계 그룹 (사용자가 요청 시 노출) */
   hiddenSegmentGroups?: TargetSegmentGroup[];
+  /** 오타·띄어쓰기 등을 정리한 정규화 프롬프트 (원문과 다를 때만 표시) */
+  normalizedPrompt?: string;
   sql: string;
   message?: string;
   sampleRows?: Record<string, string | number | null>[];
+};
+
+/** Graph 확장 경로의 한 노드 (출발점 A ─관계→ B ─관계→ 목표). */
+export type TargetingTracePathNode = {
+  /** 노드 표시명 (title) */
+  label: string;
+  /** 노드 유형 (schema_table, schema_column 등) */
+  type?: string;
+  /** 직전 노드에서 이 노드로 온 관계명 (출발점=undefined) */
+  relation?: string;
 };
 
 export type TargetingTraceHit = {
@@ -37,6 +49,12 @@ export type TargetingTraceHit = {
   meta?: string;
   /** 스니펫·도달 경로 등 부가 설명 (한 줄) */
   note?: string;
+  /** Graph 확장 노드의 유형 (schema_table 등) — 한글 유형 배지에 사용 */
+  nodeType?: string;
+  /** 출발점(seed)에서 떨어진 홉 수 (0 = seed 자신) */
+  distance?: number;
+  /** 출발점 → 목표 노드까지의 확장 경로 (관계명 포함) */
+  path?: TargetingTracePathNode[];
 };
 
 export type TargetingTraceStep = {
