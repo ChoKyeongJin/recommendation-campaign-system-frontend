@@ -17,6 +17,7 @@ import type {
   TargetSegmentGroup,
   TargetingResult,
   TargetingTrace,
+  TargetingTraceHit,
   TargetingTraceStep,
 } from "@/lib/campaign-data";
 
@@ -81,6 +82,188 @@ function SegmentGroupCard({ group }: { group: TargetSegmentGroup }) {
             {expanded ? "접기" : `외 ${overflowCount}개 더보기`}
           </button>
         )}
+    </div>
+  );
+}
+
+// 그래프 노드 유형 → 사람이 읽는 한글 라벨.
+const NODE_TYPE_LABELS: Record<string, string> = {
+  normalization_rule: "정규화 규칙",
+  business_term: "업무 용어",
+  business_policy: "업무 정책",
+  metric_alias: "지표 별칭",
+  dimension: "디멘션",
+  schema_table: "테이블",
+  schema_column: "컬럼",
+  sql_example: "SQL 예시",
+};
+
+// 엣지 관계명 → 사람이 읽는 한글 라벨.
+const RELATION_LABELS: Record<string, string> = {
+  has_column: "컬럼 보유",
+  foreign_key_to: "외래키",
+  references_column: "컬럼 참조",
+  references_table: "테이블 참조",
+  sql_uses_table: "SQL 사용",
+  dimension_filters_column: "디멘션 필터(컬럼)",
+  dimension_filters_table: "디멘션 필터(테이블)",
+  related: "연관",
+};
+
+function nodeTypeLabel(type?: string) {
+  if (!type) return "";
+  return NODE_TYPE_LABELS[type] ?? type;
+}
+
+function relationLabel(relation?: string) {
+  if (!relation) return "연관";
+  return RELATION_LABELS[relation] ?? relation;
+}
+
+/** 확장 노드 1개를 '출발점 ─관계→ … → 목표' 브레드크럼으로 렌더링. */
+function GraphExpansionPath({ hit }: { hit: TargetingTraceHit }) {
+  const path = hit.path ?? [];
+  return (
+    <div className="flex flex-col gap-1 rounded-md border border-border/60 bg-accent/40 px-2.5 py-1.5">
+      <div className="flex flex-wrap items-center gap-x-1 gap-y-1 text-[11px]">
+        {path.length > 0 ? (
+          path.map((node, i) => (
+            <span key={i} className="flex items-center gap-1">
+              {i > 0 && (
+                <span className="flex items-center gap-0.5 text-muted-foreground">
+                  <span aria-hidden>─</span>
+                  <span className="rounded bg-secondary px-1 py-px text-[9px]">
+                    {relationLabel(node.relation)}
+                  </span>
+                  <span aria-hidden>→</span>
+                </span>
+              )}
+              <span
+                className={
+                  i === path.length - 1
+                    ? "font-mono font-semibold text-foreground"
+                    : "font-mono text-muted-foreground"
+                }
+              >
+                {node.label}
+              </span>
+            </span>
+          ))
+        ) : (
+          <span className="font-mono font-semibold text-foreground">
+            {hit.label}
+          </span>
+        )}
+      </div>
+      <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+        {typeof hit.distance === "number" && <span>{hit.distance}홉</span>}
+        {nodeTypeLabel(hit.nodeType) && (
+          <span>· {nodeTypeLabel(hit.nodeType)}</span>
+        )}
+        {typeof hit.score === "number" && (
+          <span className="font-mono">· {hit.score.toFixed(2)}</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * STEP 4(관계 그래프)를 '출발점(검색 매칭) → 관계로 확장된 항목'으로 나눠 보여준다.
+ * 확장이 0건이면(고립 노드) 그 사실을 명확히 설명한다.
+ */
+function GraphExpansionView({ hits }: { hits: TargetingTraceHit[] }) {
+  const seeds = hits.filter((hit) => (hit.distance ?? 0) === 0);
+  const expanded = hits.filter((hit) => (hit.distance ?? 0) > 0);
+
+  const SEED_LIMIT = 8;
+  const EXPANDED_LIMIT = 10;
+  const shownSeeds = seeds.slice(0, SEED_LIMIT);
+  const seedOverflow = seeds.length - shownSeeds.length;
+  const shownExpanded = expanded.slice(0, EXPANDED_LIMIT);
+  const expandedOverflow = expanded.length - shownExpanded.length;
+
+  return (
+    <div className="mt-2 flex flex-col gap-3">
+      <p className="text-[11px] leading-relaxed text-muted-foreground">
+        {expanded.length > 0 ? (
+          <>
+            검색으로 찾은{" "}
+            <b className="text-foreground">출발점 {seeds.length}개</b>에서 관계를
+            타고 <b className="text-foreground">{expanded.length}개 항목</b>으로
+            넓혔습니다.
+          </>
+        ) : (
+          <>
+            검색으로 찾은{" "}
+            <b className="text-foreground">출발점 {seeds.length}개</b>가 그대로
+            최종 재료로 쓰였습니다. 이 항목들은 서로 연결된 관계(엣지)가 없어
+            추가로 확장된 항목은 없습니다.
+          </>
+        )}
+      </p>
+
+      {shownSeeds.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <p className="text-[11px] font-semibold text-foreground">
+            출발점 · 검색으로 찾은 항목
+          </p>
+          <div className="flex flex-col gap-1">
+            {shownSeeds.map((seed, i) => (
+              <div
+                key={`${seed.label}-${i}`}
+                className="flex items-center justify-between gap-2 text-xs"
+              >
+                <span className="flex min-w-0 items-center gap-1.5">
+                  <span
+                    className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary"
+                    aria-hidden
+                  />
+                  <span className="min-w-0 truncate font-medium text-foreground">
+                    {seed.label}
+                  </span>
+                  {nodeTypeLabel(seed.nodeType) && (
+                    <Badge
+                      variant="outline"
+                      className="shrink-0 text-[9px] font-normal"
+                    >
+                      {nodeTypeLabel(seed.nodeType)}
+                    </Badge>
+                  )}
+                </span>
+                {typeof seed.score === "number" && (
+                  <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
+                    {seed.score.toFixed(seed.score < 10 ? 2 : 1)}
+                  </span>
+                )}
+              </div>
+            ))}
+            {seedOverflow > 0 && (
+              <p className="text-[11px] text-muted-foreground">
+                외 {seedOverflow}건
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {shownExpanded.length > 0 && (
+        <div className="flex flex-col gap-1.5 border-t border-border pt-2.5">
+          <p className="text-[11px] font-semibold text-foreground">
+            관계를 타고 확장된 항목
+          </p>
+          <div className="flex flex-col gap-1.5">
+            {shownExpanded.map((node, i) => (
+              <GraphExpansionPath key={`${node.label}-${i}`} hit={node} />
+            ))}
+            {expandedOverflow > 0 && (
+              <p className="text-[11px] text-muted-foreground">
+                외 {expandedOverflow}건
+              </p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
