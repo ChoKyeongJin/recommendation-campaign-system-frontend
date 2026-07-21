@@ -523,6 +523,8 @@ export function StepTargeting({
         </CardContent>
       </Card>
 
+      <TraceSection prompt={prompt} channel={channel} />
+
       <div className="flex justify-between">
         <Button variant="outline" onClick={onBack}>
           이전
