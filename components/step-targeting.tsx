@@ -320,51 +320,55 @@ function TraceStepCard({
           </ul>
         )}
 
-        {shownHits.length > 0 && (
-          <div className="mt-2 flex flex-col gap-2">
-            {shownHits.map((hit, i) => (
-              <div key={`${hit.label}-${i}`} className="flex flex-col gap-0.5">
-                <div className="flex items-center justify-between gap-3 text-xs">
-                  <span className="flex min-w-0 items-center gap-1.5">
-                    <span className="min-w-0 truncate font-mono text-foreground">
-                      {hit.label}
+        {isGraphStep && (step.hits?.length ?? 0) > 0 ? (
+          <GraphExpansionView hits={step.hits ?? []} />
+        ) : (
+          shownHits.length > 0 && (
+            <div className="mt-2 flex flex-col gap-2">
+              {shownHits.map((hit, i) => (
+                <div key={`${hit.label}-${i}`} className="flex flex-col gap-0.5">
+                  <div className="flex items-center justify-between gap-3 text-xs">
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      <span className="min-w-0 truncate font-mono text-foreground">
+                        {hit.label}
+                      </span>
+                      {hit.meta && (
+                        <Badge
+                          variant={hit.meta === "seed" ? "default" : "outline"}
+                          className="shrink-0 text-[9px]"
+                        >
+                          {hit.meta}
+                        </Badge>
+                      )}
                     </span>
-                    {hit.meta && (
-                      <Badge
-                        variant={hit.meta === "seed" ? "default" : "outline"}
-                        className="shrink-0 text-[9px]"
-                      >
-                        {hit.meta}
-                      </Badge>
+                    {typeof hit.score === "number" && (
+                      <span className="shrink-0 font-mono text-muted-foreground">
+                        {hit.score.toFixed(hit.score < 10 ? 3 : 2)}
+                      </span>
                     )}
-                  </span>
-                  {typeof hit.score === "number" && (
-                    <span className="shrink-0 font-mono text-muted-foreground">
-                      {hit.score.toFixed(hit.score < 10 ? 3 : 2)}
-                    </span>
+                  </div>
+                  {typeof hit.score === "number" && maxScore > 0 && (
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+                      <div
+                        className="h-full rounded-full bg-primary"
+                        style={{ width: `${(hit.score / maxScore) * 100}%` }}
+                      />
+                    </div>
+                  )}
+                  {hit.note && (
+                    <p className="truncate text-[11px] text-muted-foreground">
+                      {hit.note}
+                    </p>
                   )}
                 </div>
-                {typeof hit.score === "number" && maxScore > 0 && (
-                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
-                    <div
-                      className="h-full rounded-full bg-primary"
-                      style={{ width: `${(hit.score / maxScore) * 100}%` }}
-                    />
-                  </div>
-                )}
-                {hit.note && (
-                  <p className="truncate text-[11px] text-muted-foreground">
-                    {hit.note}
-                  </p>
-                )}
-              </div>
-            ))}
-            {overflowHits > 0 && (
-              <p className="text-[11px] text-muted-foreground">
-                외 {overflowHits}건
-              </p>
-            )}
-          </div>
+              ))}
+              {overflowHits > 0 && (
+                <p className="text-[11px] text-muted-foreground">
+                  외 {overflowHits}건
+                </p>
+              )}
+            </div>
+          )
         )}
       </div>
     </li>
