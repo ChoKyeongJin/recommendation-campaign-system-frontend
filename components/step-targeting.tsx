@@ -570,6 +570,11 @@ export function StepTargeting({
   nextError?: string | null;
 }) {
   const trimmedPrompt = prompt?.trim();
+  const normalizedPrompt = result.normalizedPrompt?.trim();
+  // 원문과 실제로 달라졌을 때만 정규화 결과를 따로 보여준다(동일하면 중복 표시 방지).
+  const showNormalizedPrompt = Boolean(
+    normalizedPrompt && normalizedPrompt !== trimmedPrompt,
+  );
   const segmentGroups = result.segmentGroups?.length
     ? result.segmentGroups
     : [{ title: "타겟 조건", segments: result.segments }];
