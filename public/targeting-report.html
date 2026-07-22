@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>타겟팅 프로세스 정리 보고서 — 자연어 한 문장이 대상 고객 명단이 되기까지</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css">
+<style>
+  :root{
+    --ink:#1b2027;
+    --muted:#5c6675;
+    --faint:#8a93a2;
+    --line:#e7eaef;
+    --line-soft:#eef1f5;
+    --bg:#ffffff;
+    --bg-soft:#f7f9fb;
+    --code-bg:#f4f6f9;
+    --code-ink:#2b3440;
+    /* graph-layer semantic colors (used only where they encode meaning) */
+    --schema:#4f46e5;   /* 스키마 허브 */
+    --semantic:#0d9488; /* 의미층 */
+    --instance:#d97706; /* 인스턴스 */
+    --accent:#4f46e5;
+    --maxw:1180px;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,
+      "Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",system-ui,sans-serif;
+    font-size:16px;
+    line-height:1.72;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+    word-break:keep-all;
+    overflow-wrap:anywhere;
+  }
+
+  .wrap{
+    max-width:var(--maxw);
+    margin:0 auto;
+    padding:0 28px;
+    display:grid;
+    grid-template-columns:236px minmax(0,1fr);
+    gap:56px;
+  }
+
+  /* ---------- masthead ---------- */
+  header.top{
+    border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg,#fbfcfe 0%,#ffffff 100%);
+  }
+  .top-inner{
+    max-width:var(--maxw);
+    margin:0 auto;
+    padding:44px 28px 34px;
+  }
+  a.app-link{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    font-size:13.5px;
+    font-weight:600;
+    color:var(--accent);
+    text-decoration:none;
+    border:1px solid var(--line);
+    border-radius:999px;
+    padding:5px 14px;
+    margin:0 0 20px;
+    background:#fff;
+    transition:border-color .15s,background .15s;
+  }
+  a.app-link:hover{border-color:var(--accent);background:#f6f7ff;}
+  .eyebrow{
+    font-size:12.5px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--faint);
+    font-weight:600;
+    margin:0 0 14px;
+  }
+  h1.title{
+    font-size:30px;
+    line-height:1.28;
+    letter-spacing:-.01em;
+    margin:0 0 14px;
+    font-weight:700;
+  }
+  .lede{
+    font-size:16px;
+    color:var(--muted);
+    max-width:64ch;
+    margin:0;
+  }
+  .meta{
+    margin-top:22px;
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+  }
+  .tag{
+    font-size:12.5px;
+    color:var(--muted);
+    border:1px solid var(--line);
+    border-radius:999px;
+    padding:3px 11px;
+    background:#fff;
+  }
+
+  /* ---------- side nav (TOC) ---------- */
+  nav.toc{
+    position:sticky;
+    top:0;
+    align-self:start;
+    padding:44px 0;
+    max-height:100vh;
+    overflow:auto;
+    font-size:13.5px;
+  }
+  nav.toc .toc-label{
+    font-size:11.5px;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    color:var(--faint);
+    font-weight:600;
+    margin:0 0 12px;
+  }
+  nav.toc ol{list-style:none;margin:0;padding:0;counter-reset:toc;}
+  nav.toc > ol > li{counter-increment:toc;margin:0 0 3px;}
+  nav.toc a{
+    display:block;
+    text-decoration:none;
+    color:var(--muted);
+    padding:5px 10px 5px 0;
+    border-left:2px solid transparent;
+    padding-left:12px;
+    transition:color .15s,border-color .15s;
+  }
+  nav.toc > ol > li > a::before{
+    content:counter(toc,decimal-leading-zero);
+    color:var(--faint);
+    font-variant-numeric:tabular-nums;
+    margin-right:8px;
+    font-size:12px;
+  }
+  nav.toc a:hover{color:var(--ink);}
+  nav.toc a.active{color:var(--accent);border-color:var(--accent);font-weight:600;}
+
+  /* ---------- content ---------- */
+  main{padding:44px 0 96px;min-width:0;}
+  section{margin:0 0 52px;scroll-margin-top:24px;}
+  section > h2{
+    font-size:13px;
+    letter-spacing:.03em;
+    color:var(--accent);
+    font-weight:700;
+    margin:0 0 6px;
+    display:flex;
+    align-items:baseline;
+    gap:10px;
+  }
+  section > h2 .num{
+    font-variant-numeric:tabular-nums;
+    font-size:12px;
+    color:#fff;
+    background:var(--accent);
+    border-radius:6px;
+    padding:1px 7px;
+    font-weight:700;
+  }
+  section > h2 + .h2title{
+    font-size:23px;
+    font-weight:700;
+    letter-spacing:-.01em;
+    margin:0 0 20px;
+    line-height:1.35;
+  }
+  h3{
+    font-size:17.5px;
+    font-weight:700;
+    margin:30px 0 10px;
+    letter-spacing:-.005em;
+  }
+  h4{
+    font-size:14.5px;
+    font-weight:700;
+    color:var(--ink);
+    margin:20px 0 8px;
+  }
+  p{margin:0 0 14px;}
+  .muted{color:var(--muted);}
+  .lead{font-size:16.5px;color:var(--muted);margin:0 0 22px;}
+
+  a.inline{color:var(--accent);text-decoration:none;border-bottom:1px solid #c9cbf5;}
+  a.inline:hover{border-color:var(--accent);}
+
+  code{
+    font-family:ui-monospace,"SF Mono","JetBrains Mono","Cascadia Code",Consolas,monospace;
+    font-size:.86em;
+    background:var(--code-bg);
+    color:var(--code-ink);
+    padding:.1em .42em;
+    border-radius:5px;
+    border:1px solid var(--line-soft);
+    white-space:nowrap;
+  }
+  code.file{color:#0b6b5f;}
+
+  /* ordered process list */
+  ol.steps{
+    list-style:none;
+    counter-reset:step;
+    margin:0 0 8px;
+    padding:0;
+  }
+  ol.steps > li{
+    counter-increment:step;
+    position:relative;
+    padding:0 0 18px 44px;
+    margin:0;
+  }
+  ol.steps > li::before{
+    content:counter(step);
+    position:absolute;
+    left:0;top:1px;
+    width:28px;height:28px;
+    display:flex;align-items:center;justify-content:center;
+    background:#eef0fe;
+    color:var(--accent);
+    border-radius:8px;
+    font-size:13.5px;
+    font-weight:700;
+    font-variant-numeric:tabular-nums;
+  }
+  ol.steps > li::after{
+    content:"";
+    position:absolute;
+    left:13.5px;top:30px;bottom:2px;
+    width:1px;
+    background:var(--line);
+  }
+  ol.steps > li:last-child::after{display:none;}
+  ol.steps .st-title{font-weight:700;display:block;}
+  ol.steps .st-desc{color:var(--muted);font-size:14.5px;}
+
+  ul.plain{margin:0 0 14px;padding-left:20px;}
+  ul.plain li{margin:0 0 6px;}
+  ul.check{list-style:none;margin:0 0 14px;padding:0;}
+  ul.check li{position:relative;padding-left:26px;margin:0 0 7px;}
+  ul.check li::before{
+    content:"";
+    position:absolute;left:2px;top:.55em;
+    width:8px;height:8px;border-radius:2px;
+    background:var(--accent);
+  }
+  ul.dash{list-style:none;margin:8px 0 14px;padding:0;}
+  ul.dash li{position:relative;padding-left:16px;margin:0 0 5px;color:var(--muted);font-size:14.5px;}
+  ul.dash li::before{content:"–";position:absolute;left:0;color:var(--faint);}
+
+  /* tables */
+  .tablewrap{overflow-x:auto;margin:0 0 16px;border:1px solid var(--line);border-radius:12px;}
+  table{border-collapse:collapse;width:100%;font-size:14px;min-width:480px;}
+  th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line-soft);vertical-align:top;}
+  thead th{
+    background:var(--bg-soft);
+    font-size:12.5px;
+    letter-spacing:.02em;
+    color:var(--muted);
+    font-weight:700;
+    border-bottom:1px solid var(--line);
+    white-space:nowrap;
+  }
+  tbody tr:last-child td{border-bottom:none;}
+  td.num{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;color:var(--ink);font-weight:600;}
+  tbody tr:hover{background:#fbfcfe;}
+
+  /* cards */
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px;margin:0 0 16px;}
+  .card{
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:16px 16px 14px;
+    background:#fff;
+  }
+  .card .c-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:6px;}
+  .card .c-name{font-family:ui-monospace,"SF Mono",Consolas,monospace;font-size:14px;font-weight:700;}
+  .card .c-count{font-variant-numeric:tabular-nums;font-size:13px;color:var(--faint);font-weight:700;}
+  .card .c-desc{font-size:13.5px;color:var(--muted);line-height:1.6;margin:0;}
+  .card.l-schema{border-top:3px solid var(--schema);}
+  .card.l-semantic{border-top:3px solid var(--semantic);}
+  .card.l-instance{border-top:3px solid var(--instance);}
+
+  /* legend */
+  .legend{display:flex;flex-wrap:wrap;gap:16px;margin:4px 0 18px;font-size:13.5px;color:var(--muted);}
+  .legend span{display:inline-flex;align-items:center;gap:7px;}
+  .dot{width:10px;height:10px;border-radius:3px;display:inline-block;}
+  .dot.schema{background:var(--schema);}
+  .dot.semantic{background:var(--semantic);}
+  .dot.instance{background:var(--instance);}
+
+  /* callout / note */
+  .note{
+    border:1px solid var(--line);
+    border-left:3px solid var(--accent);
+    background:var(--bg-soft);
+    border-radius:0 10px 10px 0;
+    padding:14px 18px;
+    margin:0 0 16px;
+    font-size:14.5px;
+  }
+  .note.warn{border-left-color:var(--instance);}
+  .note .n-tag{
+    font-size:11.5px;font-weight:700;letter-spacing:.04em;
+    text-transform:uppercase;color:var(--accent);
+    display:block;margin-bottom:4px;
+  }
+  .note.warn .n-tag{color:var(--instance);}
+
+  /* two-column compare */
+  .compare{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:0 0 16px;}
+  .compare .col{border:1px solid var(--line);border-radius:12px;padding:16px 18px;}
+  .compare .col h4{margin:0 0 8px;}
+  .compare .col.plain-rag{background:#fbfbfc;}
+  .compare .col.graph-rag{background:#f6f7ff;border-color:#dcdffb;}
+  .flow{font-family:ui-monospace,"SF Mono",Consolas,monospace;font-size:12.5px;color:var(--muted);line-height:1.9;}
+  .flow b{color:var(--ink);font-weight:700;}
+
+  /* code block */
+  pre{
+    background:var(--code-bg);
+    border:1px solid var(--line-soft);
+    border-radius:10px;
+    padding:14px 16px;
+    overflow-x:auto;
+    font-family:ui-monospace,"SF Mono",Consolas,monospace;
+    font-size:13px;
+    line-height:1.7;
+    color:var(--code-ink);
+    margin:0 0 16px;
+  }
+
+  /* architecture / pipeline diagram */
+  .arch{margin:6px 0 22px;}
+  .arch-tier{
+    border:1px solid var(--line);
+    border-radius:12px;
+    background:var(--bg-soft);
+    padding:14px 16px;
+  }
+  .arch-tier .tier-label{
+    font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--faint);font-weight:700;margin:0 0 10px;
+  }
+  .arch-row{display:flex;flex-wrap:wrap;gap:12px;}
+  .arch-box{
+    flex:1 1 190px;
+    border:1px solid var(--line);
+    border-radius:10px;
+    background:#fff;
+    padding:12px 14px;
+  }
+  .arch-box .b-name{font-weight:700;font-size:14.5px;margin:0 0 2px;}
+  .arch-box .b-tech{font-family:ui-monospace,"SF Mono",Consolas,monospace;font-size:11.5px;color:var(--accent);}
+  .arch-box .b-desc{font-size:12.5px;color:var(--muted);margin:5px 0 0;line-height:1.55;}
+  .arch-box.fe{border-top:3px solid var(--semantic);}
+  .arch-box.be{border-top:3px solid var(--schema);}
+  .arch-box.ext{border-top:3px solid var(--instance);}
+  .arch-arrow{text-align:center;color:var(--faint);font-size:16px;line-height:1;margin:9px 0;}
+  .arch-sub{display:flex;flex-wrap:wrap;gap:7px;margin:11px 0 0;}
+  .arch-sub span{
+    font-size:12px;border:1px solid var(--line);border-radius:999px;
+    padding:3px 11px;background:var(--bg-soft);color:var(--muted);font-weight:600;
+  }
+
+  /* pipeline stage list (numbered vertical) */
+  .pipe{margin:6px 0 20px;border:1px solid var(--line);border-radius:12px;overflow:hidden;}
+  .pipe-row{display:flex;gap:14px;align-items:flex-start;padding:13px 16px;border-bottom:1px solid var(--line-soft);}
+  .pipe-row:last-child{border-bottom:none;}
+  .pipe-row:hover{background:#fbfcfe;}
+  .pipe-n{
+    flex:0 0 auto;width:26px;height:26px;border-radius:7px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:12.5px;font-weight:700;font-variant-numeric:tabular-nums;
+    background:#eef0fe;color:var(--accent);margin-top:1px;
+  }
+  .pipe-body{min-width:0;}
+  .pipe-body .p-name{font-weight:700;font-size:14.5px;}
+  .pipe-body .p-name .badge{
+    font-size:10.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;
+    border-radius:999px;padding:1px 8px;margin-left:8px;vertical-align:middle;
+  }
+  .badge.det{background:#e8f5f2;color:#0d9488;border:1px solid #b9e5dd;}
+  .badge.llm{background:#eef0fe;color:var(--accent);border:1px solid #d3d7fb;}
+  .badge.both{background:#fdf3e6;color:#b26a05;border:1px solid #f2ddb8;}
+  .pipe-body .p-desc{font-size:13px;color:var(--muted);margin:2px 0 0;line-height:1.55;}
+  .pipe-body .p-file{font-family:ui-monospace,"SF Mono",Consolas,monospace;font-size:11.5px;color:var(--faint);}
+
+  hr.soft{border:none;border-top:1px solid var(--line);margin:44px 0;}
+
+  footer{
+    border-top:1px solid var(--line);
+    color:var(--faint);
+    font-size:13px;
+    padding:26px 0 60px;
+  }
+  footer .wrap{display:block;}
+
+  @media (max-width:900px){
+    .wrap{grid-template-columns:1fr;gap:0;}
+    nav.toc{
+      position:static;max-height:none;padding:22px 0 6px;
+      border-bottom:1px solid var(--line);margin-bottom:26px;
+    }
+    nav.toc ol{display:flex;flex-wrap:wrap;gap:4px 14px;}
+    nav.toc a{padding:3px 0;border:none;}
+    nav.toc a.active{border:none;}
+    main{padding:8px 0 72px;}
+    .compare{grid-template-columns:1fr;}
+    h1.title{font-size:25px;}
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-inner">
+    <a class="app-link" href="/">← 캠페인 생성 앱으로 돌아가기</a>
+    <p class="eyebrow">타겟팅 프로세스 정리 보고서</p>
+    <h1 class="title">자연어 한 문장이 “대상 고객 명단”이 되기까지</h1>
+    <p class="lede">담당자가 평범한 말로 쓴 타겟 조건(예: <b>“20대 여성 중 최근 카트에 담고 안 산 고객”</b>)을,
+      시스템이 어떤 순서로 해석·검증해 실제 CRM 데이터베이스에서 <b>고객 명단을 뽑는 조회문(SQL)</b>으로 바꾸는지 —
+      그 타겟팅 파이프라인 전 과정을 단계별로 정리한다. (메시지 생성·클릭률 예측은 <a class="inline" href="/system-report.html">시스템 보고서</a> 참고.)</p>
+    <div class="meta">
+      <span class="tag">자연어 → 타겟팅 SQL</span>
+      <span class="tag">GraphRAG 검색</span>
+      <span class="tag">결정론 우선 · LLM 보조</span>
+      <span class="tag">SQL 4중 안전 검증</span>
+      <span class="tag">실제 CRM DB 실행</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <nav class="toc" id="toc">
+    <p class="toc-label">목차</p>
+    <ol>
+      <li><a href="#s0">한눈에 보기</a></li>
+      <li><a href="#s-arch">파이프라인 전체 흐름</a></li>
+      <li><a href="#s-design">핵심 설계 원칙</a></li>
+      <li><a href="#s1">STEP 1 · 프롬프트 재작성</a></li>
+      <li><a href="#s2">STEP 2 · 타겟/채널 분리</a></li>
+      <li><a href="#s3">STEP 3 · 질의 계획 수립</a></li>
+      <li><a href="#s4">STEP 4 · 상품·구매이력 추출</a></li>
+      <li><a href="#s5">STEP 5 · 값 해석(브랜드→코드)</a></li>
+      <li><a href="#s6">STEP 6 · 집합식 파싱</a></li>
+      <li><a href="#s7">STEP 7 · 지식그래프 검색</a></li>
+      <li><a href="#s8">STEP 8 · 타겟팅 SQL 생성</a></li>
+      <li><a href="#s9">STEP 9 · SQL 안전 검증</a></li>
+      <li><a href="#s10">STEP 10 · 실행·결과</a></li>
+      <li><a href="#s-example">전 과정 워크스루 예시</a></li>
+      <li><a href="#s-fail">실패·부분추출 처리</a></li>
+      <li><a href="#s-stack">기술 스택 요약</a></li>
+      <li><a href="#s-data">데이터 입력 카탈로그</a></li>
+    </ol>
+  </nav>
+
+  <main>
+
+    <!-- 0 -->
+    <section id="s0">
+      <h2><span class="num">00</span>한눈에 보기</h2>
+      <div class="h2title">타겟팅이란 — “누구에게 보낼지”를 찾는 일</div>
+      <p class="lead">캠페인의 첫 단추는 <b>“누구에게 보낼 것인가”</b>다. 담당자는 SQL을 몰라도 되고, 고객 조건을 <b>평범한 한국어 문장</b>으로 적기만 하면
+        시스템이 그 문장을 해석해 <b>실제 고객 데이터베이스에서 대상자를 뽑는 조회문(SQL)</b>을 만들고, 그 SQL을 안전하게 실행해 <b>대상 고객 수와 구성</b>까지 돌려준다.</p>
+
+      <div class="note">
+        <span class="n-tag">비유로 이해하기</span>
+        SQL을 잘 아는 데이터 분석가에게 “20대 여성 중에 장바구니에 담아만 두고 안 산 사람 명단 좀 뽑아줘”라고 부탁하는 것과 같습니다.
+        분석가는 ① 애매한 말을 정확한 조건으로 정리하고 → ② 어느 테이블·컬럼을 봐야 하는지 판단하고 → ③ 조회문을 짜고 → ④ <b>실수로 데이터를 지우거나 엉뚱한 사람을 넣지 않았는지 스스로 점검</b>한 뒤 → ⑤ 실행해 명단을 가져옵니다.
+        이 보고서는 그 “분석가”가 머릿속으로 밟는 <b>10단계</b>를 그대로 풀어 설명합니다.
+      </div>
+
+      <p>화면에서 이 과정은 4단계 마법사 중 <b>①프롬프트 입력 → ②타겟팅 결과</b> 구간에 해당한다. 담당자 눈에는 “문장 입력 → 결과”로 순식간에 보이지만,
+        그 사이에서 백엔드는 아래 <b>10개의 처리 단계</b>를 순서대로 실행한다.</p>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>구분</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td>입력</td><td>담당자가 쓴 자연어 타겟 조건 한 문장 (+ 발송 채널)</td></tr>
+            <tr><td>출력</td><td>검증 통과한 타겟팅 <b>SQL</b>, 대상 <b>고객 수</b>, <b>세그먼트 구성</b>(성별·연령·지역 등 분포), 신뢰도, 미지원·제외 조건 고지</td></tr>
+            <tr><td>핵심 엔진</td><td><code class="file">graph_rag.py</code>의 단일 오케스트레이터 <code>retrieve()</code> — 아래 10단계를 순서대로 호출</td></tr>
+            <tr><td>진입점(API)</td><td><code>POST /target-sql</code> (<code class="file">api.py</code>, FastAPI)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- arch -->
+    <section id="s-arch">
+      <h2><span class="num">01</span>파이프라인 전체 흐름</h2>
+      <div class="h2title">한 문장이 SQL이 되기까지 — 10단계 파이프라인</div>
+      <p class="lead">타겟팅은 여러 AI가 자유롭게 판단하는 “에이전트”가 아니라, <b>정해진 순서대로 흐르는 하나의 조립 라인</b>이다.
+        아래는 담당자 입력이 대상 명단이 되기까지 거치는 3개 층과, 그 두뇌인 <code>retrieve()</code>가 밟는 10단계다.</p>
+
+      <div class="arch">
+        <div class="arch-tier">
+          <p class="tier-label">① 사용자 · 화면 (프론트엔드)</p>
+          <div class="arch-row">
+            <div class="arch-box fe">
+              <p class="b-name">캠페인 담당자 → 웹 화면</p>
+              <p class="b-tech">Next.js · React</p>
+              <p class="b-desc">타겟 조건을 문장으로 입력. BFF(<code>/api/targeting</code>)가 발송 채널을 덧붙여 백엔드로 전달하고, 결과(세그먼트·SQL)를 한글로 시각화한다.</p>
+            </div>
+          </div>
+        </div>
+        <div class="arch-arrow">↓ &nbsp;HTTP 요청 (프롬프트 + 채널)&nbsp; ↓</div>
+
+        <div class="arch-tier">
+          <p class="tier-label">② 타겟팅 엔진 (두뇌)</p>
+          <div class="arch-row">
+            <div class="arch-box be">
+              <p class="b-name">백엔드 API · 오케스트레이터</p>
+              <p class="b-tech">FastAPI · <code>api.py</code> → <code>graph_rag.py :: retrieve()</code></p>
+              <p class="b-desc"><code>POST /target-sql</code>이 관문. 아래 10단계를 순서대로 실행하고, 각 단계의 안전장치·대체 경로를 조율한다.</p>
+              <div class="arch-sub">
+                <span>① 프롬프트 재작성</span>
+                <span>② 타겟/채널 분리</span>
+                <span>③ 질의 계획</span>
+                <span>④ 상품 추출</span>
+                <span>⑤ 값 해석</span>
+                <span>⑥ 집합식</span>
+                <span>⑦ 그래프 검색</span>
+                <span>⑧ SQL 생성</span>
+                <span>⑨ 안전 검증</span>
+                <span>⑩ 실행·결과</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="arch-arrow">↓ &nbsp;검색 · 조회 · 코드 해석 · 실행&nbsp; ↓</div>
+
+        <div class="arch-tier">
+          <p class="tier-label">③ 데이터 · 외부 서비스</p>
+          <div class="arch-row">
+            <div class="arch-box ext">
+              <p class="b-name">OpenAI</p>
+              <p class="b-tech">gpt-4o-mini</p>
+              <p class="b-desc">문장 재작성·계획 보조·상품 추출 등 “말귀” 담당. 키가 없으면 규칙 기반으로 자동 대체.</p>
+            </div>
+            <div class="arch-box ext">
+              <p class="b-name">Qdrant</p>
+              <p class="b-tech">벡터 검색 DB</p>
+              <p class="b-desc">지식 그래프(793개 노드)를 색인. 질문과 의미가 가까운 스키마·예시를 찾는다.</p>
+            </div>
+            <div class="arch-box ext">
+              <p class="b-name">CRM 데이터베이스</p>
+              <p class="b-tech">CRMDW / CRMAN (MSSQL)</p>
+              <p class="b-desc">실제 회원·주문·상품·장바구니 데이터. 타겟팅 SQL이 <b>읽기 전용</b>으로 조회한다.</p>
+            </div>
+            <div class="arch-box ext">
+              <p class="b-name">디멘션 DS_SQL</p>
+              <p class="b-tech">quadmax_sdz</p>
+              <p class="b-desc">“브랜드명 → 코드”처럼 값을 실시간으로 코드값으로 바꿔 주는 사전 조회.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="note">
+        <span class="n-tag">읽는 법</span>
+        위에서 아래로 <b>요청이 흘러간다</b>(담당자 → 화면 → 타겟팅 엔진 → 데이터). 엔진 안의 10단계는 <b>대부분 규칙(결정론)으로 처리</b>하고,
+        “사람 말을 알아듣는” 일부 구간만 AI(OpenAI)를 쓰되 그 결과도 다시 규칙으로 검증한다. 아래 03~12장에서 단계별로 상세히 설명한다.
+      </div>
+
+      <h3>10단계 요약표</h3>
+      <p class="muted" style="font-size:14px;margin:-4px 0 12px;">
+        <span style="color:#0d9488;font-weight:700;">규칙</span> = 정해진 로직으로 100% 재현 가능 ·
+        <span style="color:#4f46e5;font-weight:700;">AI</span> = LLM 사용 ·
+        <span style="color:#b26a05;font-weight:700;">혼합</span> = 규칙 우선 + AI 보조(결과는 규칙으로 재검증)
+      </p>
+      <div class="pipe">
+        <div class="pipe-row"><span class="pipe-n">1</span><div class="pipe-body"><span class="p-name">프롬프트 재작성<span class="badge both">혼합</span></span><p class="p-desc">구어체·오타·모호한 표현을 표준 타겟 용어로 정리. 원문은 보존.</p><span class="p-file">normalize_prompt()</span></div></div>
+        <div class="pipe-row"><span class="pipe-n">2</span><div class="pipe-body"><span class="p-name">타겟/채널 분리<span class="badge both">혼합</span></span><p class="p-desc">“누구에게”(타겟)와 “무엇을 어떻게 보낼지”(채널)를 분리해 타겟 조건만 SQL로.</p><span class="p-file">split_prompt_scopes()</span></div></div>
+        <div class="pipe-row"><span class="pipe-n">3</span><div class="pipe-body"><span class="p-name">질의 계획 수립<span class="badge both">혼합</span></span><p class="p-desc">문장을 성별·연령·행동 등 구조화된 조건표(Query Plan)로 변환.</p><span class="p-file">build_query_plan()</span></div></div>
+        <div class="pipe-row"><span class="pipe-n">4</span><div class="pipe-body"><span class="p-name">상품·구매이력 추출<span class="badge both">혼합</span></span><p class="p-desc">“기저귀 산 고객” 같은 상품/구매 조건을 정규식 우선 + 검증된 AI 보조로 추출.</p><span class="p-file">_apply_llm_object_fallback()</span></div></div>
+        <div class="pipe-row"><span class="pipe-n">5</span><div class="pipe-body"><span class="p-name">값 해석(브랜드→코드)<span class="badge det">규칙</span></span><p class="p-desc">“포멜카멜리” 같은 이름을 DB에서 실제 코드값('A')으로 실시간 변환.</p><span class="p-file">_apply_dimension_filters()</span></div></div>
+        <div class="pipe-row"><span class="pipe-n">6</span><div class="pipe-body"><span class="p-name">집합식 파싱<span class="badge det">규칙</span></span><p class="p-desc">“A 제외”, “그중 B만” 같은 집합 연산(합·교·차)을 해석.</p><span class="p-file">set_expression_engine.py</span></div></div>
+        <div class="pipe-row"><span class="pipe-n">7</span><div class="pipe-body"><span class="p-name">지식그래프 검색<span class="badge both">혼합</span></span><p class="p-desc">SQL 작성에 필요한 테이블·조인·예시를 벡터+키워드+그래프로 검색.</p><span class="p-file">vector/keyword_search · expand_context()</span></div></div>
+        <div class="pipe-row"><span class="pipe-n">8</span><div class="pipe-body"><span class="p-name">타겟팅 SQL 생성<span class="badge both">혼합</span></span><p class="p-desc">검증된 SQL 템플릿을 우선 적용, 안 맞으면 AI가 그래프 근거로 생성.</p><span class="p-file">build_sql_result()</span></div></div>
+        <div class="pipe-row"><span class="pipe-n">9</span><div class="pipe-body"><span class="p-name">SQL 안전 검증<span class="badge det">규칙</span></span><p class="p-desc">읽기 전용·허용 테이블·조건 커버리지·미언급 조건 차단 등 4중 관문.</p><span class="p-file">sql_guard.py · validate_*</span></div></div>
+        <div class="pipe-row"><span class="pipe-n">10</span><div class="pipe-body"><span class="p-name">실행·결과<span class="badge det">규칙</span></span><p class="p-desc">CRM DB에 읽기 전용 실행 → 대상 고객 수·세그먼트 구성 산출.</p><span class="p-file">execute_target_sql()</span></div></div>
+      </div>
+    </section>
+
+    <!-- design principles -->
+    <section id="s-design">
+      <h2><span class="num">02</span>핵심 설계 원칙</h2>
+      <div class="h2title">왜 이렇게 설계했나 — “결정론 우선, AI는 보조”</div>
+      <p class="lead">타겟팅은 <b>고객 명단</b>을 다루는 일이라 “그럴듯한 오답”이 곧 잘못된 발송이 된다. 그래서 이 시스템은 세 가지 원칙 위에 서 있다.</p>
+
+      <h3>원칙 1 · 결정론(규칙)을 먼저, AI는 “말귀” 보조만</h3>
+      <p>조건 해석의 뼈대는 <b>정규식·룰 로직</b>이 잡는다. AI(OpenAI <code>gpt-4o-mini</code>)는 사람 말투를 표준 용어로 바꾸거나(재작성), 규칙이 놓친 상품명을 건져 올리는 등
+        <b>“유연성(재현율)”</b>만 담당하고, 그 결과는 다시 규칙으로 검증한다. 실제로 AI가 계획을 세워도 그 뒤에 <b>규칙 추출기가 한 번 더 덧씌워</b> 브랜드 코드 해석·구매이력·생일·가입일 같은 핵심 조건을 결정론적으로 확정한다.</p>
+
+      <h3>원칙 2 · API 키가 없어도 돌아간다 (Graceful Degradation)</h3>
+      <p>모든 AI 단계는 <code>OPENAI_API_KEY</code>가 있는지 먼저 확인하고, 없으면 조용히 <b>규칙 기반 경로로 대체</b>한다.
+        즉 AI가 죽거나 키가 빠져도 타겟팅은 <b>완전한 결정론 파이프라인</b>으로 계속 동작한다. AI는 품질을 높이는 옵션이지 필수 부품이 아니다.</p>
+      <div class="note">
+        <span class="n-tag">게이트 규칙</span>
+        문장 재작성(STEP 1)과 상품 추출(STEP 4)은 <b>API 키 유무만으로</b> 켜진다(전처리라서). 반면 AI 질의계획(STEP 3)·AI SQL 생성(STEP 8)은
+        키가 있고 <b>동시에</b> 파서 모드가 <code>auto</code>/<code>llm</code>일 때만 쓴다. 운영 기본값은 안전하게 <code>rules</code> 경로다.
+      </div>
+
+      <h3>원칙 3 · 지어내지 않는다 (검증 + 부분추출 고지)</h3>
+      <p>AI가 뽑은 상품명은 <b>원문에 실제로 등장할 때만</b> 인정하고(없는 상품 차단), 생성된 SQL은 4중 안전 검증을 전부 통과해야 한다.
+        조건을 데이터로 매핑하지 못하면 <b>몰래 빼지 않고</b> “이 조건은 반영하지 못했습니다”라고 <b>미지원·제외 조건으로 고지</b>한다.
+        “대충 맞는 명단”보다 “무엇이 반영되고 무엇이 빠졌는지 아는 명단”을 지향한다.</p>
+
+      <div class="compare">
+        <div class="col plain-rag">
+          <h4>일반 “LLM에게 SQL 맡기기”</h4>
+          <p class="flow">사용자 문장 <b>→</b> LLM이 알아서 SQL 생성 <b>→</b> 바로 실행</p>
+          <p class="muted" style="font-size:13.5px;margin:8px 0 0;">빠르지만 환각(없는 컬럼·조건)·비재현성·안전성 위험. 왜 그 명단이 나왔는지 설명 불가.</p>
+        </div>
+        <div class="col graph-rag">
+          <h4>이 시스템 (결정론 우선 + 그래프 근거)</h4>
+          <p class="flow">문장 <b>→</b> 규칙 파싱(+AI 보조) <b>→</b> 그래프에서 실제 스키마 근거 검색 <b>→</b> 검증된 템플릿 SQL <b>→</b> 4중 검증 <b>→</b> 실행</p>
+          <p class="muted" style="font-size:13.5px;margin:8px 0 0;">재현 가능·안전·설명 가능. 조건별 근거와 신뢰도까지 남긴다.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 1 -->
+    <section id="s1">
+      <h2><span class="num">03</span>STEP 1 · 프롬프트 재작성</h2>
+      <div class="h2title">담당자의 말투를 표준 타겟 용어로 정리</div>
+      <p class="lead">파싱을 시작하기 <b>전에</b>, 구어체·오타·모호한 표현을 표준화된 타겟팅 문장으로 다시 쓴다. 원문은 그대로 보존하고, 이 <b>재작성본</b>이 이후 모든 해석의 기준이 된다.</p>
+
+      <h4>하는 일 (쉽게)</h4>
+      <p>사람마다 같은 뜻을 다르게 쓴다. “2030 여성인데 장바구니만 담고 안 사는” → <b>“20~30대 여성 장바구니 이탈 고객”</b>처럼,
+        <b>조건을 더하거나 빼지 않으면서</b> 표현만 표준 용어로 통일한다. 뒤에 오는 규칙 파서는 “정해진 표준 용어”만 정확히 잡아내기 때문에, 이 정리 단계가 조건 인식률을 실제로 끌어올린다.</p>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>항목</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td>함수</td><td><code>normalize_prompt()</code> (<code class="file">graph_rag.py</code>)</td></tr>
+            <tr><td>입력 / 출력</td><td>원본 문장 → <code>{원문, 재작성본(effective_query), 요약, 교정내역, 타겟팅 라벨}</code></td></tr>
+            <tr><td>AI 사용</td><td>OpenAI <code>gpt-4o-mini</code>, temperature 0, JSON 응답, 타임아웃 12초</td></tr>
+            <tr><td>규칙 대체</td><td>키 없음/실패 시 공백 정리만 하는 규칙 폴백. <code>PROMPT_REWRITE_STYLE=off</code>로 끄거나 <code>conservative</code>(오타만)로 조정 가능</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note">
+        <span class="n-tag">화면 표시 · 타겟팅 라벨</span>
+        같은 호출에서 <b>화면 표시용 “오디언스-only 라벨”</b>도 함께 만든다. 예: “30대 기혼여성에게 기저귀 <b>쿠폰</b>을 뿌리는 캠페인”에서
+        쿠폰·발송채널·행동동사는 라벨에서 빼고 <b>“30대 기혼 여성”</b>만 보여준다. 단, “기저귀를 <b>산</b> 고객”처럼 <b>과거 구매이력</b>은 오디언스 조건이라 유지한다.
+        (발송 채널 접미어 <code>발송 채널: …</code>는 이 단계에서 떼어 두었다가 그대로 다시 붙여, 타겟 해석에 채널 단어가 섞이지 않게 한다.)
+      </div>
+    </section>
+
+    <!-- STEP 2 -->
+    <section id="s2">
+      <h2><span class="num">04</span>STEP 2 · 타겟 / 채널 분리</h2>
+      <div class="h2title">“누구에게”와 “무엇을 어떻게”를 갈라낸다</div>
+      <p class="lead">한 문장에는 대상 조건(누구를 뽑을지)과 발송 조건(어떤 채널로 무엇을 보낼지)이 섞여 있다. 타겟팅 SQL에는 <b>대상 조건만</b> 필요하므로 둘을 분리한다.</p>
+
+      <h4>하는 일 (쉽게)</h4>
+      <p>“<b>20대 여성에게</b> 신상 화장품을 <b>문자로</b> 보내는 캠페인”에서, SQL로 명단을 뽑을 때 필요한 건 “20대 여성”뿐이다.
+        “문자(채널)”나 “신상 화장품(보낼 것)”이 대상 조건 파싱에 섞이면, 엉뚱하게 채널 단어가 검색을 오염시키거나 상품이 타겟 조건으로 잘못 잡힌다. 그래서 먼저 갈라놓는다.</p>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>항목</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td>함수</td><td><code>split_prompt_scopes()</code> — 규칙 경로는 “에게/한테” 같은 <b>대상 지향 표지</b>로 분리, AI 경로는 <code>{targeting, channel}</code> JSON 반환</td></tr>
+            <tr><td>동작 조건</td><td>타겟팅 조회(<code>retrieval_scope="targeting"</code>, 운영 기본)에서는 <b>타겟 절만</b> 파싱해 SQL로 만든다</td></tr>
+            <tr><td>효과</td><td>발송 채널·오퍼 단어가 타겟 벡터/키워드 검색을 오염시키지 않음 (SQL·메시지 채널 스코프에는 영향 없음)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- STEP 3 -->
+    <section id="s3">
+      <h2><span class="num">05</span>STEP 3 · 질의 계획 수립</h2>
+      <div class="h2title">문장을 “구조화된 조건표”로 바꾼다 — 핵심 단계</div>
+      <p class="lead">정리된 타겟 문장을, 기계가 다룰 수 있는 <b>조건표(Query Plan)</b>로 변환한다. 이 단계가 타겟팅의 심장이며, <b>규칙 파서가 먼저 전부 돌고 AI는 그 위에 얹히는</b> 하이브리드 구조다.</p>
+
+      <h4>Query Plan에 담기는 것</h4>
+      <ul class="check">
+        <li><b>intent</b> — 무엇을 하려는가 (고객 세그먼트 찾기 / 캠페인 추천 등)</li>
+        <li><b>target_user</b> — 성별, 연령(“20대” → 20~29), 라이프사이클(신규·휴면 등), 관심사, 행동, <b>구매이력(구매 상품)</b>, 미활동 기간, 생일, 가입 시점</li>
+        <li><b>exclude</b> — 제외 조건</li>
+        <li><b>campaign_constraints</b> — 캠페인 목적·오퍼·판매 상품(발송 맥락)</li>
+        <li><b>dimension_filters / set_expressions / computed_metrics</b> — 값 해석·집합식·계산 지표(STEP 5·6에서 상세)</li>
+      </ul>
+
+      <h4>규칙 우선 → AI 보조 → 규칙 재적용 (3중 구조)</h4>
+      <ol class="steps">
+        <li>
+          <span class="st-title">규칙 파서가 먼저 전부 실행 (<code>_build_rule_query_plan</code>)</span>
+          <span class="st-desc">정규화 사전으로 동의어를 표준값으로 바꾸고, 연령·구매이력·미활동·생일·가입·지역·지표 등을 정규식으로 추출한다. 이 결과만으로도 완결적인 계획이 나온다.</span>
+        </li>
+        <li>
+          <span class="st-title">(선택) AI 파서가 보강 (<code>_try_llm_query_plan</code>, <code>auto</code>/<code>llm</code> 모드에서만)</span>
+          <span class="st-desc">OpenAI가 규칙 계획을 fallback으로 참고해 더 정교한 계획을 만들고, <b>화이트리스트 검증</b>으로 허용된 필드만 남긴다.</span>
+        </li>
+        <li>
+          <span class="st-title">AI 결과 위에 규칙 추출기를 다시 덧씌움</span>
+          <span class="st-desc">브랜드→코드 해석·구매이력·생일·가입 창(window) 등 <b>핵심 조건은 파서 모드와 무관하게 항상 결정론</b>으로 확정 — AI 오분류를 막는 안전장치.</span>
+        </li>
+      </ol>
+      <div class="note">
+        <span class="n-tag">다중 표현 병합 (옵션)</span>
+        한 문장을 AI로 여러 방식으로 바꿔 말한 뒤 각각을 규칙으로 파싱해 조건을 <b>합집합으로 병합</b>하는 옵션도 있다.
+        한 가지 표현에서 놓친 조건을 다른 표현에서 건져, 조건 커버리지를 높인다.
+      </div>
+    </section>
+
+    <!-- STEP 4 -->
+    <section id="s4">
+      <h2><span class="num">06</span>STEP 4 · 상품·구매이력 추출</h2>
+      <div class="h2title">“무엇을 산/살 사람인가” — 정규식 우선 + 검증된 AI 보조</div>
+      <p class="lead">문장에서 상품·카테고리를 뽑아 <b>구매이력 조건</b>(과거에 그 상품을 <b>산</b> 고객)과 <b>판매 상품</b>(캠페인이 <b>팔려는</b> 상품)으로 나눈다. 재작성이 표현을 다양화하므로, 고정 정규식만으로는 놓치는 경우를 AI가 메운다.</p>
+
+      <h4>왜 하이브리드인가</h4>
+      <p>STEP 1 재작성이 “기저귀를 산 고객”을 “기저귀 <b>구매 고객</b>”처럼 명사형으로 바꾸면, 동사 위주 정규식이 조용히 놓쳐 <b>“타겟 조건을 못 찾아 SQL 실패”</b>가 반복됐다.
+        그래서 정규식이 놓치고 구매/판매 신호가 있을 때만 AI를 호출해 상품명을 건진다 — 단, <b>원문에 실제로 등장하는 단어만</b> 인정해 <b>없는 상품을 지어내지 못하게</b> 한다.</p>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>역할 분담</th><th>담당</th></tr></thead>
+          <tbody>
+            <tr><td>재현율(표현 유연성)</td><td>AI(OpenAI) — 정규식이 놓친 명사형·변형 표현을 잡음</td></tr>
+            <tr><td>정밀도(환각 차단)</td><td>규칙 <code>_validated_object()</code> — 추출 단어가 원문에 있어야만 채택</td></tr>
+            <tr><td>비용/지연 최소화</td><td>정규식이 이미 뽑았거나 구매·판매 신호가 없으면 AI 호출 안 함</td></tr>
+            <tr><td>게이트</td><td><code>OPENAI_API_KEY</code> 유무로 동작(파서 모드 무관). <code>TARGET_OBJECT_LLM_FALLBACK=false</code>로 끔</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="muted" style="font-size:14px;">회귀 방지: 새 실패 케이스는 테스트 코퍼스(<code class="file">tests/test_target_object_extraction.py</code>)에 “문장 → 기대 추출” 한 줄로 추가해 재발을 막는다.</p>
+    </section>
+
+    <!-- STEP 5 -->
+    <section id="s5">
+      <h2><span class="num">07</span>STEP 5 · 값 해석 (브랜드명 → 코드)</h2>
+      <div class="h2title">사람이 쓰는 이름을 DB가 아는 코드값으로</div>
+      <p class="lead">데이터베이스는 “포멜카멜리”라는 이름이 아니라 코드값 <code>'A'</code>로 브랜드를 저장한다. 프롬프트의 <b>디멘션 값(브랜드·지역 등)</b>을 실제 코드로 <b>실시간 변환</b>하는 단계 — <b>100% 규칙(AI 미사용)</b>이다.</p>
+
+      <h4>변환 경로 (예: 상품브랜드 “포멜카멜리”)</h4>
+      <ol class="steps">
+        <li><span class="st-title">디멘션 식별</span><span class="st-desc">프롬프트에 “상품브랜드” 같은 디멘션 라벨/동의어가 있으면 해당 디멘션을 찾는다.</span></li>
+        <li><span class="st-title">DS_SQL 실행으로 값 목록 조회</span><span class="st-desc">그 디멘션의 조회 SQL을 실제 DB에 돌려 <code>(코드, 이름)</code> 목록을 받는다. 규칙: 첫 컬럼=코드, 둘째=이름. 결과는 캐시.</span></li>
+        <li><span class="st-title">이름 → 코드 매칭</span><span class="st-desc">“포멜카멜리” → <code>'A'</code>. 최종 조건은 <code>BRAND_ID IN ('A')</code>.</span></li>
+      </ol>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>항목</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td>함수</td><td><code>_apply_dimension_filters()</code> → <code>_resolve_dimension_values_cached()</code> (LRU 캐시)</td></tr>
+            <tr><td>카탈로그</td><td><code class="file">dimension_catalog.sample.json</code> — DS 디멘션 <b>정의</b>만 담고, 값은 저장하지 않고 <b>런타임에 동적 조회</b>(값이 많을 수 있어서)</td></tr>
+            <tr><td>라벨 없는 값</td><td>지역명처럼 라벨이 없는 값은 <code>member_value_index.json</code>으로 매칭. “경기”가 “경기침체” 안에 걸리지 않도록 <b>토큰 경계 검사</b> 적용</td></tr>
+            <tr><td>AI 사용</td><td><b>없음</b> — 값 해석은 실제 SQL 조회이지 AI 추론이 아니다</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- STEP 6 -->
+    <section id="s6">
+      <h2><span class="num">08</span>STEP 6 · 집합식 파싱</h2>
+      <div class="h2title">“A 제외”, “그중 B만” 같은 집합 연산 해석</div>
+      <p class="lead">여러 세그먼트를 합치고(합집합), 겹치고(교집합), 빼는(차집합) 한국어 집합 표현을 연산 구조로 파싱한다. <b>순수 규칙(정규식 + 연산자 우선순위)</b>으로 처리한다.</p>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>표현</th><th>연산</th></tr></thead>
+          <tbody>
+            <tr><td>또는 / 합집합</td><td>합집합(union)</td></tr>
+            <tr><td>그리고 / 교집합</td><td>교집합(intersection)</td></tr>
+            <tr><td>제외 / 빼고 / 차집합</td><td>차집합(difference)</td></tr>
+            <tr><td>대상으로 하되 X만 포함 / 그중 / 중에서</td><td>자연어 정제(refinement)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note warn">
+        <span class="n-tag">과잉 인식 방지 (실사례)</span>
+        단순한 “<b>대상으로</b>”는 집합 연산으로 보지 <b>않는다</b>. 과거 재작성이 “20대 여성 고객을 <b>대상으로</b> …”처럼 바꾸자 파서가 이를
+        <code>20대 ∩ 여성</code> 교집합으로 오인해 연령·성별이 통째로 사라지고 명단이 비는 버그가 있었다.
+        “포함/남기고/제외/그중” 같은 <b>진짜 집합 표지</b>가 있을 때만 집합식으로 성립하도록 고쳤다. (회귀 테스트로 고정)
+      </div>
+    </section>
+
+    <!-- STEP 7 -->
+    <section id="s7">
+      <h2><span class="num">09</span>STEP 7 · 지식그래프 검색 (GraphRAG)</h2>
+      <div class="h2title">SQL을 짜는 데 필요한 “근거”를 찾아온다</div>
+      <p class="lead">조건을 실제 테이블·컬럼으로 옮기려면 스키마 지식이 필요하다. 이를 위해 <b>793개 노드의 지식 그래프</b>에서 관련 스키마·조인·예시를 <b>벡터 + 키워드 검색 → 그래프 확장</b>으로 찾는다.</p>
+
+      <h4>지식 그래프 구성 (793개 노드)</h4>
+      <div class="legend">
+        <span><i class="dot schema"></i> 스키마 허브 — 실제 테이블·컬럼</span>
+        <span><i class="dot semantic"></i> 의미층 — 자연어를 스키마로 번역</span>
+        <span><i class="dot instance"></i> 인스턴스 — 실제 값·예시</span>
+      </div>
+      <div class="cards">
+        <div class="card l-instance"><div class="c-head"><span class="c-name">dimension_value</span><span class="c-count">334</span></div><p class="c-desc">디멘션의 실제 값 (브랜드·등급 등).</p></div>
+        <div class="card l-semantic"><div class="c-head"><span class="c-name">normalization_rule</span><span class="c-count">213</span></div><p class="c-desc">정규화 사전 — 동의어 → 표준값.</p></div>
+        <div class="card l-semantic"><div class="c-head"><span class="c-name">dimension</span><span class="c-count">154</span></div><p class="c-desc">디멘션 정의 (브랜드·지역·등급 등).</p></div>
+        <div class="card l-schema"><div class="c-head"><span class="c-name">schema_table</span><span class="c-count">39</span></div><p class="c-desc">테이블·뷰 설명 + 중요 컬럼. 그래프 앵커.</p></div>
+        <div class="card l-semantic"><div class="c-head"><span class="c-name">sql_example</span><span class="c-count">22</span></div><p class="c-desc">예시 쿼리 + 사용 테이블. Few-shot 근거.</p></div>
+        <div class="card l-semantic"><div class="c-head"><span class="c-name">business_term</span><span class="c-count">20</span></div><p class="c-desc">비즈니스 용어 정의 + 관련 테이블·컬럼.</p></div>
+        <div class="card l-semantic"><div class="c-head"><span class="c-name">metric_alias</span><span class="c-count">6</span></div><p class="c-desc">계산 지표 별칭 → 숫자형 컬럼.</p></div>
+        <div class="card l-semantic"><div class="c-head"><span class="c-name">business_policy</span><span class="c-count">5</span></div><p class="c-desc">업무 정책 — SQL 동작·임계값·표현식.</p></div>
+      </div>
+
+      <h4>검색 3단계</h4>
+      <ul class="check">
+        <li><b>벡터 검색</b> — 임베딩(<code>BAAI/bge-small-en-v1.5</code>)으로 질문과 <b>의미가 가까운</b> 노드를 Qdrant에서 찾는다.</li>
+        <li><b>키워드 검색</b> — BM25로 <b>글자가 겹치는</b> 노드를 찾는다(의미 검색이 놓치는 정확 매칭 보완).</li>
+        <li><b>그래프 확장</b> — 찾은 노드에서 관계(엣지)를 따라 이웃 노드(연결된 테이블·컬럼·예시)까지 넓혀 하나의 근거 묶음(context)으로 조립한다.</li>
+      </ul>
+      <p class="muted" style="font-size:14px;">그래프는 <code class="file">rag_knowledge_base.json</code>에서 서버 시작 시 한 번 만들어(NetworkX) 모든 요청이 재사용한다. (임베딩 계산 외에 챗 AI는 쓰지 않는다.)</p>
+    </section>
+
+    <!-- STEP 8 -->
+    <section id="s8">
+      <h2><span class="num">10</span>STEP 8 · 타겟팅 SQL 생성</h2>
+      <div class="h2title">검증된 템플릿 우선, 안 맞으면 AI가 근거 위에서 생성</div>
+      <p class="lead">지금까지 모은 조건표와 그래프 근거로 최종 CRM SQL을 조립한다. <b>결정론 템플릿이 1순위</b>, 템플릿으로 표현 못 하는 형태만 <b>AI가 2순위 폴백</b>으로 생성한다.</p>
+
+      <h4>1순위 · 결정론 템플릿 (의도별 라우팅)</h4>
+      <p><code>build_sql_template_candidate()</code>가 조건에 맞는 템플릿을 순서대로 시도한다: 장바구니-브랜드 → 장바구니 재구매(담고 안 산) → <b>구매이력</b> → 주문횟수(첫구매·재구매·미구매) → 지표 랭킹(매출 상위 N) → 일반 회원속성.
+        모두 <code>compile_member_target_conditions()</code>를 공유해 조건을 회원 허브 테이블(<code>CRM_MB_BASEINFO</code>) 조건으로 변환한다.</p>
+
+      <p class="muted" style="font-size:14px;margin:-2px 0 8px;">예 · “카트에 담고 안 산” 계열 템플릿의 골격:</p>
+      <pre>SELECT DISTINCT B.MEMBER_NO AS CUST_ID, ... , 'cart_abandoner' AS target_segment
+FROM   ODS_MALL_OMS_CART A
+       INNER JOIN CRM_MB_BASEINFO B ON A.CART_ID = B.MEMBER_ID
+WHERE  A.KEEP_YN = 'Y'                                  -- 담아둔 채 미결제
+   AND B.GENDER_CD = 'GENDER_CD.FEMALE'                 -- 여성
+   AND B.AGE >= 20 AND B.AGE <= 29                      -- 20대
+   AND B.MEMBER_STATE_CD = 'MEMBER_STATE_CD.NORMAL'     -- 정상 회원 기본 게이트</pre>
+
+      <h4>2순위 · AI SQL 폴백 (템플릿이 없을 때만)</h4>
+      <p>어떤 템플릿에도 맞지 않고 파서 모드가 <code>auto</code>/<code>llm</code>일 때만, OpenAI가 <b>그래프 검색 근거(상위 컨텍스트 + 허용 테이블 목록) 안에서만</b> SQL을 만든다.
+        규칙: MSSQL <code>SELECT</code> 전용, 첫 컬럼 <code>B.MEMBER_NO AS CUST_ID</code>, 정상 회원 게이트 기본, <b>언급되지 않은 조건 추가 금지</b>. 이 결과에는 <code>llm_generated</code> 꼬리표가 붙는다.</p>
+      <div class="note">
+        <span class="n-tag">공통 · 부분추출 고지</span>
+        데이터로 매핑하지 못한 조건은 몰래 빼지 않고 <b>미지원(unsupported)·제외(dropped) 조건</b>으로 표시해 담당자에게 알린다.
+        또 <code>confidence.py</code>가 조건별 근거와 함께 0~100 <b>신뢰도 점수</b>를 붙인다.
+      </div>
+    </section>
+
+    <!-- STEP 9 -->
+    <section id="s9">
+      <h2><span class="num">11</span>STEP 9 · SQL 안전 검증</h2>
+      <div class="h2title">실행 전, 4중 관문을 통과해야만 한다</div>
+      <p class="lead">템플릿이든 AI든 <b>모든 SQL 후보는 동일한 검증 관문</b>을 통과해야 실행된다. 하나라도 걸리면 그 후보는 탈락한다.</p>
+
+      <ol class="steps">
+        <li>
+          <span class="st-title">안전성 검증 (<code>validate_sql</code> · <code class="file">sql_guard.py</code>)</span>
+          <span class="st-desc"><b>읽기(SELECT)만 허용</b> — INSERT·UPDATE·DELETE·DROP 등 데이터 변경 명령 전면 차단, 문장 끼워넣기 차단, <b>스키마에 등록된 허용 테이블만</b> 접근, 이름·전화 등 민감 컬럼은 마스킹 SQL로 대체.</span>
+        </li>
+        <li>
+          <span class="st-title">조건 커버리지 검증 (<code>validate_sql_condition_coverage</code>)</span>
+          <span class="st-desc">사용자가 요구한 조건(연령·성별·상품 등)이 SQL에 <b>실제로 모두 반영</b>됐는지 확인. 빠졌으면 탈락.</span>
+        </li>
+        <li>
+          <span class="st-title">의도 범위 검증 (<code>validate_sql_intent_scope</code>)</span>
+          <span class="st-desc">SQL이 문장의 의도(세그먼트 찾기/추천 등)와 맞는 범위인지 확인.</span>
+        </li>
+        <li>
+          <span class="st-title">미언급 조건 차단 (<code>validate_unmentioned_sql_conditions</code>)</span>
+          <span class="st-desc">사용자가 <b>말하지 않은 조건을 SQL이 임의로 추가</b>했는지 검사해 차단. “시키지 않은 필터링”을 막는다.</span>
+        </li>
+      </ol>
+      <p class="muted" style="font-size:14px;">네 관문을 모두 통과한 후보만 “사용 가능(eligible)”으로 인정된다. 대량 조회 방지를 위해 조회 건수 상한도 함께 관리한다.</p>
+    </section>
+
+    <!-- STEP 10 -->
+    <section id="s10">
+      <h2><span class="num">12</span>STEP 10 · 실행 · 결과</h2>
+      <div class="h2title">읽기 전용 실행 → 대상 고객 수와 세그먼트 구성</div>
+      <p class="lead">검증을 통과한 SQL을 실제 CRM 데이터베이스에 <b>읽기 전용</b>으로 실행해, 담당자 화면에 보여줄 <b>대상 고객 수·표본·세그먼트 구성</b>을 만든다.</p>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>결과 항목</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td><b>대상 고객 수</b></td><td>고객 ID 기준 중복 제거(distinct) 카운트</td></tr>
+            <tr><td>조회 행 수 · 표본</td><td>결과 규모와 샘플 행</td></tr>
+            <tr><td><b>세그먼트 구성</b></td><td>성별·연령·지역·등급 등으로 집계한 분포 (화면의 세그먼트 카드)</td></tr>
+            <tr><td>세그먼트 표시 우선순위</td><td>질문과 관련 높은 그룹은 노출, 나머지는 “프로필 통계”로 접어 표시</td></tr>
+            <tr><td>저장(옵션)</td><td>업무 DB는 읽기 전용이라, 뽑은 명단은 별도 메타 DB에 오디언스로 저장</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note">
+        <span class="n-tag">0명일 때 · 원인 진단</span>
+        타겟팅 SQL이 <b>0명</b>을 반환하면, 조건을 하나씩 떼어 <code>COUNT(*)</code>로 재조회하는 <b>진단</b>을 돌려
+        <b>어느 조건이 명단을 비웠는지</b>(특정 조건 자체가 0인지, 조건들의 조합 때문인지, 기본 정상회원 게이트 때문인지)를 짚어 준다. 담당자가 조건을 어떻게 완화할지 판단할 수 있게 하기 위함이다.
+      </div>
+      <p class="muted" style="font-size:14px;">실행 대상 DB는 테이블에 따라 자동 라우팅된다(CRMDW/CRMAN 등, MSSQL). 이 단계도 <b>순수 SQL 실행·집계</b>로 AI를 쓰지 않는다.</p>
+    </section>
+
+    <!-- worked example -->
+    <section id="s-example">
+      <h2><span class="num">13</span>전 과정 워크스루</h2>
+      <div class="h2title">“20대 여성 중 최근 카트에 담고 안 산 고객” 따라가기</div>
+      <p class="lead">한 문장이 10단계를 지나 대상 명단이 되는 과정을 실제로 따라가 본다.</p>
+
+      <ol class="steps">
+        <li><span class="st-title">진입</span><span class="st-desc"><code>/target-sql</code>이 문장을 받아 <code>retrieve()</code> 시작.</span></li>
+        <li><span class="st-title">재작성(STEP 1)</span><span class="st-desc">구어체를 표준 타겟 문장으로 정리, 원문은 보존.</span></li>
+        <li><span class="st-title">타겟/채널 분리(STEP 2)</span><span class="st-desc">발송 채널이 있으면 떼어 두고 대상 절만 파싱.</span></li>
+        <li><span class="st-title">질의 계획(STEP 3)</span><span class="st-desc">“20대” → 연령 20~29, “여성” → <code>female</code>, “담고 안 산” → 장바구니 이탈 맥락·의도 확정.</span></li>
+        <li><span class="st-title">상품/집합/값(STEP 4~6)</span><span class="st-desc">브랜드명이 없어 코드 해석 없음. “중”은 정제 표현이라 집합 오인 없이 연령·성별을 정상 조건으로 유지.</span></li>
+        <li><span class="st-title">그래프 검색(STEP 7)</span><span class="st-desc">장바구니·회원 테이블·관련 SQL 예시 근거를 확보.</span></li>
+        <li><span class="st-title">SQL 생성(STEP 8)</span><span class="st-desc">장바구니 재구매 템플릿 선택 → <code>ODS_MALL_OMS_CART</code> ⨝ <code>CRM_MB_BASEINFO</code>, <code>KEEP_YN='Y'</code> + 여성 + 20~29 + 정상회원.</span></li>
+        <li><span class="st-title">안전 검증(STEP 9)</span><span class="st-desc">읽기 전용·허용 테이블·조건 커버리지·미언급 조건 검사 통과.</span></li>
+        <li><span class="st-title">실행·결과(STEP 10)</span><span class="st-desc">CRMDW에 실행 → 대상 고객 수 + 세그먼트 구성 반환. 화면 “타겟팅 결과”에 표시.</span></li>
+      </ol>
+    </section>
+
+    <!-- failure -->
+    <section id="s-fail">
+      <h2><span class="num">14</span>실패 · 부분추출 처리</h2>
+      <div class="h2title">막혔을 때 어떻게 행동하나</div>
+      <p class="lead">타겟팅은 “틀린 명단을 자신 있게 내놓는 것”을 가장 경계한다. 그래서 각 지점마다 대체 경로와 <b>정직한 고지</b>를 둔다.</p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>상황</th><th>시스템의 행동</th></tr></thead>
+          <tbody>
+            <tr><td>AI 키 없음 / AI 실패</td><td>규칙 기반 경로로 자동 대체 — 파이프라인은 결정론으로 계속 동작</td></tr>
+            <tr><td>AI가 상품명을 지어냄</td><td>원문에 없는 단어면 채택 거부(<code>_validated_object</code>)</td></tr>
+            <tr><td>조건을 데이터로 못 옮김</td><td>몰래 빼지 않고 <b>미지원·제외 조건으로 고지</b> + 신뢰도 하향</td></tr>
+            <tr><td>입력 정보 부족</td><td>추측 대신 <b>명확화 질문</b> 반환</td></tr>
+            <tr><td>결과 0명</td><td>조건별 <code>COUNT</code> 진단으로 <b>어떤 조건이 비웠는지</b> 원인 제시</td></tr>
+            <tr><td>SQL이 검증 탈락</td><td>다른 후보 시도, 최종 실패 시 실패 사유를 담아 반환</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- stack -->
+    <section id="s-stack">
+      <h2><span class="num">15</span>기술 스택 요약</h2>
+      <div class="h2title">한 장으로 보는 구성·모델·게이트</div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>구분</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td>오케스트레이터</td><td>단일 함수 <code>retrieve()</code>가 10단계를 순차 실행 (<code class="file">graph_rag.py</code>)</td></tr>
+            <tr><td>API 진입점</td><td><code>POST /target-sql</code> (FastAPI, <code class="file">api.py</code>). 디버그용 <code>/target-sql/trace</code>는 단계별 중간결과 반환</td></tr>
+            <tr><td>LLM 제공자·모델</td><td><b>OpenAI 단독</b> · 기본 <code>gpt-4o-mini</code> · temperature 0 · JSON 모드 (Anthropic/타사 미사용)</td></tr>
+            <tr><td>임베딩·벡터DB</td><td><code>BAAI/bge-small-en-v1.5</code> (FastEmbed, 자체 처리) → <b>Qdrant</b></td></tr>
+            <tr><td>지식 그래프</td><td>793개 노드 (NetworkX, 시작 시 1회 구축) · <code class="file">rag_knowledge_base.json</code></td></tr>
+            <tr><td>대상 데이터</td><td>CRM DB (CRMDW/CRMAN, MSSQL) — 회원·주문·상품·장바구니. <b>읽기 전용</b></td></tr>
+            <tr><td>AI 사용 단계</td><td>재작성 · 타겟/채널 분리 · 질의계획(보조) · 상품추출(보조) · SQL 폴백</td></tr>
+            <tr><td>규칙 전용 단계</td><td>값 해석 · 집합식 · SQL 템플릿 · 4중 검증 · 실행 · 세그먼트 집계 · 0명 진단</td></tr>
+            <tr><td>마스터 게이트</td><td><code>OPENAI_API_KEY</code> — 없으면 모든 AI 단계가 규칙으로 자동 대체</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- data input catalog -->
+    <section id="s-data">
+      <h2><span class="num">16</span>데이터 입력 카탈로그</h2>
+      <div class="h2title"><code class="file">docs/data</code> JSON은 언제·왜 들어가나 — 파이프라인의 “연료”</div>
+      <p class="lead">앞의 03~12장이 <b>“어떻게 처리하는가”</b>였다면, 이 장은 그 처리에 <b>“어떤 사전·지식 파일이 연료로 들어가는가”</b>다.
+        <code class="file">docs/data</code> 폴더의 JSON은 코드가 아니라 <b>데이터</b>라, 이 파일만 고치면 <b>재배포 없이</b> 타겟팅 동작(인식하는 표현·값 매핑·허용 테이블 등)을 바꿀 수 있다.
+        각 파일이 <b>어느 STEP에서 · 어떤 함수로 · 왜</b> 들어가는지, 그리고 <b>비었거나 매핑이 없으면 무슨 일이 나는지</b>까지 정리한다.
+        (실물은 화면 <a class="inline" href="/admin/reference">설정 → 참조 파일</a>에서 읽기 전용으로 열람 가능.)</p>
+
+      <div class="note">
+        <span class="n-tag">먼저 · 런타임 vs 빌드타임</span>
+        대부분의 JSON은 <b>질의마다 런타임에 직접 로드</b>된다(파일 → 사전). 예외는 <code class="file">rag_knowledge_base.json</code> 하나로, 이건 <b>오프라인 빌드 산출물</b>이다 —
+        <code class="file">build_rag_knowledge.py</code>가 아래 원천 파일들(스키마·정규화·정책·지표·SQL예시·디멘션)을 <b>미리 묶어 지식그래프로 굳힌 것</b>.
+        그래서 STEP 7 검색이 실제로 뒤지는 실체는 이 한 파일이고, 원천 파일들은 “빌드 재료”이자 “런타임 사전”의 두 역할을 겸한다.
+      </div>
+
+      <h3>파일 → 단계 요약</h3>
+      <p class="muted" style="font-size:14px;margin:-4px 0 12px;">
+        <span style="color:#0d9488;font-weight:700;">규칙</span> = 런타임에 직접 로드해 결정론 처리 ·
+        <span style="color:#b26a05;font-weight:700;">빌드</span> = 오프라인으로 미리 굳힌 산출물
+      </p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>JSON 파일</th><th>한 줄 역할</th><th>들어가는 단계</th><th>성격</th></tr></thead>
+          <tbody>
+            <tr><td><code class="file">targeting_lexicon.json</code></td><td>타겟팅 어휘 단일 출처 — 대상 방향표지·채널 신호어·의도어·판매/구매 신호</td><td>STEP 2·3·4</td><td style="color:#0d9488;font-weight:700;">규칙</td></tr>
+            <tr><td><code class="file">normalization_rules.sample.json</code></td><td>구어체·동의어·오타 → 표준(canonical) 값 사전</td><td>STEP 3·6 (+신뢰도)</td><td style="color:#0d9488;font-weight:700;">규칙</td></tr>
+            <tr><td><code class="file">business_policies.sample.json</code></td><td>캠페인 정책(임계값·제약)을 계획에 자동 주입</td><td>STEP 3 (+STEP 7)</td><td style="color:#0d9488;font-weight:700;">규칙</td></tr>
+            <tr><td><code class="file">metric_lexicon.sample.json</code></td><td>계산지표(공식 기반 metric) 인식 어휘</td><td>STEP 3</td><td style="color:#0d9488;font-weight:700;">규칙</td></tr>
+            <tr><td><code class="file">member_metrics.json</code></td><td>회원 지표 레지스트리 — “지표 높은 고객/지역” 동적 패턴</td><td>STEP 3·8</td><td style="color:#0d9488;font-weight:700;">규칙</td></tr>
+            <tr><td><code class="file">dimension_catalog.sample.json</code></td><td>이름→코드 변환용 DS_SQL·동의어 정의</td><td>STEP 5</td><td style="color:#0d9488;font-weight:700;">규칙</td></tr>
+            <tr><td><code class="file">member_value_index.json</code></td><td>라벨 없이 값만 나올 때 값→컬럼 역인덱스</td><td>STEP 5</td><td style="color:#0d9488;font-weight:700;">규칙</td></tr>
+            <tr><td><code class="file">member_target_filters.json</code></td><td>조건→실컬럼·코드 매핑의 <b>핵심 사전</b></td><td>STEP 8 (+신뢰도)</td><td style="color:#0d9488;font-weight:700;">규칙</td></tr>
+            <tr><td><code class="file">schema_catalog.json</code></td><td>허용 테이블·컬럼·DB 방언 (검증 기준)</td><td>STEP 8·9 (+신뢰도)</td><td style="color:#0d9488;font-weight:700;">규칙</td></tr>
+            <tr><td><code class="file">rag_knowledge_base.json</code></td><td>검색 대상 지식그래프 본체(노드·엣지)</td><td>STEP 7</td><td style="color:#b26a05;font-weight:700;">빌드</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>A · “말귀”를 표준 조건으로 — STEP 2·3·4 사전</h3>
+
+      <h4><code class="file">targeting_lexicon.json</code> — 타겟팅 어휘 단일 출처</h4>
+      <p>시스템이 <b>인식하는 모든 타겟팅 표현</b>을 한 곳에 모은 사전. 새 말투·새 판매 동사 등은 코드가 아니라 여기에 추가한다.</p>
+      <ul class="dash">
+        <li><b>들어가는 시점</b> — STEP 2(대상 <b>방향표지</b> <code>에게/한테/대상으로</code>로 타겟·채널 절 분리), STEP 3(<b>의도·목표</b> 분류: 추천 캠페인 vs 세그먼트 조회), STEP 4(<b>구매/판매 신호어</b> 감지). 로드: <code>_lexicon_terms()</code></li>
+        <li><b>주요 키</b> — <code>audience_direction_markers</code>, <code>channel_signal_words</code>, <code>intent_recommend_campaign</code>, <code>objective_rules</code>, <code>sell_outreach_verbs</code>, <code>purchase_history_signals</code>, <code>cart_terms</code>, <code>repurchase_terms</code> …</li>
+        <li><b>못 찾으면</b> — 사전에 없는 새 표현은 그 단계가 통째로 인식하지 못한다. 예: 판매 신호어에 없는 동사면 STEP 4 상품추출의 <b>AI 폴백조차 켜지지 않는다</b>. → 새 표현은 여기 한 줄 추가가 정답.</li>
+      </ul>
+
+      <h4><code class="file">normalization_rules.sample.json</code> — 표준화 사전</h4>
+      <p>사람이 쓰는 다양한 표면형을 <b>표준값(canonical)</b>으로 접어준다. 예: <code>여자 / 여성 / 여자 고객</code> → <code>female</code>.</p>
+      <ul class="dash">
+        <li><b>들어가는 시점</b> — STEP 3(성별·등급·행동 등 조건을 canonical로 확정), STEP 6(<b>집합식 피연산자</b> 용어 카탈로그 <code>load_set_term_catalog()</code>로 재사용), + 신뢰도 근거(<code>matched_terms</code>)</li>
+        <li><b>구성</b> — 규칙별 <code>rule_id · canonical · ko_label · synonyms</code>(활용·조사 변형 포함)</li>
+        <li><b>못 찾으면</b> — 동의어 미등록 표현은 조건으로 안 잡히거나(누락), 집합식에서 <code>unknown_operand</code>가 되어 SQL 대신 <b>되물음(clarification)</b>이 나간다.</li>
+      </ul>
+
+      <h4><code class="file">business_policies.sample.json</code> — 비즈니스 정책</h4>
+      <ul class="dash">
+        <li><b>역할</b> — 캠페인 공통 정책(임계값·기본 제약)을 계획에 자동으로 얹는다. 예: 발송 대상 기본 게이트(탈퇴/휴면 제외).</li>
+        <li><b>들어가는 시점</b> — STEP 3 <code>_apply_policy_constraints()</code>로 Query Plan에 주입. 동시에 STEP 7 지식그래프의 <b>정책 노드</b> 원천이기도 하다.</li>
+      </ul>
+
+      <h4><code class="file">metric_lexicon.sample.json</code> · <code class="file">member_metrics.json</code> — 지표 어휘</h4>
+      <ul class="dash">
+        <li><code class="file">metric_lexicon.sample.json</code> — <b>공식 기반 계산지표</b>(예: 객단가 = 매출/주문수)를 문장에서 인식. STEP 3 <code>parse_computed_metrics_from_query()</code>(<code class="file">formula_engine.py</code>).</li>
+        <li><code class="file">member_metrics.json</code> — 회원 <b>지표 레지스트리</b>. “<b>구매액이 높은</b> 고객/지역” 같은 표현을 지표 동의어로 <b>동적 인식</b>(STEP 3)하고, 랭킹형 타겟 SQL(STEP 8)의 근거가 된다.</li>
+      </ul>
+
+      <h3>B · 값을 코드로 — STEP 5 값 해석</h3>
+
+      <h4><code class="file">dimension_catalog.sample.json</code> — 디멘션 카탈로그</h4>
+      <ul class="dash">
+        <li><b>역할</b> — “포멜카멜리” 같은 <b>이름을 실제 코드값</b>('A')으로 바꾸는 규약. 디멘션별 <code>synonyms · target_column · ds_sql · connection</code>.</li>
+        <li><b>들어가는 시점</b> — STEP 5 <code>_apply_dimension_filters()</code>. 라벨/동의어가 프롬프트에 있으면 <b>런타임에 DS_SQL을 실DB에 실행</b>해 (코드,이름) 쌍을 얻는다.</li>
+        <li><b>못 찾으면</b> — 라벨이 없으면 이 경로 자체를 건너뛰고, DS_SQL 실행 실패는 <b>조용히 빈 결과</b>로 흐른다(진단 사각지대). 값만 있을 땐 아래 역인덱스가 보완.</li>
+      </ul>
+
+      <h4><code class="file">member_value_index.json</code> — 회원 값 역인덱스</h4>
+      <ul class="dash">
+        <li><b>역할</b> — 라벨 없이 <b>값만</b> 언급될 때(예: 라벨 없이 브랜드명만) 그 값이 <b>어느 컬럼</b>에 속하는지 찾아준다.</li>
+        <li><b>들어가는 시점</b> — STEP 5 <code>_apply_member_value_filters()</code>. 같은 이름이 여러 컬럼에 있으면(모호) 안전하게 제외. 생성: <code class="file">build_member_value_index.py</code>.</li>
+      </ul>
+
+      <h3>C · SQL을 만들고 지키는 기준 — STEP 8·9</h3>
+
+      <h4><code class="file">member_target_filters.json</code> — 조건→컬럼 매핑의 핵심 사전</h4>
+      <p>“타겟 조건이 실제 어느 <b>컬럼·코드</b>가 되는가”의 단일 출처. 성별·회원등급·활동(미접속)·주문(구매횟수)·가입일·생일 등을 실DB 술어로 컴파일한다.</p>
+      <ul class="dash">
+        <li><b>들어가는 시점</b> — STEP 8 <code>compile_member_target_conditions()</code>가 이 매핑으로 결정론 SQL을 조립. + 신뢰도 채점의 근거.</li>
+        <li><b>주요 키</b> — <code>eq_filters</code>(성별·등급 등 코드값), <code>activity_filters</code>(미접속 일수), <code>order_count_targets</code>(무구매·재구매 anti/aggregate), <code>signup_target</code>, <code>birthday_target</code>, <code>active_state</code></li>
+        <li><b>못 찾으면(가장 중요)</b> — 매핑이 없는 조건은 <b>‘실DB 미지원’으로 분류</b>돼 SQL에서 빠지고 “이 조건은 반영 못 함”으로 고지된다. → <b>커버리지를 넓히는 1순위 손잡이</b>가 바로 이 파일.</li>
+      </ul>
+
+      <h4><code class="file">schema_catalog.json</code> — 스키마 카탈로그(허용 목록)</h4>
+      <ul class="dash">
+        <li><b>역할</b> — <b>실재하는 테이블·컬럼·DB 방언</b>의 화이트리스트. “이 컬럼이 진짜 있나”의 판정 기준.</li>
+        <li><b>들어가는 시점</b> — STEP 8 템플릿의 컬럼 확인, STEP 9 <code class="file">sql_guard.py</code>의 <b>허용 테이블·방언 검증</b>, <code class="file">formula_engine.py</code>, 신뢰도의 스키마 일치 축.</li>
+        <li><b>구성</b> — <code>source · databases · policy · tables</code>(테이블별 컬럼 정의)</li>
+      </ul>
+
+      <h3>D · 검색이 뒤지는 지식 — STEP 7</h3>
+
+      <h4><code class="file">rag_knowledge_base.json</code> — 지식그래프 본체</h4>
+      <ul class="dash">
+        <li><b>역할</b> — STEP 7 검색(벡터+키워드+그래프)이 뒤지는 <b>지식 노드·엣지</b>의 실체(스키마·정책·SQL 예시·디멘션 값 등).</li>
+        <li><b>어떻게 생기나</b> — <code class="file">build_rag_knowledge.py</code>가 <code class="file">schema_catalog.json · normalization_rules · business_policies · metric_lexicon · sql_examples · dimension_catalog</code>를 묶어 <b>오프라인으로 굳힌 산출물</b>.</li>
+        <li><b>영향 범위</b> — 검색 결과는 주로 <b>LLM SQL 폴백의 근거·답변 설명·정책 유사도(신뢰도)</b>에 쓰인다. 결정론 타겟 SQL은 대개 Query Plan에서 직접 나오므로, 검색이 비어도 타겟 자체가 사라지진 않는다.</li>
+      </ul>
+
+      <div class="note">
+        <span class="n-tag">JSON은 아니지만 함께 쓰는 원천</span>
+        같은 폴더의 비-JSON 3종도 지식 빌드에 들어간다 — <code class="file">sql_examples.sample.sql</code>(검색 근거·LLM SQL 폴백 참고),
+        <code class="file">table_relationships.md</code>(조인 경로 문서), <code class="file">metadata_ddl.sql</code>(프롬프트·정책 저장용 메타 DB 스키마).
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<footer>
+  <div class="wrap">
+    <p>본 문서는 타겟팅 파이프라인(자연어 → 타겟팅 SQL)만을 대상으로, 실제 코드(<code>recommendation-campaign-system-python</code>)와 대조해 단계·함수·동작을 검증하고
+      개발 지식이 있는 독자가 빠르게 이해하도록 재구성한 보고서다. 그래프 노드 수 등 런타임에 따라 달라지는 값은 현재 지식베이스 기준이다.
+      메시지 생성·A/B/C 클릭률 예측은 <a class="inline" href="/system-report.html">시스템 보고서</a>를 참고.</p>
+  </div>
+</footer>
+
+<script>
+  // active TOC highlight
+  var links = Array.prototype.slice.call(document.querySelectorAll('nav.toc a'));
+  var map = {};
+  links.forEach(function(a){ map[a.getAttribute('href').slice(1)] = a; });
+  var obs = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(e.isIntersecting){
+        links.forEach(function(l){ l.classList.remove('active'); });
+        var a = map[e.target.id];
+        if(a) a.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-10% 0px -80% 0px', threshold: 0 });
+  document.querySelectorAll('section[id]').forEach(function(s){ obs.observe(s); });
+</script>
+</body>
+</html>
