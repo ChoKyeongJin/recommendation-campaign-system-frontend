@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ConfidenceCard } from "@/components/confidence-card";
 import type {
   Channel,
   TargetSegment,
@@ -805,6 +806,8 @@ export function StepTargeting({
           </div>
         </CardContent>
       </Card>
+
+      {result.confidence && <ConfidenceCard confidence={result.confidence} />}
 
       <Card>
         <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">

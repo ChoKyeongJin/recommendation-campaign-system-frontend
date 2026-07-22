@@ -16,6 +16,34 @@ export type TargetSegmentGroup = {
   reason?: string;
 };
 
+/** 신뢰도 근거 한 건. kind: confirmed(문서·스키마 직접 확인) | inferred(AI 추론). */
+export type ConfidenceEvidence = {
+  source_type: string;
+  ref: string;
+  detail: string;
+  kind: "confirmed" | "inferred";
+};
+
+/** WHERE 조건 하나에 대한 신뢰도·근거·경고. */
+export type ConfidenceCondition = {
+  key: string;
+  ko_label: string;
+  score: number;
+  verified: boolean;
+  evidence: ConfidenceEvidence[];
+  warnings: string[];
+};
+
+/** 백엔드(confidence.py)가 산정한 타겟팅 SQL 신뢰도. api_response.confidence 그대로. */
+export type TargetingConfidence = {
+  overall_score: number;
+  level: string;
+  dimensions: Record<string, number>;
+  dimension_weights?: Record<string, number>;
+  conditions: ConfidenceCondition[];
+  warnings: string[];
+};
+
 export type TargetingResult = {
   campaignId?: string;
   total: number | null;
@@ -32,6 +60,8 @@ export type TargetingResult = {
   sql: string;
   message?: string;
   sampleRows?: Record<string, string | number | null>[];
+  /** 생성 SQL 신뢰도(전체/조건별 점수·근거·경고). 검증 SQL이 없으면 null. */
+  confidence?: TargetingConfidence | null;
 };
 
 /** Graph 확장 경로의 한 노드 (출발점 A ─관계→ B ─관계→ 목표). */

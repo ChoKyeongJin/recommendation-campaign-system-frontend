@@ -634,6 +634,16 @@ function getCampaignIdFromPythonResponse(data: unknown) {
   );
 }
 
+// api_response.confidence(구조화 신뢰도)를 그대로 통과시킨다. 검증 SQL이 없으면 백엔드가 null 을 준다.
+function getConfidenceFromPythonResponse(data: unknown) {
+  const apiResponse = getApiResponse(data);
+  const confidence = asRecord(apiResponse?.confidence);
+  if (!confidence || typeof confidence.overall_score !== "number") {
+    return null;
+  }
+  return confidence;
+}
+
 function parsePythonResponse(rawText: string) {
   if (!rawText) {
     return null;
@@ -701,6 +711,7 @@ export async function POST(request: Request) {
       sql,
       message: getStringValue(getApiResponse(data), ["message"]),
       sampleRows: getSampleRowsFromPythonResponse(data),
+      confidence: getConfidenceFromPythonResponse(data),
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "알 수 없는 오류";
