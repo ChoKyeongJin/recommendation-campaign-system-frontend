@@ -589,11 +589,35 @@ function getNormalizedPromptFromPythonResponse(data: unknown) {
   return normalized.replace(/\s*발송\s*채널\s*:[\s\S]*$/, "").trim();
 }
 
+// 표시용 오디언스 절 끝에 남는 대상 지향 조사("…여성에게", "…인 곳에")를 다듬는다. 의미 판단이 아니라
+// 표시 정리일 뿐이므로 라벨 끝에서만 제거한다.
+function trimAudienceDirectionSuffix(label: string) {
+  return label.replace(/(?:에게|한테|께)$/, "").replace(/곳에$/, "곳").trim();
+}
+
 // 백엔드가 재작성 시 함께 뽑아주는 "오디언스만" 담은 타겟팅 라벨. offer(쿠폰)·행동·"캠페인"·발송채널이
-// 빠진 값이라 화면 "타겟팅 프롬프트"에 이걸 우선 쓴다. 값이 없으면 normalized_query 로 폴백한다.
+// 빠진 값이라 화면 "타겟팅 프롬프트"에 이걸 우선 쓴다. LLM 라벨이 비어 있으면 결정론 스코프 분리 결과
+// (prompt_scopes.targeting — "브랜드가 알로루인 곳에 10% 할인 쿠폰…" 의 "브랜드가 알로루인 곳에" 절)로
+// 폴백하고, 그마저 없으면 화면(step-targeting)이 normalized_query 로 폴백한다.
 function getTargetingLabelFromPythonResponse(data: unknown) {
   const apiResponse = getApiResponse(data);
-  return getStringValue(apiResponse, ["targeting_label", "targetingLabel"]).trim();
+  const label = getStringValue(apiResponse, ["targeting_label", "targetingLabel"]).trim();
+  if (label) {
+    return trimAudienceDirectionSuffix(label);
+  }
+
+  const scopes = asRecord(apiResponse?.prompt_scopes ?? apiResponse?.promptScopes);
+  const targetingScope = getStringValue(scopes, ["targeting"])
+    .replace(/\s*발송\s*채널\s*:[\s\S]*$/, "")
+    .trim();
+  // 분리가 실제로 일어난 경우에만 쓴다. 분리 실패 폴백(전체 문장=타겟팅)이면 채널 절이 비어 있고,
+  // 그 값을 쓰면 쿠폰/발송 문구까지 "타겟팅 프롬프트"로 보여 오히려 오해를 만든다.
+  const channelScope = getStringValue(scopes, ["channel"]).trim();
+  if (targetingScope && channelScope) {
+    return trimAudienceDirectionSuffix(targetingScope);
+  }
+
+  return "";
 }
 
 function getSampleRowsFromPythonResponse(data: unknown) {
