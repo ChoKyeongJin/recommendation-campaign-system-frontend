@@ -1,7 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Database, ListTree, MessageSquareText, Users } from "lucide-react";
+import {
+  Database,
+  ListTree,
+  MessageSquareText,
+  Users,
+  Wrench,
+} from "lucide-react";
 import {
   Card,
   CardContent,
@@ -12,6 +18,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ConfidenceCard } from "@/components/confidence-card";
+import {
+  buildReinforcementHints,
+  type ReinforcementHint,
+} from "@/lib/targeting-hints";
 import type {
   Channel,
   TargetSegment,
@@ -632,6 +642,68 @@ function TraceSection({
   );
 }
 
+// 타겟팅 실패·부분추출 시 "어디를 보강하면 좋을지" 힌트 카드. 힌트가 없으면 렌더링하지 않는다.
+function ReinforcementHintsCard({ hints }: { hints: ReinforcementHint[] }) {
+  if (hints.length === 0) {
+    return null;
+  }
+
+  const hasFail = hints.some((hint) => hint.severity === "fail");
+
+  return (
+    <Card className="border-amber-300/80">
+      <CardHeader className="flex-row items-start gap-3 space-y-0">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
+          <Wrench className="h-5 w-5" aria-hidden />
+        </span>
+        <div className="min-w-0">
+          <CardTitle className="text-base">보강 힌트</CardTitle>
+          <CardDescription>
+            {hasFail
+              ? "요청한 조건이 타겟팅에 온전히 반영되지 않았습니다. 어디를 손보면 좋은지 알려드립니다."
+              : "일부 조건이 빠졌거나 주의가 필요합니다. 개선 지점을 알려드립니다."}
+          </CardDescription>
+        </div>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        {hints.map((hint, index) => (
+          <div
+            key={`${hint.severity}-${index}`}
+            className="rounded-lg border border-border bg-accent p-3"
+          >
+            <div className="flex items-start gap-2">
+              <Badge
+                variant={hint.severity === "fail" ? "destructive" : "secondary"}
+                className="mt-0.5 shrink-0 text-[10px]"
+              >
+                {hint.severity === "fail" ? "미반영" : "주의"}
+              </Badge>
+              <p className="text-sm font-medium text-foreground">
+                {hint.symptom}
+              </p>
+            </div>
+            <div className="mt-2 grid gap-x-3 gap-y-1 text-sm sm:grid-cols-[3.5rem_1fr]">
+              <span className="text-xs font-semibold text-muted-foreground sm:pt-0.5">
+                어디를
+              </span>
+              <code className="break-all font-mono text-xs text-foreground">
+                {hint.where}
+              </code>
+              <span className="text-xs font-semibold text-muted-foreground sm:pt-0.5">
+                어떻게
+              </span>
+              <span className="text-muted-foreground">{hint.how}</span>
+            </div>
+          </div>
+        ))}
+        <p className="text-xs text-muted-foreground">
+          보강 대상 파일은 [설정 → 참조 파일] 화면에서 열람할 수 있습니다.
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function StepTargeting({
   result,
   prompt,
@@ -666,6 +738,8 @@ export function StepTargeting({
   const hiddenSegmentGroups = (result.hiddenSegmentGroups ?? []).filter(
     (group) => group.segments.length > 0,
   );
+  // 실패·부분추출 시 어디를 보강하면 좋을지 힌트(온전히 성공하면 빈 배열).
+  const reinforcementHints = buildReinforcementHints(result);
   const metrics = [
     {
       label: "추출된 타겟 고객 수",
@@ -806,6 +880,8 @@ export function StepTargeting({
           </div>
         </CardContent>
       </Card>
+
+      <ReinforcementHintsCard hints={reinforcementHints} />
 
       {result.confidence && <ConfidenceCard confidence={result.confidence} />}
 

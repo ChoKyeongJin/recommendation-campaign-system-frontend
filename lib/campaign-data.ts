@@ -44,6 +44,31 @@ export type TargetingConfidence = {
   warnings: string[];
 };
 
+/** 0명 결과일 때 어느 조건이 명단을 비웠는지 백엔드가 술어별 COUNT 로 귀속한 진단. */
+export type TargetingCardinalityDiagnostic = {
+  /** predicate_empty=단독으로도 0명 · predicate_interaction=조합이 0명 · probe_incomplete=결론 보류 */
+  cause?: string;
+  memberTotal?: number | null;
+  culpritPredicates: string[];
+  injectedDefaultIsCulprit?: boolean;
+};
+
+/** 타겟팅 실패·부분추출 시 "어디를 보강하면 좋을지" 힌트를 만들기 위한 원신호 (백엔드 api_response 발췌). */
+export type TargetingDiagnostics = {
+  status?: string;
+  failureReason?: string;
+  /** 실DB 로 못 옮겨 명단을 못 뽑게 한 조건들(경로 / 한글 라벨) */
+  unsupportedConditions: string[];
+  unsupportedConditionLabels: string[];
+  /** SQL 은 나왔지만 실DB 미지원이라 빠진 조건들(부분추출) */
+  droppedConditions: string[];
+  droppedConditionLabels: string[];
+  /** 입력 부족·모호로 되물음이 필요한 조건 */
+  missingInputConditions: string[];
+  clarificationQuestions: string[];
+  cardinality?: TargetingCardinalityDiagnostic | null;
+};
+
 export type TargetingResult = {
   campaignId?: string;
   total: number | null;
@@ -62,6 +87,8 @@ export type TargetingResult = {
   sampleRows?: Record<string, string | number | null>[];
   /** 생성 SQL 신뢰도(전체/조건별 점수·근거·경고). 검증 SQL이 없으면 null. */
   confidence?: TargetingConfidence | null;
+  /** 실패·부분추출 진단 원신호. "보강 힌트"(buildReinforcementHints)의 입력. */
+  diagnostics?: TargetingDiagnostics | null;
 };
 
 /** Graph 확장 경로의 한 노드 (출발점 A ─관계→ B ─관계→ 목표). */

@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>개발 로드맵 — 다음 과제</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css">
+<style>
+  :root{
+    --ink:#1b2027;
+    --muted:#5c6675;
+    --faint:#8a93a2;
+    --line:#e7eaef;
+    --line-soft:#eef1f5;
+    --bg:#ffffff;
+    --bg-soft:#f7f9fb;
+    --accent:#4f46e5;
+    --done:#0d9488;
+    --done-bg:#ecfdf9;
+    --todo:#8a93a2;
+    --maxw:820px;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:var(--bg-soft);
+    color:var(--ink);
+    font-family:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,
+      "Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",system-ui,sans-serif;
+    font-size:16px;
+    line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+    word-break:keep-all;
+    overflow-wrap:anywhere;
+  }
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px 80px;}
+
+  /* header */
+  header.top{padding:40px 0 8px;}
+  a.app-link{
+    display:inline-flex;align-items:center;gap:6px;
+    font-size:13.5px;font-weight:600;color:var(--accent);
+    text-decoration:none;border:1px solid var(--line);border-radius:999px;
+    padding:5px 14px;margin:0 0 22px;background:#fff;
+    transition:border-color .15s,background .15s;
+  }
+  a.app-link:hover{border-color:var(--accent);background:#f6f7ff;}
+  .eyebrow{
+    font-size:12.5px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--faint);font-weight:700;margin:0 0 12px;
+  }
+  h1.title{font-size:28px;line-height:1.3;letter-spacing:-.01em;margin:0 0 12px;font-weight:700;}
+  .lede{font-size:15.5px;color:var(--muted);max-width:60ch;margin:0;}
+
+  /* progress summary */
+  .summary{
+    margin:26px 0 34px;padding:18px 20px;background:#fff;
+    border:1px solid var(--line);border-radius:14px;
+  }
+  .summary-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;}
+  .summary-head b{font-size:15px;}
+  .summary-head span{font-size:13.5px;color:var(--muted);}
+  .bar{height:8px;border-radius:999px;background:var(--line-soft);overflow:hidden;}
+  .bar>i{display:block;height:100%;background:var(--done);border-radius:999px;}
+
+  /* group */
+  .group{margin:0 0 22px;}
+  .group-head{display:flex;align-items:center;gap:10px;margin:0 0 12px;}
+  .group-head h2{font-size:16px;font-weight:700;margin:0;}
+  .pill{
+    font-size:11.5px;font-weight:700;letter-spacing:.02em;
+    padding:2px 9px;border-radius:999px;line-height:1.5;
+  }
+  .pill.done{color:var(--done);background:var(--done-bg);border:1px solid #bdeee3;}
+  .pill.todo{color:var(--todo);background:#f3f5f8;border:1px solid var(--line);}
+
+  ul.tasks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;}
+  li.task{
+    display:flex;align-items:flex-start;gap:12px;
+    padding:12px 14px;background:#fff;border:1px solid var(--line);border-radius:12px;
+    font-size:14.5px;color:var(--ink);
+  }
+  li.task.is-done{color:var(--muted);}
+  li.task.is-done .label{text-decoration:line-through;text-decoration-color:#c7ccd4;}
+  .box{
+    flex:0 0 auto;width:20px;height:20px;border-radius:6px;margin-top:1px;
+    display:flex;align-items:center;justify-content:center;
+    border:1.5px solid var(--line);background:#fff;
+  }
+  .box.checked{background:var(--done);border-color:var(--done);}
+  .box svg{width:12px;height:12px;}
+  .label{flex:1;}
+
+  footer{margin-top:40px;padding-top:22px;border-top:1px solid var(--line);
+    font-size:12.5px;color:var(--faint);}
+
+  @media (max-width:520px){
+    h1.title{font-size:23px;}
+    .summary-head{flex-direction:column;gap:2px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="app-link" href="/">← 캠페인 생성 시스템으로</a>
+    <p class="eyebrow">Development Roadmap</p>
+    <h1 class="title">다음 과제 — 프롬프트 유형별 지원 현황</h1>
+    <p class="lede">
+      캠페인 프롬프트 유형을 5개 카테고리로 나눠 관리합니다.
+      현재는 <b>타겟 중심</b> 유형만 정상 동작하며, 나머지는 순차적으로 개발 예정입니다.
+    </p>
+  </header>
+
+  <section class="summary">
+    <div class="summary-head">
+      <b>전체 진행률</b>
+      <span id="progress-text">0 / 0 완료</span>
+    </div>
+    <div class="bar"><i id="progress-bar" style="width:0%"></i></div>
+  </section>
+
+  <div id="groups"></div>
+
+  <footer>
+    체크된 항목은 개발 완료, 빈 항목은 개발 예정입니다. 우선순위는 조정될 수 있습니다.
+  </footer>
+</div>
+
+<script>
+  const CATEGORIES = [
+    {
+      title: "기본 예시",
+      done: false,
+      tasks: [
+        "신규 회원 대상 가입 이벤트 캠페인",
+        "여름 휴가 시즌 20% 할인 캠페인",
+        "기존 고객 재구매 유도 캠페인",
+        "장바구니 이탈 고객 리마인드 캠페인",
+        "VIP 고객 전용 감사 이벤트",
+      ],
+    },
+    {
+      title: "타겟 중심",
+      done: true,
+      tasks: [
+        "20대 여성 고객 대상 화장품 할인 캠페인",
+        "첫 구매 고객 웰컴 쿠폰 지급 캠페인",
+        "생일 고객 축하 쿠폰 발송 캠페인",
+      ],
+    },
+    {
+      title: "목표 중심",
+      done: false,
+      tasks: [
+        "매출 증대를 위한 할인 캠페인",
+        "앱 재방문 유도 푸시 캠페인",
+        "이메일 오픈율 개선 캠페인",
+        "휴면 고객 재활성화 캠페인",
+        "신제품 출시 알림 캠페인",
+      ],
+    },
+    {
+      title: "조건 포함",
+      done: false,
+      tasks: [
+        "주말 한정 15% 할인 캠페인",
+        "구매 5만 원 이상 무료배송 혜택 캠페인",
+        "오전 10시 푸시 알림 예약 캠페인",
+        "카카오톡 쿠폰 발송 캠페인",
+        "이메일·SMS 멀티채널 캠페인",
+      ],
+    },
+    {
+      title: "고급 예시",
+      done: false,
+      tasks: [
+        "7일 내 장바구니 미구매 고객 10% 쿠폰",
+        "VIP 이메일 발송 후 3일 뒤 미열람자 SMS",
+        "가입 후 1·3·7일 순차 온보딩 메시지",
+        "90일 미구매 고객 재구매 할인",
+        "서울 지역 고객 오프라인 행사 초대",
+      ],
+    },
+  ];
+
+  const CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>';
+
+  const groupsEl = document.getElementById("groups");
+  let total = 0, done = 0;
+
+  for (const cat of CATEGORIES) {
+    total += cat.tasks.length;
+    if (cat.done) done += cat.tasks.length;
+
+    const group = document.createElement("div");
+    group.className = "group";
+
+    const pillClass = cat.done ? "done" : "todo";
+    const pillText = cat.done ? "지원 완료" : "개발 예정";
+    group.innerHTML =
+      '<div class="group-head">' +
+        '<h2>' + cat.title + '</h2>' +
+        '<span class="pill ' + pillClass + '">' + pillText + '</span>' +
+      '</div>';
+
+    const ul = document.createElement("ul");
+    ul.className = "tasks";
+    for (const t of cat.tasks) {
+      const li = document.createElement("li");
+      li.className = "task" + (cat.done ? " is-done" : "");
+      li.innerHTML =
+        '<span class="box' + (cat.done ? " checked" : "") + '">' + (cat.done ? CHECK : "") + '</span>' +
+        '<span class="label">' + t + '</span>';
+      ul.appendChild(li);
+    }
+    group.appendChild(ul);
+    groupsEl.appendChild(group);
+  }
+
+  const pct = total ? Math.round((done / total) * 100) : 0;
+  document.getElementById("progress-bar").style.width = pct + "%";
+  document.getElementById("progress-text").textContent = done + " / " + total + " 완료 (" + pct + "%)";
+</script>
+</body>
+</html>

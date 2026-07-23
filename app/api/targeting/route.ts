@@ -644,6 +644,65 @@ function getConfidenceFromPythonResponse(data: unknown) {
   return confidence;
 }
 
+// 문자열 배열 또는 {label/question/path} 객체 배열을 문자열 목록으로 정규화한다.
+function toStringList(record: Record<string, unknown> | null, key: string) {
+  return getArrayValue(record, key).flatMap((item) => {
+    if (typeof item === "string") {
+      return item.trim() ? [item.trim()] : [];
+    }
+    const rec = asRecord(item);
+    if (!rec) {
+      return [];
+    }
+    const label = getStringValue(rec, [
+      "label",
+      "question",
+      "text",
+      "path",
+      "condition",
+    ]);
+    return label ? [label] : [];
+  });
+}
+
+// 타겟팅 실패·부분추출 진단 신호를 프론트로 통과시킨다(보강 힌트 입력).
+function getDiagnosticsFromPythonResponse(data: unknown) {
+  const apiResponse = getApiResponse(data);
+  const databaseExecution = asRecord(apiResponse?.database_execution);
+  const cardinalityRecord = asRecord(databaseExecution?.cardinality_diagnostic);
+
+  const cardinality = cardinalityRecord
+    ? {
+        cause: getStringValue(cardinalityRecord, ["cause"]),
+        memberTotal: getNumberValue(cardinalityRecord, ["member_total"]),
+        culpritPredicates: toStringList(cardinalityRecord, "culprit_predicates"),
+        injectedDefaultIsCulprit:
+          cardinalityRecord.injected_default_is_culprit === true,
+      }
+    : null;
+
+  return {
+    status: getStringValue(apiResponse, ["status"]),
+    failureReason: getStringValue(apiResponse, ["failure_reason"]),
+    unsupportedConditions: toStringList(apiResponse, "unsupported_conditions"),
+    unsupportedConditionLabels: toStringList(
+      apiResponse,
+      "unsupported_condition_labels",
+    ),
+    droppedConditions: toStringList(apiResponse, "dropped_conditions"),
+    droppedConditionLabels: toStringList(
+      apiResponse,
+      "dropped_condition_labels",
+    ),
+    missingInputConditions: toStringList(
+      apiResponse,
+      "missing_input_conditions",
+    ),
+    clarificationQuestions: toStringList(apiResponse, "clarification_questions"),
+    cardinality,
+  };
+}
+
 function parsePythonResponse(rawText: string) {
   if (!rawText) {
     return null;
@@ -712,6 +771,7 @@ export async function POST(request: Request) {
       message: getStringValue(getApiResponse(data), ["message"]),
       sampleRows: getSampleRowsFromPythonResponse(data),
       confidence: getConfidenceFromPythonResponse(data),
+      diagnostics: getDiagnosticsFromPythonResponse(data),
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "알 수 없는 오류";
