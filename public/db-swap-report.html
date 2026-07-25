@@ -303,6 +303,38 @@
         코드에 테이블/컬럼을 다시 박지 말 것. 소스는 위 설정을 읽도록 이미 배선돼 있다. 새 설정 섹션은 JSON에만 추가하면 자동으로 반영된다.
         고친 뒤 반드시 <b>⑤ 프리플라이트</b>로 확인한다(왕복).
       </div>
+
+      <h3><code>docs/data</code> 파일별 — 무엇을 손대고 무엇은 안 건드리나</h3>
+      <p class="muted"><code>docs/data</code>에는 위 3개 말고도 파일이 더 있다. “빠진 것”이 아니라 <b>손댈 필요가 없거나(무관·자동)</b>,
+        실DB가 아닌 <b>데모 스키마에 묶인 잔재</b>여서 스왑 작업 대상이 아니기 때문이다. 전체를 분류하면:</p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>파일</th><th>결합 대상</th><th>스왑 시</th></tr></thead>
+          <tbody>
+            <tr><td><code class="file">member_target_filters.json</code></td><td>실 CRM 테이블·컬럼·코드값</td><td><span class="badge manual sm">수동 ④ 필수</span></td></tr>
+            <tr><td><code class="file">member_metrics.json</code></td><td>실 CRM 지표 테이블</td><td><span class="badge manual sm">수동 ④ 필수</span></td></tr>
+            <tr><td><code class="file">sql_examples.sample.sql</code></td><td>실 CRM 예시 SQL</td><td><span class="badge manual sm">수동 ④ 필수</span></td></tr>
+            <tr><td><code class="file">schema_catalog.json</code></td><td>실DB 테이블 목록 · 구조</td><td><span class="badge manual sm">수동 ②</span> + <span class="badge auto sm">자동 ③</span></td></tr>
+            <tr><td><code class="file">business_policies.sample.json</code></td><td><b>데모 스키마</b>(users/campaigns)</td><td><span class="badge manual sm">데모 잔재 · 아래 ※</span></td></tr>
+            <tr><td><code class="file">metric_lexicon.sample.json</code></td><td><b>데모 스키마</b>(users/campaigns)</td><td><span class="badge manual sm">데모 잔재 · 아래 ※</span></td></tr>
+            <tr><td><code class="file">normalization_rules.sample.json</code></td><td>스키마 중립(동의어·표준값)</td><td>손댈 것 없음</td></tr>
+            <tr><td><code class="file">targeting_lexicon.json</code></td><td>스키마 중립(타겟팅 어휘)</td><td>손댈 것 없음</td></tr>
+            <tr><td><code class="file">rag_knowledge_base.json</code></td><td>파생물(검색 지식 본체)</td><td><span class="badge auto sm">자동 ⑥</span></td></tr>
+            <tr><td><code class="file">member_value_index.json</code></td><td>파생물(실DB 값 스냅샷)</td><td><span class="badge auto sm">자동 ⑥</span></td></tr>
+            <tr><td><code class="file">dimension_catalog.sample.json</code></td><td>파생물(디멘션 정의·DS_SQL)</td><td><span class="badge auto sm">자동 ⑥</span></td></tr>
+            <tr><td><code class="file">table_relationships.md</code></td><td>파생물(관계도 · 사람용)</td><td><span class="badge auto sm">자동 ⑥</span></td></tr>
+            <tr><td><code class="file">metadata_ddl.sql</code></td><td>로컬 메타DB(실DB 아님)</td><td>무관</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="note warn">
+        <span class="n-tag">※ 데모 잔재란</span>
+        <code class="file">business_policies.sample.json</code>·<code class="file">metric_lexicon.sample.json</code>은 아직 <b>데모용 스키마
+        (<code>users</code>/<code>campaigns</code>)</b>를 가리키며 실 CRM 테이블은 하나도 참조하지 않는다. 매 질의에 로드되긴 하나,
+        만들어내는 정책·계산지표가 실회원 SQL 경로에서 <b>미지원으로 처리돼 실제 타겟 결과에 영향이 없다</b>(= 지금도 실DB와 안 맞은 채
+        정상 동작 중). 따라서 <b>DB 전환이 새로 만드는 작업이 아니다.</b> 정책·공식 기능을 실DB로 제대로 쓰고 싶을 때만 별도로 재작성하면 되는,
+        스왑과 분리된 “데모 정리” 과제다.
+      </div>
     </section>
 
     <!-- auto -->
