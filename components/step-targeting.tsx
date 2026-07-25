@@ -322,6 +322,7 @@ const REF_KIND_CLASS: Record<string, string> = {
   데이터: "border-emerald-300 text-emerald-700 dark:border-emerald-800 dark:text-emerald-300",
   모델: "border-violet-300 text-violet-700 dark:border-violet-800 dark:text-violet-300",
   인프라: "border-amber-300 text-amber-700 dark:border-amber-800 dark:text-amber-300",
+  코드: "border-rose-300 text-rose-700 dark:border-rose-800 dark:text-rose-300",
 };
 
 /** 단계가 참조한 프롬프트/데이터/모델을 종류별 배지로 보여준다. */
@@ -1033,13 +1034,20 @@ export function StepTargeting({
 
       <Card>
         <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
-          <CardTitle className="text-base">실행된 SQL</CardTitle>
+          {/* 실패(failureStage)면 실행되지 않았으므로 "생성된 SQL(미실행)"로, 성공이면 "실행된 SQL"로 라벨링한다. */}
+          <CardTitle className="text-base">
+            {result.failureStage ? "생성된 SQL (검증 실패 · 미실행)" : "실행된 SQL"}
+          </CardTitle>
           <Badge variant="secondary">read-only</Badge>
         </CardHeader>
         <CardContent>
-          <pre className="overflow-x-auto rounded-lg bg-foreground p-4 text-xs leading-relaxed text-background">
-            <code className="font-mono">{result.sql}</code>
-          </pre>
+          {result.sql ? (
+            <pre className="overflow-x-auto rounded-lg bg-foreground p-4 text-xs leading-relaxed text-background">
+              <code className="font-mono">{result.sql}</code>
+            </pre>
+          ) : (
+            <p className="text-sm text-muted-foreground">SQL이 생성되지 않았습니다.</p>
+          )}
         </CardContent>
       </Card>
 

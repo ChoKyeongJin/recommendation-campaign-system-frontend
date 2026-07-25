@@ -153,7 +153,8 @@ function getSqlFromPythonResponse(data: unknown) {
   const databaseExecution = asRecord(apiResponse?.database_execution);
   return (
     getStringValue(databaseExecution, ["executed_sql"]) ||
-    getStringValue(apiResponse, ["sql", "target_sql", "targetSql"]) ||
+    // blocked_sql: 의미 검증 등으로 출고(sql=null)가 막혔지만 생성은 된 SQL(표시 전용). 실패해도 SQL 을 보여준다.
+    getStringValue(apiResponse, ["sql", "blocked_sql", "target_sql", "targetSql"]) ||
     getCandidateSql(data) ||
     findSqlValue(data)
   );
