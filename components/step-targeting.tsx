@@ -24,6 +24,7 @@ import {
 } from "@/lib/targeting-hints";
 import type {
   Channel,
+  TargetingFailureStage,
   TargetSegment,
   TargetSegmentGroup,
   TargetingResult,
@@ -131,6 +132,7 @@ const INTENT_LABELS: Record<string, string> = {
   recommend_campaign: "캠페인 추천",
   recommend_message: "메시지 추천",
   target_only: "타겟 고객 추출",
+  find_user_segment: "타겟 세그먼트 조회",
 };
 
 // summary("intent=recommend_campaign", "8건" 등)를 사람 말로 바꾼다.
@@ -314,6 +316,38 @@ function GraphExpansionView({ hits }: { hits: TargetingTraceHit[] }) {
   );
 }
 
+// 참조 종류별 배지 색. 프롬프트/데이터/모델/인프라를 한눈에 구분한다.
+const REF_KIND_CLASS: Record<string, string> = {
+  프롬프트: "border-blue-300 text-blue-700 dark:border-blue-800 dark:text-blue-300",
+  데이터: "border-emerald-300 text-emerald-700 dark:border-emerald-800 dark:text-emerald-300",
+  모델: "border-violet-300 text-violet-700 dark:border-violet-800 dark:text-violet-300",
+  인프라: "border-amber-300 text-amber-700 dark:border-amber-800 dark:text-amber-300",
+};
+
+/** 단계가 참조한 프롬프트/데이터/모델을 종류별 배지로 보여준다. */
+function StageRefs({ refs }: { refs: NonNullable<TargetingTraceStep["refs"]> }) {
+  if (refs.length === 0) {
+    return null;
+  }
+  return (
+    <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+      <span className="text-[10px] font-medium text-muted-foreground">참조</span>
+      {refs.map((ref, i) => (
+        <span
+          key={`${ref.kind}-${ref.name}-${i}`}
+          className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] ${
+            REF_KIND_CLASS[ref.kind] ?? "border-border text-muted-foreground"
+          }`}
+          title={ref.kind}
+        >
+          <span className="font-medium opacity-70">{ref.kind}</span>
+          <span className="font-mono">{ref.name}</span>
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function TraceStepCard({
   step,
   index,
@@ -346,17 +380,45 @@ function TraceStepCard({
     }
   }
 
+  // 단계 번호 원의 색: 실패=빨강 · 미실행=흐림 · 그 외=기본.
+  const circleClass =
+    step.status === "fail"
+      ? "bg-destructive text-destructive-foreground"
+      : step.status === "skipped"
+        ? "bg-muted text-muted-foreground"
+        : "bg-primary text-primary-foreground";
+
   return (
     <li className="flex gap-3">
       <div className="flex flex-col items-center">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
-          {index + 1}
+        <span
+          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${circleClass}`}
+        >
+          {step.step ?? index + 1}
         </span>
         <span className="mt-1 w-px flex-1 bg-border last:hidden" aria-hidden />
       </div>
-      <div className="min-w-0 flex-1 pb-5">
+      <div
+        className={`min-w-0 flex-1 pb-5 ${step.status === "skipped" ? "opacity-60" : ""}`}
+      >
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-sm font-semibold text-foreground">{step.title}</p>
+          {/* 처리 방식 배지: 혼합(LLM) / 규칙(결정론) */}
+          {step.method && (
+            <Badge variant="outline" className="text-[10px] font-normal">
+              {step.method}
+            </Badge>
+          )}
+          {step.status === "fail" && (
+            <Badge variant="destructive" className="text-[10px] font-normal">
+              실패
+            </Badge>
+          )}
+          {step.status === "skipped" && (
+            <Badge variant="secondary" className="text-[10px] font-normal">
+              미실행
+            </Badge>
+          )}
           {summaryText && (
             <Badge
               variant={step.status === "fail" ? "destructive" : "secondary"}
@@ -366,6 +428,13 @@ function TraceStepCard({
             </Badge>
           )}
         </div>
+
+        {/* 기술명 (예: Query Plan (build_query_plan)) */}
+        {step.techName && (
+          <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">
+            {step.techName}
+          </p>
+        )}
 
         {/* 사람 말 설명 (예: 1단계 요청 이해) */}
         {step.plain && step.plain.length > 0 && (
@@ -384,6 +453,9 @@ function TraceStepCard({
             ))}
           </ul>
         )}
+
+        {/* 참조 프롬프트/데이터/모델 */}
+        {step.refs && step.refs.length > 0 && <StageRefs refs={step.refs} />}
 
         {isGraphStep && hits.length > 0 ? (
           <GraphExpansionView hits={hits} />
@@ -704,6 +776,73 @@ function ReinforcementHintsCard({ hints }: { hints: ReinforcementHint[] }) {
   );
 }
 
+/**
+ * 타겟 SQL 생성이 실패했을 때 "어느 단계에서 막혔는지"를 한 눈에 보여준다.
+ * 기존에는 실패 사유와 무관하게 회색 안내문만 떠서, 집합식(조건) 인식에서 막혔는지 SQL 안전
+ * 검증에서 막혔는지 구분할 수 없었다. 단계 스텝퍼로 통과→실패→남은 단계를 시각화하고,
+ * 세부 "왜"는 기존 message 로 아래에 이어 보여준다.
+ */
+function FailureStageNotice({
+  stage,
+  message,
+}: {
+  stage: TargetingFailureStage;
+  message?: string;
+}) {
+  const pipeline = stage.pipeline?.length
+    ? stage.pipeline
+    : [{ order: stage.order, code: stage.code, label: stage.label }];
+
+  return (
+    <div className="flex flex-col gap-3 rounded-lg border border-destructive/40 bg-destructive/5 p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant="destructive" className="text-[10px]">
+          실패 단계 {stage.order}/{stage.total}
+        </Badge>
+        <span className="text-sm font-semibold text-foreground">
+          {stage.label} 단계에서 막혔습니다
+        </span>
+      </div>
+
+      {/* 단계 스텝퍼: 통과(✓) → 실패(✕) → 아직 도달 못한 단계(번호) */}
+      <ol className="flex flex-wrap items-center gap-x-1.5 gap-y-2">
+        {pipeline.map((step, index) => {
+          const isFailed = step.order === stage.order;
+          const isPassed = step.order < stage.order;
+          return (
+            <li key={step.code} className="flex items-center gap-1.5">
+              <span
+                className={[
+                  "flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium",
+                  isFailed
+                    ? "bg-destructive text-destructive-foreground"
+                    : isPassed
+                      ? "bg-secondary text-muted-foreground"
+                      : "bg-muted text-muted-foreground/60",
+                ].join(" ")}
+              >
+                <span aria-hidden className="font-mono">
+                  {isFailed ? "✕" : isPassed ? "✓" : step.order}
+                </span>
+                {step.label}
+              </span>
+              {index < pipeline.length - 1 && (
+                <span className="text-muted-foreground/50" aria-hidden>
+                  →
+                </span>
+              )}
+            </li>
+          );
+        })}
+      </ol>
+
+      {message && (
+        <p className="text-sm leading-relaxed text-foreground">{message}</p>
+      )}
+    </div>
+  );
+}
+
 export function StepTargeting({
   result,
   prompt,
@@ -832,10 +971,17 @@ export function StepTargeting({
             })}
           </div>
 
-          {result.message && (
-            <p className="rounded-lg border border-border bg-secondary p-3 text-sm text-secondary-foreground">
-              {result.message}
-            </p>
+          {result.failureStage ? (
+            <FailureStageNotice
+              stage={result.failureStage}
+              message={result.message}
+            />
+          ) : (
+            result.message && (
+              <p className="rounded-lg border border-border bg-secondary p-3 text-sm text-secondary-foreground">
+                {result.message}
+              </p>
+            )
           )}
 
           <div className="flex flex-col gap-3">

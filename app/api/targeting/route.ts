@@ -474,6 +474,7 @@ function buildSegmentGroupsByKey(data: unknown) {
     gender: "성별",
     age_band: "연령대",
     region: "지역",
+    grade: "등급",
     lifecycle: "라이프사이클",
     price_sensitivity: "가격 민감도",
     predicted_ltv_segment: "예측 LTV",
@@ -727,6 +728,43 @@ function getDiagnosticsFromPythonResponse(data: unknown) {
   };
 }
 
+// 타겟 SQL 이 어느 파이프라인 단계에서 막혔는지(어디서)를 백엔드에서 그대로 통과시킨다.
+// 성공이면 백엔드가 null 을 주므로 그대로 null 을 반환한다(프론트에서 배지 미노출).
+function getFailureStageFromPythonResponse(data: unknown) {
+  const apiResponse = getApiResponse(data);
+  const stage = asRecord(apiResponse?.failure_stage);
+  if (!stage) {
+    return null;
+  }
+
+  const code = getStringValue(stage, ["code"]);
+  const label = getStringValue(stage, ["label"]);
+  const order = getNumberValue(stage, ["order"]);
+  const total = getNumberValue(stage, ["total"]);
+  if (!code || !label || order === null || total === null) {
+    return null;
+  }
+
+  const pipeline = getArrayValue(stage, "pipeline").flatMap((item) => {
+    const record = asRecord(item);
+    const stepCode = getStringValue(record, ["code"]);
+    const stepLabel = getStringValue(record, ["label"]);
+    const stepOrder = getNumberValue(record, ["order"]);
+    return stepCode && stepLabel && stepOrder !== null
+      ? [{ order: stepOrder, code: stepCode, label: stepLabel }]
+      : [];
+  });
+
+  return {
+    code,
+    label,
+    order,
+    total,
+    reason: getStringValue(stage, ["reason"]),
+    pipeline,
+  };
+}
+
 function parsePythonResponse(rawText: string) {
   if (!rawText) {
     return null;
@@ -796,6 +834,7 @@ export async function POST(request: Request) {
       sampleRows: getSampleRowsFromPythonResponse(data),
       confidence: getConfidenceFromPythonResponse(data),
       diagnostics: getDiagnosticsFromPythonResponse(data),
+      failureStage: getFailureStageFromPythonResponse(data),
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "알 수 없는 오류";

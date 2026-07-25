@@ -269,172 +269,56 @@ function toContextNode(entry: unknown): TargetingTraceHit | null {
   };
 }
 
-const MARK = (value: boolean | null) => (value === null ? "?" : value ? "✓" : "✗");
+/** 백엔드 status(ok/info/fail/skipped) → 화면 status. ok 는 성공(success)으로 본다. */
+function normalizeStatus(raw: string): TargetingTraceStep["status"] {
+  const lowered = raw.toLowerCase();
+  if (lowered === "ok" || lowered === "success") return "success";
+  if (lowered === "fail" || lowered === "error") return "fail";
+  if (lowered === "skipped") return "skipped";
+  return "info";
+}
 
-/** 최상위 stages 배열(신 버전 응답)을 그대로 해석한다. */
+/**
+ * 백엔드 10단계 트레이스(step·name·method·status·plain·details·hits)를 화면 단계로 정규화한다.
+ * 백엔드가 이미 단계별 사람 말/기술 라인을 만들어 주므로 여기선 얇게 통과시키고, hits 만 노드로 변환한다.
+ * (step 7 hits 는 그래프 노드라 path/reached_via 를 가진 context 노드로, 그 외는 일반 검색 히트로 해석.)
+ */
 function buildStepFromStage(stage: Rec): TargetingTraceStep | null {
   const step = getNumber(stage, ["step"]);
   const title = getString(stage, ["name", "title"]) || (step ? `STEP ${step}` : "단계");
+  const method = getString(stage, ["method"]);
+  const techName = getString(stage, ["tech_name", "techName"]);
+  const status = normalizeStatus(getString(stage, ["status"]));
+  const summary = getString(stage, ["summary"]);
+  const plain = toStringList(getArray(stage, ["plain"]));
+  const details = toStringList(getArray(stage, ["details"]));
 
-  // STEP 1 — 의미 추론
-  if (step === 1 || /의미|planning|normal/i.test(title)) {
-    const intent = getString(stage, ["intent"]);
-    const plain: string[] = []; // 사람 말 설명 (상위 노출)
-    const details: string[] = []; // 내부 값·JSON 등 기술 정보 ('자세히'로)
+  const hits = getArray(stage, ["hits", "context_nodes"])
+    .map((entry) => toContextNode(entry) ?? toSearchHit(entry))
+    .filter((hit): hit is TargetingTraceHit => hit !== null);
+  const count = getNumber(stage, ["count", "hitCount", "context_count"]);
 
-    for (const entry of getArray(stage, ["matched_terms"])) {
-      const record = asRecord(entry);
-      if (!record) continue;
-      const from = getString(record, ["matched_text", "source_term"]);
-      const canonical = getString(record, ["canonical", "rule_id"]);
-      // match_type(ko_label 등)은 내부 값이라 사람 말 설명에서는 뺀다.
-      if (from && canonical) {
-        plain.push(`고객 문장의 ‘${from}’를 시스템 용어 ${canonical}로 이해했어요.`);
-      } else if (from || canonical) {
-        plain.push(`인식한 조건: ${from || canonical}`);
-      }
-    }
+  // 참조 자산(프롬프트/데이터/모델). {kind, name} 형태만 받아들인다.
+  const refs = getArray(stage, ["refs"]).flatMap((entry) => {
+    const record = asRecord(entry);
+    const kind = getString(record, ["kind"]);
+    const name = getString(record, ["name"]);
+    return kind && name ? [{ kind, name }] : [];
+  });
 
-    const targetUser = asRecord(stage.target_user);
-    if (targetUser) {
-      const summary = summarizeObject(targetUser, "target_user");
-      if (summary) details.push(summary);
-    }
-
-    const dimensionFilters = getArray(stage, ["dimension_filters"]);
-    if (dimensionFilters.length > 0) {
-      const labels = dimensionFilters
-        .map((entry) =>
-          typeof entry === "string"
-            ? entry
-            : summarizeObject(asRecord(entry) ?? {}, "").replace(/^: /, ""),
-        )
-        .filter(Boolean);
-      if (labels.length > 0) details.push(`dimension_filters: ${labels.join(", ")}`);
-    }
-
-    const retrievalTerms = toStringList(getArray(stage, ["retrieval_terms"]));
-    if (retrievalTerms.length > 0) {
-      details.push(`retrieval_terms: ${retrievalTerms.join(", ")}`);
-    }
-
-    if (!intent && plain.length === 0 && details.length === 0) {
-      return null;
-    }
-    return {
-      step: step ?? undefined,
-      title,
-      summary: intent ? `intent=${intent}` : undefined,
-      plain: plain.length > 0 ? plain : undefined,
-      details: details.length > 0 ? details : undefined,
-      status: "info",
-    };
-  }
-
-  // STEP 2 · 3 — 벡터 / 키워드 검색
-  if (step === 2 || step === 3 || /검색|search|vector|keyword|lexical/i.test(title)) {
-    const hits = getArray(stage, ["hits"])
-      .map(toSearchHit)
-      .filter((hit): hit is TargetingTraceHit => hit !== null);
-    const count = getNumber(stage, ["count"]) ?? (hits.length > 0 ? hits.length : null);
-    if (hits.length === 0 && count === null) {
-      return null;
-    }
-    return {
-      step: step ?? undefined,
-      title,
-      summary: count !== null ? `${count.toLocaleString()}건` : undefined,
-      hits: hits.length > 0 ? hits : undefined,
-      hitCount: count,
-    };
-  }
-
-  // STEP 4 — 병합 + Graph 확장
-  if (step === 4 || /graph|확장|병합/i.test(title)) {
-    const seed = getNumber(stage, ["seed_count", "seed"]);
-    const context = getNumber(stage, ["context_count", "context"]);
-    const nodes = getArray(stage, ["context_nodes", "nodes"])
-      .map(toContextNode)
-      .filter((hit): hit is TargetingTraceHit => hit !== null);
-    if (seed === null && context === null && nodes.length === 0) {
-      return null;
-    }
-    const summaryParts: string[] = [];
-    if (seed !== null) summaryParts.push(`seed=${seed}`);
-    if (context !== null) summaryParts.push(`context=${context}`);
-    return {
-      step: step ?? undefined,
-      title,
-      summary: summaryParts.length > 0 ? summaryParts.join(" → ") : undefined,
-      hits: nodes.length > 0 ? nodes : undefined,
-      hitCount: context,
-      status: "info",
-    };
-  }
-
-  // STEP 5 — SQL 생성 / 검증
-  if (step === 5 || /sql|생성|검증|guard/i.test(title)) {
-    const details: string[] = [];
-
-    const required = toStringList(getArray(stage, ["required_conditions"]));
-    if (required.length > 0) {
-      details.push(`required_conditions=[${required.join(", ")}]`);
-    }
-
-    for (const entry of getArray(stage, ["candidates"])) {
-      const record = asRecord(entry);
-      if (!record) continue;
-      const id = getString(record, ["id", "name", "template"]);
-      const flags: string[] = [];
-      const guard = getBool(record, ["guard_valid", "guard"]);
-      const coverage = getBool(record, ["coverage_ok", "coverage"]);
-      const eligible = getBool(record, ["is_eligible", "eligible"]);
-      const scope = getBool(record, ["intent_scope_ok"]);
-      const unmentioned = getBool(record, ["unmentioned_ok"]);
-      if (guard !== null) flags.push(`guard=${MARK(guard)}`);
-      if (coverage !== null) flags.push(`coverage=${MARK(coverage)}`);
-      if (eligible !== null) flags.push(`eligible=${MARK(eligible)}`);
-      if (scope !== null) flags.push(`scope=${MARK(scope)}`);
-      if (unmentioned !== null) flags.push(`unmentioned=${MARK(unmentioned)}`);
-      if (id || flags.length > 0) {
-        const prefix = id ? `candidate ${id}` : "candidate";
-        details.push(flags.length > 0 ? `${prefix}: ${flags.join(" ")}` : prefix);
-      }
-      const tables = toStringList(getArray(record, ["tables"]));
-      if (tables.length > 0) {
-        details.push(`tables: ${tables.join(", ")}`);
-      }
-    }
-
-    const metaParts: string[] = [];
-    const connection = getString(stage, ["target_connection"]);
-    if (connection) metaParts.push(`target_connection=${connection}`);
-    const dialect = getString(stage, ["target_dialect", "dialect"]);
-    if (dialect) metaParts.push(`dialect=${dialect}`);
-    const success = getBool(stage, ["is_success", "success"]);
-    if (success !== null) metaParts.push(`success=${success}`);
-    if (metaParts.length > 0) details.push(metaParts.join(", "));
-
-    const failureReason = getString(stage, ["failure_reason"]);
-    if (failureReason) details.push(`failure_reason: ${failureReason}`);
-
-    if (details.length === 0) {
-      return null;
-    }
-    return {
-      step: step ?? undefined,
-      title,
-      details,
-      status: success === false ? "fail" : "info",
-    };
-  }
-
-  // 알 수 없는 단계 — 최소한의 요약만
-  const summary = getString(stage, ["summary", "description", "message"]);
-  if (!summary) {
-    return null;
-  }
-  return { step: step ?? undefined, title, summary, status: "info" };
+  return {
+    step: step ?? undefined,
+    title,
+    ...(method ? { method } : {}),
+    ...(techName ? { techName } : {}),
+    status,
+    ...(summary ? { summary } : {}),
+    ...(plain.length > 0 ? { plain } : {}),
+    ...(details.length > 0 ? { details } : {}),
+    ...(hits.length > 0 ? { hits } : {}),
+    ...(count !== null ? { hitCount: count } : {}),
+    ...(refs.length > 0 ? { refs } : {}),
+  };
 }
 
 /** stages 가 없는 응답을 위한 방어적 폴백(넓은 키 탐색). */

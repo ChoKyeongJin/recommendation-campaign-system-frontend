@@ -472,7 +472,8 @@
       <span class="tag">자연어 → 타겟팅 SQL</span>
       <span class="tag">GraphRAG 검색</span>
       <span class="tag">결정론 우선 · LLM 보조</span>
-      <span class="tag">SQL 4중 안전 검증</span>
+      <span class="tag">SQL 4중 검증 + 의미 게이트</span>
+      <span class="tag">성능·드롭 비차단 자문</span>
       <span class="tag">실제 CRM DB 실행</span>
     </div>
   </div>
@@ -499,6 +500,7 @@
       <li><a href="#s-example">전 과정 워크스루 예시</a></li>
       <li><a href="#s-fail">실패·부분추출 처리</a></li>
       <li><a href="#s-stack">기술 스택 요약</a></li>
+      <li><a href="#s-policy">데이터 밖 · 파이썬 정책</a></li>
       <li><a href="#s-data">데이터 입력 카탈로그</a></li>
     </ol>
   </nav>
@@ -635,7 +637,7 @@
         <div class="pipe-row"><span class="pipe-n">6</span><div class="pipe-body"><span class="p-name">집합식 파싱<span class="badge det">규칙</span></span><p class="p-desc">“A 제외”, “그중 B만” 같은 집합 연산(합·교·차)을 해석.</p><span class="p-file">set_expression_engine.py</span></div></div>
         <div class="pipe-row"><span class="pipe-n">7</span><div class="pipe-body"><span class="p-name">지식그래프 검색<span class="badge both">혼합</span></span><p class="p-desc">SQL 작성에 필요한 테이블·조인·예시를 벡터+키워드+그래프로 검색.</p><span class="p-file">vector/keyword_search · expand_context()</span></div></div>
         <div class="pipe-row"><span class="pipe-n">8</span><div class="pipe-body"><span class="p-name">타겟팅 SQL 생성<span class="badge both">혼합</span></span><p class="p-desc">검증된 SQL 템플릿을 우선 적용, 안 맞으면 AI가 그래프 근거로 생성.</p><span class="p-file">build_sql_result()</span></div></div>
-        <div class="pipe-row"><span class="pipe-n">9</span><div class="pipe-body"><span class="p-name">SQL 안전 검증<span class="badge det">규칙</span></span><p class="p-desc">읽기 전용·허용 테이블·조건 커버리지·미언급 조건 차단 등 4중 관문.</p><span class="p-file">sql_guard.py · validate_*</span></div></div>
+        <div class="pipe-row"><span class="pipe-n">9</span><div class="pipe-body"><span class="p-name">SQL 안전 검증<span class="badge both">혼합</span></span><p class="p-desc">읽기 전용·허용 테이블·조건 커버리지·미언급 조건 4중 관문 + 원문↔SQL 의미 게이트(신규).</p><span class="p-file">sql_guard.py · _verify_sql_semantics</span></div></div>
         <div class="pipe-row"><span class="pipe-n">10</span><div class="pipe-body"><span class="p-name">실행·결과<span class="badge det">규칙</span></span><p class="p-desc">CRM DB에 읽기 전용 실행 → 대상 고객 수·세그먼트 구성 산출.</p><span class="p-file">execute_target_sql()</span></div></div>
       </div>
     </section>
@@ -962,7 +964,7 @@ WHERE  A.KEEP_YN = 'Y'                                  -- 담아둔 채 미결�
     <!-- STEP 9 -->
     <section id="s9">
       <h2><span class="num">11</span>STEP 9 · SQL 안전 검증</h2>
-      <div class="h2title">실행 전, 4중 관문을 통과해야만 한다</div>
+      <div class="h2title">실행 전, 결정론 4중 관문 + 원문↔SQL 의미 게이트</div>
       <p class="lead">템플릿이든 AI든 <b>모든 SQL 후보는 동일한 검증 관문</b>을 통과해야 실행된다. 하나라도 걸리면 그 후보는 탈락한다.</p>
 
       <ol class="steps">
@@ -984,13 +986,22 @@ WHERE  A.KEEP_YN = 'Y'                                  -- 담아둔 채 미결�
         </li>
       </ol>
       <p class="muted" style="font-size:14px;">네 관문을 모두 통과한 후보만 “사용 가능(eligible)”으로 인정된다. 대량 조회 방지를 위해 조회 건수 상한도 함께 관리한다.</p>
+
+      <div class="note">
+        <span class="n-tag">신규 · 원문↔SQL 의미 검증 게이트</span>
+        위 4중 관문은 <b>SQL을 “계획(plan)”과</b> 대조한다. 그래서 <b>계획 자체가 뒤집히면</b> — 예컨대 정규식이 “캠페인 구매 이력이 <b>없는</b>”을 구매 <b>있음</b>으로 잘못 파싱하면 — 커버리지·의도 검증도 “계획대로 잘 반영됨”이라며 <b>그대로 통과</b>시켜 버린다.
+        이를 막기 위해, 4중 관문을 통과한 <b>최종 SQL을 원문 자연어와 직접 LLM으로 1:1 대조</b>하는 게이트(<code>_verify_sql_semantics</code>)를 마지막에 뒀다.
+        <b>누락(dropped)·반전(inverted)</b>이 확신될 때만 차단하고, 그때는 틀린 SQL을 조용히 내보내는 대신 <b>되물음(clarification)으로 전환</b>한다.
+        키 없음·게이트 꺼짐·호출 실패면 <b>통과(fail-open)</b> — 운영 <code>rules</code> 경로엔 걸리지 않는 <code>auto</code> 경로 전용이다. (환경변수 <code>SQL_SEMANTIC_VERIFY</code>, 기본 on) 판정 유형·차단 규칙 상세는 <a class="inline" href="#s-policy">16장 · 데이터 밖 파이썬 정책</a> 참고.
+      </div>
       <div class="trace">
         <span class="t-tag">이 예시에서는 · STEP 9</span>
         <div class="trace-row"><span class="t-k">① 안전성</span><span class="t-v">읽기(SELECT)만 · 허용된 주문/상품/회원 테이블만 접근 → OK</span></div>
         <div class="trace-row"><span class="t-k">② 커버리지</span><span class="t-v">성별·연령·지역·<b>기저귀</b> 가 SQL 에 모두 반영됐나 → OK</span></div>
         <div class="trace-row"><span class="t-k">③ 의도</span><span class="t-v">‘발송 대상 뽑기’ 범위와 일치 → OK</span></div>
         <div class="trace-row"><span class="t-k">④ 미언급</span><span class="t-v">말하지 않은 조건을 임의로 넣지 않았나 → OK</span></div>
-        <div class="trace-row"><span class="t-k">결과</span><span class="t-v"><b>4중 관문 통과 → 실행 가능</b></span></div>
+        <div class="trace-row"><span class="t-k">⑤ 의미</span><span class="t-v">(auto 경로면) 원문 “기저귀 산 여성”과 SQL 의미가 <b>반대·누락 없이</b> 일치하나 → OK</span></div>
+        <div class="trace-row"><span class="t-k">결과</span><span class="t-v"><b>관문 전부 통과 → 실행 가능</b></span></div>
       </div>
     </section>
 
@@ -1011,6 +1022,12 @@ WHERE  A.KEEP_YN = 'Y'                                  -- 담아둔 채 미결�
             <tr><td>저장(옵션)</td><td>업무 DB는 읽기 전용이라, 뽑은 명단은 별도 메타 DB에 오디언스로 저장</td></tr>
           </tbody>
         </table>
+      </div>
+
+      <div class="note">
+        <span class="n-tag">신규 · 응답에 함께 실리는 비차단 자문</span>
+        결과에는 명단·세그먼트뿐 아니라 세 가지 <b>자문</b>이 함께 담긴다 — 생성 SQL의 <b>실행 함정 진단 + 권장 인덱스</b>(<code>query_tuning</code>), 원문 신호가 SQL에 안 담겼을 때의 <b>놓친 신호 경고</b>(<code>dropped_signal_warnings</code>), 그리고 의미 게이트가 되물음으로 전환했을 때의 <b>확인 질문</b>(<code>clarification_questions</code>).
+        셋 다 <b>SQL을 바꾸지 않는다</b>(차단·수정이 아니라 알림) — 동작 상세는 <a class="inline" href="#s-policy">16장 · 데이터 밖 파이썬 정책</a>.
       </div>
 
       <div class="note">
@@ -1081,17 +1098,119 @@ WHERE  A.KEEP_YN = 'Y'                                  -- 담아둔 채 미결�
             <tr><td>임베딩·벡터DB</td><td><code>BAAI/bge-small-en-v1.5</code> (FastEmbed, 자체 처리) → <b>Qdrant</b></td></tr>
             <tr><td>지식 그래프</td><td>793개 노드 (NetworkX, 시작 시 1회 구축) · <code class="file">rag_knowledge_base.json</code></td></tr>
             <tr><td>대상 데이터</td><td>CRM DB (CRMDW/CRMAN, MSSQL) — 회원·주문·상품·장바구니. <b>읽기 전용</b></td></tr>
-            <tr><td>AI 사용 단계</td><td>재작성 · 타겟/채널 분리 · 질의계획(보조) · 상품추출(보조) · SQL 폴백</td></tr>
-            <tr><td>규칙 전용 단계</td><td>값 해석 · 집합식 · SQL 템플릿 · 4중 검증 · 실행 · 세그먼트 집계 · 0명 진단</td></tr>
-            <tr><td>마스터 게이트</td><td><code>OPENAI_API_KEY</code> — 없으면 모든 AI 단계가 규칙으로 자동 대체</td></tr>
+            <tr><td>AI 사용 단계</td><td>재작성 · 타겟/채널 분리 · 질의계획(보조) · 상품추출(보조) · SQL 폴백 · <b>의미 검증 게이트(auto)</b></td></tr>
+            <tr><td>규칙 전용 단계</td><td>값 해석 · 집합식 · SQL 템플릿 · 4중 검증 · 실행 · 세그먼트 집계 · 0명 진단 · <b>성능/드롭 자문</b></td></tr>
+            <tr><td>비차단 자문(신규)</td><td>실행 함정 진단·권장 인덱스(<code>query_tuning</code>) · 놓친 신호 경고(<code>dropped_signal_warnings</code>) — 응답에만 실림, SQL 불변</td></tr>
+            <tr><td>마스터 게이트</td><td><code>OPENAI_API_KEY</code> — 없으면 모든 AI 단계(의미 게이트 포함)가 규칙으로 자동 대체 · 의미 게이트는 <code>SQL_SEMANTIC_VERIFY</code>로 별도 on/off</td></tr>
           </tbody>
         </table>
       </div>
     </section>
 
+    <!-- python-only policies (not in docs/data) -->
+    <section id="s-policy">
+      <h2><span class="num">16</span>데이터 밖 · 파이썬 정책</h2>
+      <div class="h2title">JSON 어디에도 없고 <b>코드에만</b> 있는 판단 규칙 — 최근 프로세스 변경의 핵심</div>
+      <p class="lead">바로 뒤 17장이 <b>“<code class="file">docs/data</code> JSON이라는 연료”</b>라면, 이 장은 그 <b>정반대</b>다.
+        여기 정리하는 정책들은 <b>어떤 데이터 파일에도 담기지 않고 오직 파이썬 코드에만 존재</b>한다 — JSON을 고쳐도 바뀌지 않고 <b>코드 배포로만</b> 바뀐다.
+        “틀린 명단을 자신 있게 내놓지 않는다”는 원칙을 실제로 지탱하는 <b>판단·검증·자문 로직</b>이며, 최근 프로세스 변경이 대부분 이 층에 몰려 있다.</p>
+
+      <div class="note">
+        <span class="n-tag">이 장을 관통하는 구분</span>
+        여섯 정책은 성격이 셋으로 나뉜다 —
+        <b>① 차단(gate)</b>: 틀리면 SQL 출고를 막고 되물음으로 전환 ·
+        <b>② 구조(structural)</b>: 파서·빌더 단에서 의미를 애초에 못 뒤집게 고정 ·
+        <b>③ 자문(advisory)</b>: SQL은 그대로 두고 위험·누락만 응답에 실어 알림.
+      </div>
+
+      <h3>한눈에 보는 정책 지도</h3>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>정책</th><th>무엇을 하나</th><th>위치(함수)</th><th>성격</th></tr></thead>
+          <tbody>
+            <tr><td><b>원문↔SQL 의미 검증 게이트</b></td><td>최종 SQL을 원문과 직접 대조해 반전·누락이면 차단→되물음</td><td><code>_verify_sql_semantics</code></td><td style="color:#4f46e5;font-weight:700;">① 차단</td></tr>
+            <tr><td><b>캠페인 반응 부정 직교 처리</b></td><td>“반응 없음↔있음” 극성을 파서 단에서 상호배타로 고정</td><td><code>negated_for</code> 패스</td><td style="color:#0d9488;font-weight:700;">② 구조</td></tr>
+            <tr><td><b>시간창 미구매·추가구매 없음 빌더</b></td><td>“최근 N일 미구매”·“추가 구매 없음”을 안티조인 술어로 컴파일</td><td><code>_purchase_inactivity_predicate</code> 외</td><td style="color:#0d9488;font-weight:700;">② 구조</td></tr>
+            <tr><td><b>쿼리 성능 튜닝 자문</b></td><td>생성 SQL의 실행 함정을 정적 진단 + 권장 인덱스 제안</td><td><code>analyze_query_performance</code></td><td style="color:#b26a05;font-weight:700;">③ 자문</td></tr>
+            <tr><td><b>결정론 드롭 신호 경고</b></td><td>정밀 추출된 원문 신호가 plan에 하나도 없으면 경고</td><td><code>_deterministic_dropped_conditions</code></td><td style="color:#b26a05;font-weight:700;">③ 자문</td></tr>
+            <tr><td><b>세그먼트 등급 축 + 관련 축 우선</b></td><td>구성 집계에 등급 축 추가 + 질문이 지정한 축을 위로</td><td><code class="file">api.py</code> 세그먼트</td><td style="color:#0d9488;font-weight:700;">② 구조</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>A · 차단 게이트 — 계획이 뒤집혀도 잡는다</h3>
+
+      <h4>① 원문 ↔ 최종 SQL 의미 검증 게이트 <span style="font-size:12px;color:var(--accent);font-weight:600;">(STEP 9 확장)</span></h4>
+      <p>STEP 9의 4중 관문은 모두 <b>SQL을 “계획(plan)”과</b> 대조한다. 문제는 <b>계획 그 자체가 틀렸을 때</b>다.
+        정규식 파서가 “캠페인 구매 이력이 <b>없는</b>”을 <code>EXISTS 구매</code>(정반대)로 뒤집어 계획을 짜면, 커버리지·의도 검증은 “계획대로 반영됨”이라며 통과시켜 <b>정반대 명단</b>을 내보낸다.
+        이 게이트는 계획을 건너뛰고 <b>원문 자연어와 최종 SQL을 LLM으로 직접 1:1 대조</b>해, 그 조용한 뒤집힘을 마지막에 잡는다.</p>
+      <ul class="dash">
+        <li><b>판정 유형(4종)</b> — <code>dropped</code>(원문 조건이 SQL에 없음) · <code>inverted</code>(긍정↔부정, 이상↔이하 등 의미 반대) · <code>wrong_value</code> · <code>spurious</code>(원문에 없는 조건을 SQL이 추가).</li>
+        <li><b>차단은 두 유형만</b> — <code>dropped</code>·<code>inverted</code>만 실제 차단(판정 모델이 신뢰할 수 있는 축). <b>IN 목록·코드값·범위 확장</b>은 불일치로 보지 않는다(예: “GOLD 이상”→<code>EMART_GRADE_CD IN(...)</code>은 목록에 뭐가 들었든 faithful).</li>
+        <li><b>차단 시 행동</b> — 틀린 SQL을 조용히 출고하는 대신 <b>되물음(clarification)으로 전환</b>(<code>failure_reason = semantic_verification_failed</code>), 확인 질문을 응답에 담아 담당자에게 되돌린다.</li>
+        <li><b>안전(fail-open)</b> — 게이트 꺼짐·키 없음·호출 실패·응답 형식 불명이면 <b>모두 통과</b>. 운영 기본 <code>rules</code> 경로는 <code>llm_model=None</code>이라 자연히 skip → 사실상 <b><code>auto</code> 경로 전용</b>. 환경변수 <code>SQL_SEMANTIC_VERIFY</code>(기본 on)로 별도 제어.</li>
+      </ul>
+
+      <h3>B · 구조 정책 — 의미를 애초에 못 뒤집게 고정</h3>
+
+      <h4>② 캠페인 반응 부정의 직교 처리 <span style="font-size:12px;color:var(--accent);font-weight:600;">(STEP 3·4)</span></h4>
+      <p>“쿠폰을 <b>쓴</b>” vs “쿠폰 반응이 <b>없는</b>” 같은 캠페인 반응의 <b>긍정/부정 극성</b>을, 개념(구매반응·오퍼·쿠폰·컨택)별로 <b>상호배타</b>로 확정한다.
+        offer·coupon·contact의 부정은 개념어 <b>뒤에 오는 꼬리(tail) 부정</b>까지 감지해 잡는다.</p>
+      <ul class="dash">
+        <li><b>왜</b> — 부정을 흘리면 의미가 <b>정반대</b>로 잡혀(“구매반응 없음”→“있음”) 위 의미 게이트가 붙기 전엔 조용히 반대 명단이 나갔다. 부정을 <b>파서 단에서 구조적으로 고정</b>해 반전을 원천 차단한다(게이트는 최후 방어선, 이건 예방).</li>
+        <li><b>결과</b> — “캠페인 구매반응 없음”은 <code>no_buy_response</code> 부정 트랙으로 잡히고, 그 슬롯은 주문횟수 <b>anti-join 빌더가 단독 소유</b>해 같은 개념이 두 번 조건화되는 이중 조건을 막는다.</li>
+      </ul>
+
+      <h4>③ 시간창 미구매 · 추가구매 없음 빌더 <span style="font-size:12px;color:var(--accent);font-weight:600;">(STEP 8)</span></h4>
+      <ul class="dash">
+        <li><b>최근 N일 미구매</b>(<code>purchase_inactivity</code>) — “최근 90일 구매 안 한” → 해당 기간 <b>주문 부재</b> 술어로 컴파일.</li>
+        <li><b>추가 구매 없음</b>(<code>_apply_no_additional_purchase_filter</code>) — “쿠폰 사용 후 <b>추가 구매 없는</b>”의 ‘추가 구매 없음’을 <b>실주문 자체가 전무</b>(anti-join)로 해석한다. 재구매만 부정하는 게 아니라 <b>주문 이력 전체 부재</b>로 본다(업무 결정 사항).</li>
+      </ul>
+
+      <h4>④ 세그먼트 구성 · 등급 축 추가 + 질문 관련 축 우선 <span style="font-size:12px;color:var(--accent);font-weight:600;">(STEP 10, <code class="file">api.py</code>)</span></h4>
+      <p>실CRM 세그먼트 구성이 <b>성별·연령·지역 3축만</b> 집계해, “GOLD 이상”처럼 <b>등급으로 타겟한 질문</b>에도 등급 분포가 안 나오고 무관한 데모그래픽만 보이던 문제를 고쳤다.</p>
+      <ul class="dash">
+        <li><b>등급 축 추가</b> — <code>EMART_GRADE_CD</code>를 4번째 집계 축으로. 라벨·서열은 <b>웰컴 &lt; 패밀리 &lt; 실버 &lt; 골드 &lt; VIP</b>로 <b>낮은 등급→높은 등급</b> 정렬(미상은 뒤로).</li>
+        <li><b>질문 관련 축 우선 노출</b> — 질문이 <b>직접 지정한 축</b>(등급·지역 등)은 <code>relevant_groups</code>로 위에 노출하고, 나머지는 “프로필 통계”로 접는다.</li>
+        <li><b>어떻게 감지</b> — 등급 조건은 <code>query_plan.lifecycle</code>에 canonical(<code>gold_grade</code>/<code>vip</code> 등)로 담기며, 그 canonical 집합은 <code class="file">graph_rag.py</code>의 등급 레지스트리에서 <b>파생</b>해 코드-데이터 간 drift를 막는다.</li>
+      </ul>
+
+      <h3>C · 자문 정책 — SQL은 그대로, 위험만 알린다</h3>
+
+      <h4>⑤ 쿼리 성능 튜닝 자문 <span style="font-size:12px;color:var(--accent);font-weight:600;">(<code class="file">sql_guard.py</code>, 비차단)</span></h4>
+      <p>생성된 타겟팅 SQL의 <b>실행 함정을 정적으로 진단</b>하고 권장 인덱스(DDL)를 제안한다. <b>SQL을 바꾸지 않는</b> 자문이라, 담당자·DBA가 대용량 조회 전 위험을 미리 볼 수 있게 응답에 실린다.</p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>진단 코드</th><th>무엇을 잡나</th></tr></thead>
+          <tbody>
+            <tr><td><code>leading_wildcard_like</code></td><td>선행 와일드카드 <code>LIKE N'%…%'</code> — 인덱스를 못 타 풀스캔</td></tr>
+            <tr><td><code>cast_in_join_predicate</code></td><td>조인/비교 컬럼 캐스팅(<code>TRY_CAST(R.MBR_NO AS BIGINT)=B.MEMBER_NO</code>) — non-sargable</td></tr>
+            <tr><td><code>function_on_filter_column</code></td><td>WHERE에서 컬럼을 함수로 감싼 조건 — non-sargable</td></tr>
+            <tr><td><code>anti_join_subquery</code></td><td><code>NOT EXISTS</code> 안티조인 — 대용량 팩트(주문/캠페인)에 상관 컬럼 인덱스 없으면 느림</td></tr>
+            <tr><td><code>semi_join_subquery</code></td><td><code>EXISTS</code> 세미조인 — 상관 컬럼 인덱스가 있으면 빠름</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="muted" style="font-size:14px;">반환은 <code>{findings:[{code,severity,message}], recommended_indexes:[{table,columns,ddl,reason}]}</code>. 안티/세미조인에서는 상관 조인 컬럼을 읽어 <b>권장 인덱스 DDL을 자동 생성</b>한다.</p>
+
+      <h4>⑥ 결정론 드롭 신호 경고 <span style="font-size:12px;color:var(--accent);font-weight:600;">(<code class="file">graph_rag.py</code>, 비차단)</span></h4>
+      <p>원문에서 <b>정밀 추출된 신호</b>가 최종 plan 슬롯에 <b>하나도 안 잡히면</b> “이 조건이 빠졌을 수 있다”고 경고한다. 위 LLM 의미 게이트는 <code>auto</code> 전용이라, 그 <b>보완재로 <code>rules</code>·<code>auto</code> 양쪽에서 항상</b> 도는 결정론 경고다(차단은 안 함).</p>
+      <ul class="dash">
+        <li><b>감시 신호</b> — 성별 · 수신동의 · 캠페인 반응 · 최근 로그인/접속 · 구매 미발생(미구매/최근 N일 미구매) · 장바구니.</li>
+        <li><b>오탐 방지</b> — 부정 트랙(<code>no_buy_response</code> 등)으로 이미 <b>보존된</b> 신호나, <code>exclude</code>로 제외 처리된 성별 등은 드롭으로 보지 않는다. “조사가 낀 변형”(예: <code>로그인은했</code>)까지 잡도록 표면형이 아니라 신호 단위로 검사한다.</li>
+      </ul>
+
+      <div class="note">
+        <span class="n-tag">응답 계약(신규 필드)</span>
+        위 정책들의 산출물은 <code>POST /target-sql</code> 응답에 그대로 실린다 —
+        <code>semantic_verification{ran,faithful,issues}</code> · <code>query_tuning{findings,recommended_indexes}</code> · <code>dropped_signal_warnings[]</code> · <code>clarification_questions[]</code>.
+        BFF·화면은 이 필드를 읽어 “검증됨/되물음/성능 주의/놓친 신호”를 담당자에게 시각화한다.
+      </div>
+    </section>
+
     <!-- data input catalog -->
     <section id="s-data">
-      <h2><span class="num">16</span>데이터 입력 카탈로그</h2>
+      <h2><span class="num">17</span>데이터 입력 카탈로그</h2>
       <div class="h2title"><code class="file">docs/data</code> JSON은 언제·왜 들어가나 — 파이프라인의 “연료”</div>
       <p class="lead">앞의 03~12장이 <b>“어떻게 처리하는가”</b>였다면, 이 장은 그 처리에 <b>“어떤 사전·지식 파일이 연료로 들어가는가”</b>다.
         <code class="file">docs/data</code> 폴더의 JSON은 코드가 아니라 <b>데이터</b>라, 이 파일만 고치면 <b>재배포 없이</b> 타겟팅 동작(인식하는 표현·값 매핑·허용 테이블 등)을 바꿀 수 있다.

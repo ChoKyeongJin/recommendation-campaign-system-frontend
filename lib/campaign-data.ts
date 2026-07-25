@@ -69,6 +69,29 @@ export type TargetingDiagnostics = {
   cardinality?: TargetingCardinalityDiagnostic | null;
 };
 
+/** 파이프라인 단계 하나 (스텝퍼 렌더링용). */
+export type TargetingFailureStageStep = {
+  order: number;
+  code: string;
+  label: string;
+};
+
+/** 타겟 SQL 생성이 어느 단계에서 막혔는지(어디서). 성공이면 백엔드가 null 을 준다. */
+export type TargetingFailureStage = {
+  /** 실패 단계 code (예: sql_safety_validation) */
+  code: string;
+  /** 실패 단계 한글 라벨 (예: SQL 안전 검증) */
+  label: string;
+  /** 실패 단계 순번 (1-base) */
+  order: number;
+  /** 전체 단계 수 */
+  total: number;
+  /** 원 실패 사유 코드 (예: sql_guard_failed) */
+  reason: string;
+  /** 전체 파이프라인 단계 목록 (스텝퍼용) */
+  pipeline: TargetingFailureStageStep[];
+};
+
 export type TargetingResult = {
   campaignId?: string;
   total: number | null;
@@ -89,6 +112,8 @@ export type TargetingResult = {
   confidence?: TargetingConfidence | null;
   /** 실패·부분추출 진단 원신호. "보강 힌트"(buildReinforcementHints)의 입력. */
   diagnostics?: TargetingDiagnostics | null;
+  /** 타겟 SQL 생성이 막힌 파이프라인 단계(어디서). 성공이면 null. */
+  failureStage?: TargetingFailureStage | null;
 };
 
 /** Graph 확장 경로의 한 노드 (출발점 A ─관계→ B ─관계→ 목표). */
@@ -117,10 +142,16 @@ export type TargetingTraceHit = {
 };
 
 export type TargetingTraceStep = {
-  /** 원본 stage 번호 (1~5) */
+  /** 원본 stage 번호 (1~10) */
   step?: number;
   /** 단계 제목 (stage.name 우선) */
   title: string;
+  /** 처리 방식 배지: "혼합"=LLM 사용 · "규칙"=결정론 */
+  method?: string;
+  /** 기술명 (예: Query Plan (build_query_plan)) */
+  techName?: string;
+  /** 이 단계가 참조한 프롬프트/데이터/모델 (화면 "참조" 배지) */
+  refs?: { kind: string; name: string }[];
   /** 한 줄 요약 (예: intent=recommend_campaign, 8건) */
   summary?: string;
   /** 비즈니스 사용자용 사람 말 설명 라인들 (details보다 상위에 노출) */
@@ -131,7 +162,8 @@ export type TargetingTraceStep = {
   hits?: TargetingTraceHit[];
   /** 히트 총 건수 (목록보다 많을 수 있음) */
   hitCount?: number | null;
-  status?: "success" | "fail" | "info";
+  /** ok/success=완료 · fail=실패 · skipped=미실행(해당 없음/오류 이후) · info=정보 */
+  status?: "success" | "ok" | "fail" | "info" | "skipped";
 };
 
 export type TargetingTrace = {
