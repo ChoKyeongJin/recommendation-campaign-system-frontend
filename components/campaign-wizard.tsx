@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { FileText, ListChecks, Sparkles, Target } from "lucide-react";
+import { Database, FileText, ListChecks, Sparkles, Target } from "lucide-react";
 import { SettingsMenu } from "@/components/settings-menu";
 import { Stepper } from "@/components/stepper";
 import { StepPrompt } from "@/components/step-prompt";
@@ -266,6 +266,13 @@ export function CampaignWizard() {
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-8 px-4 py-6">
       <div className="flex items-center justify-end gap-2">
+        <a
+          href="/db-swap-report.html"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <Database className="h-4 w-4" aria-hidden />
+          DB 전환 가이드
+        </a>
         <SettingsMenu />
         <a
           href="/targeting-report.html"
