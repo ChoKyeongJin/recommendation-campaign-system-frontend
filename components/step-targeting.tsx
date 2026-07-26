@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import {
+  Check,
+  Copy,
   Database,
   ListTree,
   MessageSquareText,
@@ -35,6 +37,43 @@ import type {
 
 // 롱테일(자유형 행동·관심사 등)로 그룹이 길어지는 것을 막기 위한 기본 표시 개수.
 const DEFAULT_VISIBLE_SEGMENTS = 6;
+
+// 코드 블록 우상단에 얹는 복사 버튼. 복사 성공 시 잠깐 체크 아이콘으로 바뀐다.
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // 클립보드 접근 실패 시 조용히 무시한다.
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      aria-label={copied ? "복사됨" : "쿼리 복사"}
+      title={copied ? "복사됨" : "쿼리 복사"}
+      className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-md bg-background/10 px-2 py-1 text-xs text-background transition-colors hover:bg-background/20"
+    >
+      {copied ? (
+        <>
+          <Check className="h-3.5 w-3.5" />
+          복사됨
+        </>
+      ) : (
+        <>
+          <Copy className="h-3.5 w-3.5" />
+          복사
+        </>
+      )}
+    </button>
+  );
+}
 
 function SegmentGroupCard({ group }: { group: TargetSegmentGroup }) {
   const [expanded, setExpanded] = useState(false);
@@ -1042,9 +1081,12 @@ export function StepTargeting({
         </CardHeader>
         <CardContent>
           {result.sql ? (
-            <pre className="overflow-x-auto rounded-lg bg-foreground p-4 text-xs leading-relaxed text-background">
-              <code className="font-mono">{result.sql}</code>
-            </pre>
+            <div className="relative">
+              <CopyButton text={result.sql} />
+              <pre className="overflow-x-auto rounded-lg bg-foreground p-4 pr-20 text-xs leading-relaxed text-background">
+                <code className="font-mono">{result.sql}</code>
+              </pre>
+            </div>
           ) : (
             <p className="text-sm text-muted-foreground">SQL이 생성되지 않았습니다.</p>
           )}

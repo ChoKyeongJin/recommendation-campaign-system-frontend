@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Database, FileText, ListChecks, Sparkles, Target } from "lucide-react";
+import { Database, Sparkles, Target } from "lucide-react";
 import { SettingsMenu } from "@/components/settings-menu";
 import { Stepper } from "@/components/stepper";
 import { StepPrompt } from "@/components/step-prompt";
@@ -280,20 +280,6 @@ export function CampaignWizard() {
         >
           <Target className="h-4 w-4" aria-hidden />
           타겟팅 보고서
-        </a>
-        <a
-          href="/system-report.html"
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-        >
-          <FileText className="h-4 w-4" aria-hidden />
-          시스템 보고서
-        </a>
-        <a
-          href="/roadmap.html"
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-        >
-          <ListChecks className="h-4 w-4" aria-hidden />
-          다음 과제
         </a>
       </div>
 
