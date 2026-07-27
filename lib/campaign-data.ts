@@ -151,7 +151,7 @@ export type TargetingTraceStep = {
   /** 기술명 (예: Query Plan (build_query_plan)) */
   techName?: string;
   /** 이 단계가 참조한 프롬프트/데이터/모델 (화면 "참조" 배지) */
-  refs?: { kind: string; name: string }[];
+  refs?: { kind: string; name: string; used?: boolean }[];
   /** 한 줄 요약 (예: intent=recommend_campaign, 8건) */
   summary?: string;
   /** 비즈니스 사용자용 사람 말 설명 라인들 (details보다 상위에 노출) */
@@ -166,10 +166,21 @@ export type TargetingTraceStep = {
   status?: "success" | "ok" | "fail" | "info" | "skipped";
 };
 
+/** 트레이스 실패 원인 판정. 참조 데이터·입력·환경·개발/정책 점검을 구분한다. */
+export type TargetingTraceFailureDiagnosis = {
+  category: string;
+  label: string;
+  confidence: "high" | "medium" | "low";
+  summary: string;
+  evidence: string[];
+  nextAction: string;
+};
+
 export type TargetingTrace = {
   /** 원본 질의문 */
   query?: string;
   steps: TargetingTraceStep[];
+  failureDiagnosis?: TargetingTraceFailureDiagnosis;
   result?: {
     status?: string;
     success?: boolean | null;

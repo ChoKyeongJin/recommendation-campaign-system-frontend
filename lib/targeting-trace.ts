@@ -1,5 +1,6 @@
 import type {
   TargetingTrace,
+  TargetingTraceFailureDiagnosis,
   TargetingTraceHit,
   TargetingTracePathNode,
   TargetingTraceStep,
@@ -58,7 +59,11 @@ function getNumber(record: Rec | null, keys: string[]): number | null {
     if (typeof value === "number" && Number.isFinite(value)) {
       return value;
     }
-    if (typeof value === "string" && value.trim() && Number.isFinite(Number(value))) {
+    if (
+      typeof value === "string" &&
+      value.trim() &&
+      Number.isFinite(Number(value))
+    ) {
       return Number(value);
     }
   }
@@ -81,7 +86,17 @@ function getBool(record: Rec | null, keys: string[]): boolean | null {
   if (!record) {
     return null;
   }
-  const truthy = ["true", "✓", "ok", "pass", "passed", "valid", "success", "yes", "y"];
+  const truthy = [
+    "true",
+    "✓",
+    "ok",
+    "pass",
+    "passed",
+    "valid",
+    "success",
+    "yes",
+    "y",
+  ];
   const falsy = ["false", "✗", "x", "fail", "failed", "invalid", "no", "n"];
   for (const key of keys) {
     const value = record[key];
@@ -119,7 +134,9 @@ function getApiResponse(data: unknown): Rec | null {
 /** 어느 깊이에 있든 keys 중 하나와 일치하는 첫 값을 BFS로 찾는다. */
 function deepFindValue(data: unknown, keys: string[], maxDepth = 6): unknown {
   const lowered = keys.map((key) => key.toLowerCase());
-  const queue: { value: unknown; depth: number }[] = [{ value: data, depth: 0 }];
+  const queue: { value: unknown; depth: number }[] = [
+    { value: data, depth: 0 },
+  ];
 
   while (queue.length > 0) {
     const current = queue.shift();
@@ -169,7 +186,11 @@ function summarizeObject(record: Rec, prefix: string): string {
       if (value.length > 0) {
         parts.push(`${key}: [${value.join(", ")}]`);
       }
-    } else if (value !== null && value !== undefined && typeof value !== "object") {
+    } else if (
+      value !== null &&
+      value !== undefined &&
+      typeof value !== "object"
+    ) {
       parts.push(`${key}: ${value}`);
     }
   }
@@ -265,7 +286,9 @@ function toContextNode(entry: unknown): TargetingTraceHit | null {
     ...(type ? { nodeType: type } : {}),
     ...(distance !== null ? { distance } : {}),
     ...(path.length > 0 ? { path } : {}),
-    ...(reachedVia.length > 0 ? { note: clampNote(reachedVia.join(" · ")) } : {}),
+    ...(reachedVia.length > 0
+      ? { note: clampNote(reachedVia.join(" · ")) }
+      : {}),
   };
 }
 
@@ -285,7 +308,8 @@ function normalizeStatus(raw: string): TargetingTraceStep["status"] {
  */
 function buildStepFromStage(stage: Rec): TargetingTraceStep | null {
   const step = getNumber(stage, ["step"]);
-  const title = getString(stage, ["name", "title"]) || (step ? `STEP ${step}` : "단계");
+  const title =
+    getString(stage, ["name", "title"]) || (step ? `STEP ${step}` : "단계");
   const method = getString(stage, ["method"]);
   const techName = getString(stage, ["tech_name", "techName"]);
   const status = normalizeStatus(getString(stage, ["status"]));
@@ -303,7 +327,9 @@ function buildStepFromStage(stage: Rec): TargetingTraceStep | null {
     const record = asRecord(entry);
     const kind = getString(record, ["kind"]);
     const name = getString(record, ["name"]);
-    return kind && name ? [{ kind, name }] : [];
+    return kind && name
+      ? [{ kind, name, ...(record?.used === true ? { used: true } : {}) }]
+      : [];
   });
 
   return {
@@ -326,7 +352,8 @@ function buildStepsFromDeepSearch(data: unknown): TargetingTraceStep[] {
   const steps: TargetingTraceStep[] = [];
 
   const intent = getString(
-    deepFindRecord(data, ["query_plan", "queryPlan", "plan"]) ?? getApiResponse(data),
+    deepFindRecord(data, ["query_plan", "queryPlan", "plan"]) ??
+      getApiResponse(data),
     ["intent"],
   );
   const targetUser = deepFindRecord(data, ["target_user", "targetUser"]);
@@ -346,7 +373,9 @@ function buildStepsFromDeepSearch(data: unknown): TargetingTraceStep[] {
 
   const buildSearch = (title: string, keys: string[], listKeys: string[]) => {
     const node = deepFindValue(data, keys);
-    const list = Array.isArray(node) ? node : getArray(asRecord(node), listKeys);
+    const list = Array.isArray(node)
+      ? node
+      : getArray(asRecord(node), listKeys);
     const hits = list
       .map(toSearchHit)
       .filter((hit): hit is TargetingTraceHit => hit !== null);
@@ -361,8 +390,16 @@ function buildStepsFromDeepSearch(data: unknown): TargetingTraceStep[] {
       hitCount: count,
     });
   };
-  buildSearch("벡터검색", ["vector", "vector_search", "qdrant", "semantic"], ["hits", "results"]);
-  buildSearch("키워드검색", ["keyword", "keyword_search", "bm25", "lexical"], ["hits", "results"]);
+  buildSearch(
+    "벡터검색",
+    ["vector", "vector_search", "qdrant", "semantic"],
+    ["hits", "results"],
+  );
+  buildSearch(
+    "키워드검색",
+    ["keyword", "keyword_search", "bm25", "lexical"],
+    ["hits", "results"],
+  );
 
   return steps;
 }
@@ -375,6 +412,38 @@ function buildTimings(data: unknown): { label: string; ms: number }[] {
   return Object.entries(timings)
     .filter(([, value]) => typeof value === "number" && Number.isFinite(value))
     .map(([label, value]) => ({ label, ms: value as number }));
+}
+
+function getFailureDiagnosis(
+  data: unknown,
+): TargetingTraceFailureDiagnosis | null {
+  const record = deepFindRecord(data, [
+    "failure_diagnosis",
+    "failureDiagnosis",
+  ]);
+  if (!record) {
+    return null;
+  }
+  const category = getString(record, ["category"]);
+  const label = getString(record, ["label"]);
+  const confidence = getString(record, ["confidence"]);
+  const summary = getString(record, ["summary"]);
+  const evidence = toStringList(getArray(record, ["evidence"]));
+  const nextAction = getString(record, ["next_action", "nextAction"]);
+  if (!category || !label || !summary || !nextAction) {
+    return null;
+  }
+  return {
+    category,
+    label,
+    confidence:
+      confidence === "high" || confidence === "medium" || confidence === "low"
+        ? confidence
+        : "low",
+    summary,
+    evidence,
+    nextAction,
+  };
 }
 
 export function normalizeTargetingTrace(data: unknown): TargetingTrace {
@@ -398,7 +467,10 @@ export function normalizeTargetingTrace(data: unknown): TargetingTrace {
   const apiResponse = getApiResponse(data);
   const resultRecord = deepFindRecord(data, ["result"]);
   const executionRecord = deepFindRecord(data, ["execution"]);
-  const targetingResult = deepFindRecord(data, ["targeting_result", "targetingResult"]);
+  const targetingResult = deepFindRecord(data, [
+    "targeting_result",
+    "targetingResult",
+  ]);
 
   const execSuccess =
     getBool(executionRecord, ["is_success", "success"]) ??
@@ -415,7 +487,10 @@ export function normalizeTargetingTrace(data: unknown): TargetingTrace {
     "target_customer_count",
     "targetCustomerCount",
   ]);
-  const resultRowCount = getNumber(targetingResult, ["result_row_count", "resultRowCount"]);
+  const resultRowCount = getNumber(targetingResult, [
+    "result_row_count",
+    "resultRowCount",
+  ]);
   const targetCampaignCount = getNumber(targetingResult, [
     "target_campaign_count",
     "targetCampaignCount",
@@ -426,6 +501,11 @@ export function normalizeTargetingTrace(data: unknown): TargetingTrace {
   const query = getString(root, ["query"]) || getString(apiResponse, ["query"]);
   if (query) {
     trace.query = query;
+  }
+
+  const failureDiagnosis = getFailureDiagnosis(data);
+  if (failureDiagnosis) {
+    trace.failureDiagnosis = failureDiagnosis;
   }
 
   if (status || message || execSuccess !== null) {

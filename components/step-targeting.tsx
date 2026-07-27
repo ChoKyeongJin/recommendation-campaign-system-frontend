@@ -83,9 +83,7 @@ function SegmentGroupCard({ group }: { group: TargetSegmentGroup }) {
     (a, b) => (b.count ?? 0) - (a.count ?? 0),
   );
   const max = Math.max(...sorted.map((segment) => segment.count ?? 0), 0);
-  const visible = expanded
-    ? sorted
-    : sorted.slice(0, DEFAULT_VISIBLE_SEGMENTS);
+  const visible = expanded ? sorted : sorted.slice(0, DEFAULT_VISIBLE_SEGMENTS);
   const overflowCount = sorted.length - visible.length;
 
   return (
@@ -276,8 +274,9 @@ function GraphExpansionView({ hits }: { hits: TargetingTraceHit[] }) {
         {expanded.length > 0 ? (
           <>
             검색으로 찾은{" "}
-            <b className="text-foreground">출발점 {seeds.length}개</b>에서 관계를
-            타고 <b className="text-foreground">{expanded.length}개 항목</b>으로
+            <b className="text-foreground">출발점 {seeds.length}개</b>에서
+            관계를 타고{" "}
+            <b className="text-foreground">{expanded.length}개 항목</b>으로
             넓혔습니다.
           </>
         ) : (
@@ -357,29 +356,39 @@ function GraphExpansionView({ hits }: { hits: TargetingTraceHit[] }) {
 
 // 참조 종류별 배지 색. 프롬프트/데이터/모델/인프라를 한눈에 구분한다.
 const REF_KIND_CLASS: Record<string, string> = {
-  프롬프트: "border-blue-300 text-blue-700 dark:border-blue-800 dark:text-blue-300",
-  데이터: "border-emerald-300 text-emerald-700 dark:border-emerald-800 dark:text-emerald-300",
+  프롬프트:
+    "border-blue-300 text-blue-700 dark:border-blue-800 dark:text-blue-300",
+  데이터:
+    "border-emerald-300 text-emerald-700 dark:border-emerald-800 dark:text-emerald-300",
   모델: "border-violet-300 text-violet-700 dark:border-violet-800 dark:text-violet-300",
-  인프라: "border-amber-300 text-amber-700 dark:border-amber-800 dark:text-amber-300",
+  인프라:
+    "border-amber-300 text-amber-700 dark:border-amber-800 dark:text-amber-300",
   코드: "border-rose-300 text-rose-700 dark:border-rose-800 dark:text-rose-300",
 };
 
-/** 단계가 참조한 프롬프트/데이터/모델을 종류별 배지로 보여준다. */
-function StageRefs({ refs }: { refs: NonNullable<TargetingTraceStep["refs"]> }) {
+/** 단계가 참조한 프롬프트/데이터/모델을 모두 보여주고, 이번 입력에 쓰인 항목을 강조한다. */
+function StageRefs({
+  refs,
+}: {
+  refs: NonNullable<TargetingTraceStep["refs"]>;
+}) {
   if (refs.length === 0) {
     return null;
   }
   return (
     <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-      <span className="text-[10px] font-medium text-muted-foreground">참조</span>
+      <span className="text-[10px] font-medium text-muted-foreground">
+        참조
+      </span>
       {refs.map((ref, i) => (
         <span
           key={`${ref.kind}-${ref.name}-${i}`}
           className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] ${
             REF_KIND_CLASS[ref.kind] ?? "border-border text-muted-foreground"
-          }`}
-          title={ref.kind}
+          } ${ref.used ? "bg-accent font-semibold ring-1 ring-current" : "opacity-70"}`}
+          title={ref.used ? `${ref.kind} · 이번 입력에 사용됨` : ref.kind}
         >
+          {ref.used && <Check className="h-3 w-3 shrink-0" aria-hidden />}
           <span className="font-medium opacity-70">{ref.kind}</span>
           <span className="font-mono">{ref.name}</span>
         </span>
@@ -509,7 +518,10 @@ function TraceStepCard({
                 const primary = hit.note || cleanHitLabel(hit.label);
                 const metaLabel = hitMetaLabel(hit.meta);
                 return (
-                  <div key={`${hit.label}-${i}`} className="flex flex-col gap-1">
+                  <div
+                    key={`${hit.label}-${i}`}
+                    className="flex flex-col gap-1"
+                  >
                     <div className="flex items-start gap-2 text-xs">
                       {metaLabel && (
                         <Badge
@@ -574,6 +586,62 @@ function TraceStepCard({
         )}
       </div>
     </li>
+  );
+}
+
+const FAILURE_DIAGNOSIS_CLASS: Record<string, string> = {
+  reference_data_gap: "border-amber-300/80 bg-amber-50/60",
+  reference_data_error: "border-amber-300/80 bg-amber-50/60",
+  input_incomplete: "border-sky-300/80 bg-sky-50/60",
+  input_unrecognized: "border-sky-300/80 bg-sky-50/60",
+  infrastructure_or_configuration: "border-orange-300/80 bg-orange-50/60",
+  input_or_configuration_error: "border-orange-300/80 bg-orange-50/60",
+  implementation_or_policy_review: "border-destructive/40 bg-destructive/5",
+  implementation_error: "border-destructive/40 bg-destructive/5",
+};
+
+const DIAGNOSIS_CONFIDENCE_LABEL: Record<string, string> = {
+  high: "높음",
+  medium: "보통",
+  low: "낮음",
+};
+
+function TraceFailureDiagnosisNotice({
+  diagnosis,
+}: {
+  diagnosis: NonNullable<TargetingTrace["failureDiagnosis"]>;
+}) {
+  return (
+    <section
+      className={`flex flex-col gap-2.5 rounded-lg border p-3.5 ${
+        FAILURE_DIAGNOSIS_CLASS[diagnosis.category] ?? "border-border bg-accent"
+      }`}
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-sm font-semibold text-foreground">
+          {diagnosis.label}
+        </p>
+        <Badge variant="outline" className="text-[10px] font-normal">
+          판정 신뢰도{" "}
+          {DIAGNOSIS_CONFIDENCE_LABEL[diagnosis.confidence] ?? "낮음"}
+        </Badge>
+      </div>
+      <p className="text-sm leading-relaxed text-foreground">
+        {diagnosis.summary}
+      </p>
+      {diagnosis.evidence.length > 0 && (
+        <ul className="flex flex-col gap-1 border-l-2 border-current/20 pl-3 text-xs text-muted-foreground">
+          {diagnosis.evidence.map((evidence, index) => (
+            <li key={`${evidence}-${index}`} className="break-words">
+              {evidence}
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="text-xs leading-relaxed text-muted-foreground">
+        {diagnosis.nextAction}
+      </p>
+    </section>
   );
 }
 
@@ -662,6 +730,10 @@ function TraceSection({
           <div className="flex flex-col gap-4">
             {error && <p className="text-sm text-destructive">{error}</p>}
 
+            {trace.failureDiagnosis && (
+              <TraceFailureDiagnosisNotice diagnosis={trace.failureDiagnosis} />
+            )}
+
             {trace.steps.length > 0 ? (
               <ol className="flex flex-col">
                 {trace.steps.map((step, index) => (
@@ -703,7 +775,8 @@ function TraceSection({
                       }
                       className="font-mono text-[10px]"
                     >
-                      RESULT: {trace.result?.status ??
+                      RESULT:{" "}
+                      {trace.result?.status ??
                         (trace.result?.success ? "success" : "fail")}
                     </Badge>
                   )}
@@ -717,7 +790,8 @@ function TraceSection({
                   )}
                   {typeof trace.execution?.resultRowCount === "number" && (
                     <span className="font-mono text-xs text-muted-foreground">
-                      result_row_count={trace.execution.resultRowCount.toLocaleString()}
+                      result_row_count=
+                      {trace.execution.resultRowCount.toLocaleString()}
                     </span>
                   )}
                   {typeof trace.execution?.targetCampaignCount === "number" && (
@@ -1026,7 +1100,9 @@ export function StepTargeting({
 
           <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-0.5">
-              <p className="text-sm font-medium text-foreground">세그먼트 구성</p>
+              <p className="text-sm font-medium text-foreground">
+                세그먼트 구성
+              </p>
               <p className="text-xs text-muted-foreground">
                 질문과 관련된 타겟 조건 위주로 보여줍니다.
               </p>
@@ -1075,7 +1151,9 @@ export function StepTargeting({
         <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
           {/* 실패(failureStage)면 실행되지 않았으므로 "생성된 SQL(미실행)"로, 성공이면 "실행된 SQL"로 라벨링한다. */}
           <CardTitle className="text-base">
-            {result.failureStage ? "생성된 SQL (검증 실패 · 미실행)" : "실행된 SQL"}
+            {result.failureStage
+              ? "생성된 SQL (검증 실패 · 미실행)"
+              : "실행된 SQL"}
           </CardTitle>
           <Badge variant="secondary">read-only</Badge>
         </CardHeader>
@@ -1088,7 +1166,9 @@ export function StepTargeting({
               </pre>
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">SQL이 생성되지 않았습니다.</p>
+            <p className="text-sm text-muted-foreground">
+              SQL이 생성되지 않았습니다.
+            </p>
           )}
         </CardContent>
       </Card>
