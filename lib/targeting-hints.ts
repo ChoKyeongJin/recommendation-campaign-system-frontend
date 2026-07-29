@@ -23,6 +23,8 @@ const MEMBER_VALUE_INDEX = "member_value_index.json";
 const NORMALIZATION = "normalization_rules.sample.json";
 const LEXICON = "targeting_lexicon.json";
 const SCHEMA_CATALOG = "schema_catalog.json";
+// 파일이 아니라 프롬프트 문장 자체를 손봐야 하는 실패의 "어디를".
+const PROMPT_POLARITY = "프롬프트 조건 표현(포함/제외)";
 
 /** 조건 경로/라벨로 보강할 파일을 추정한다(브랜드/지역은 값 해석 파일, 그 외 회원 조건은 매핑 파일). */
 function whereForConditions(paths: string[], labels: string[]): string {
@@ -34,9 +36,22 @@ function whereForConditions(paths: string[], labels: string[]): string {
   return MEMBER_FILTERS;
 }
 
-/** 위 규칙에서 안 잡힌 실패는 failure_reason 코드로 보조 힌트를 만든다. */
+/**
+ * failure_reason 코드를 보강 위치·행동으로 번역한다.
+ * 되물음 힌트(3번)의 where/how 도 이 매핑을 우선 쓴다 — 되물음이 떴다는 사실보다
+ * "왜 막혔는지"가 항상 더 구체적이기 때문이다.
+ */
 function mapFailureReason(reason: string): ReinforcementHint | null {
   const r = reason.toLowerCase();
+  // 같은 값이 포함·제외 양쪽에 잡힌 의미 충돌. 사전에 낱말을 더해도 절대 풀리지 않는다.
+  if (r.includes("conflict")) {
+    return {
+      severity: "fail",
+      symptom: "조건의 포함/제외가 서로 모순되어 명단을 뽑지 못했습니다.",
+      where: PROMPT_POLARITY,
+      how: "같은 값을 포함과 제외로 동시에 지정하지 않도록 문장을 정리해 주세요(예: '여자만 빼줘' → '여성 제외').",
+    };
+  }
   if (r.includes("unsupported_condition") || r.includes("real_db_unsupported")) {
     return {
       severity: "fail",
@@ -80,6 +95,9 @@ export function buildReinforcementHints(
   if (!d) {
     return hints;
   }
+  // 실패 사유 매핑은 되물음 힌트의 where/how 로도 쓰고, 아무 힌트도 안 잡혔을 때 단독 힌트로도 쓴다.
+  const mappedFailure = d.failureReason ? mapFailureReason(d.failureReason) : null;
+  let mappedFailureUsed = false;
 
   // 1) 부분추출 — SQL 은 나왔지만 일부 조건이 실DB 미지원이라 빠짐
   if (d.droppedConditionLabels.length) {
@@ -104,13 +122,23 @@ export function buildReinforcementHints(
     });
   }
 
-  // 3) 되물음/입력 부족 — 표현을 인식하지 못함
-  if (d.clarificationQuestions.length || d.missingInputConditions.length) {
+  // 3) 되물음/입력 부족 — 백엔드가 보낸 되물음 문구를 그대로 증상으로 쓴다.
+  //    ("되물음이 필요합니다" 같은 고정 문구는 어떤 실패든 똑같이 보여서 진단값이 0이었다.)
+  const questions = [
+    ...d.clarificationQuestions,
+    ...d.missingInputConditions,
+  ]
+    .map((question) => question.trim())
+    .filter(Boolean);
+  if (questions.length) {
+    mappedFailureUsed = mappedFailure !== null;
     hints.push({
-      severity: "warn",
-      symptom: "조건이 모호하거나 인식되지 않아 되물음이 필요합니다.",
-      where: `${NORMALIZATION} · ${LEXICON}`,
-      how: "새 동의어·신호어를 사전에 추가하거나, 프롬프트를 표준 용어로 바꿔 주세요.",
+      severity: mappedFailure?.severity ?? "warn",
+      symptom: questions.join(" · "),
+      where: mappedFailure?.where ?? `${NORMALIZATION} · ${LEXICON}`,
+      how:
+        mappedFailure?.how ??
+        "새 동의어·신호어를 사전에 추가하거나, 프롬프트를 표준 용어로 바꿔 주세요.",
     });
   }
 
@@ -144,12 +172,25 @@ export function buildReinforcementHints(
     }
   }
 
-  // 5) 위에서 안 잡힌 실패는 failure_reason 으로 보조 힌트
-  if (!hints.length && d.failureReason) {
-    const mapped = mapFailureReason(d.failureReason);
-    if (mapped) {
-      hints.push(mapped);
-    }
+  // 5) failure_reason 힌트. 이전에는 앞 규칙이 하나라도 힌트를 넣으면 통째로 건너뛰어, 가장 구체적인
+  //    신호(왜 막혔는지)가 늘 묻혔다. 이제는 되물음 힌트가 흡수했거나 같은 보강 위치를 이미 안내한
+  //    구체적 힌트가 있을 때만 생략한다.
+  //    조건 단위 힌트(1·2)가 이미 "어떤 조건이 왜 빠졌는지"를 말한 경우, 같은 원인(조건→컬럼 매핑)의
+  //    일반 힌트는 덜 구체적이므로 생략한다.
+  const conditionHintsShown =
+    d.droppedConditionLabels.length > 0 ||
+    d.unsupportedConditionLabels.length > 0;
+  const failureIsConditionMapping =
+    /unsupported_condition|real_db_unsupported/.test(
+      (d.failureReason ?? "").toLowerCase(),
+    );
+  if (
+    mappedFailure &&
+    !mappedFailureUsed &&
+    !(conditionHintsShown && failureIsConditionMapping) &&
+    !hints.some((hint) => hint.where === mappedFailure.where)
+  ) {
+    hints.push(mappedFailure);
   }
 
   return hints;
