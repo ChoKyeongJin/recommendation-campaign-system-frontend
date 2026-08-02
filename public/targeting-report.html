@@ -871,8 +871,8 @@
           <span class="tag">A/B/C 클릭률 분석</span>
           <span class="tag">자연어 → 타겟팅 SQL</span>
           <span class="tag">GraphRAG 검색</span>
-          <span class="tag">결정론 우선 · LLM 보조</span>
-          <span class="tag">SQL 4중 검증 + 의미 게이트</span>
+          <span class="tag">LLM 의미 구조화 · 결정론 SQL 컴파일</span>
+          <span class="tag">다중 SQL 검증 + 의미 게이트</span>
           <span class="tag">성능·드롭 비차단 자문</span>
           <span class="tag">실제 CRM DB 실행</span>
         </div>
@@ -886,6 +886,7 @@
           <li><a href="#s0">한눈에 보기</a></li>
           <li><a href="#s-arch">4단계 운영 흐름</a></li>
           <li><a href="#s-design">오디언스 생성 설계 원칙</a></li>
+          <li><a href="#s-current-nl2sql">현재 자연어 → SQL 핵심 경로</a></li>
           <li><a href="#s1">내부 1 · 프롬프트 재작성</a></li>
           <li><a href="#s2">내부 2 · 타겟/채널 분리</a></li>
           <li><a href="#s3">내부 3 · 질의 계획 수립</a></li>
@@ -1154,11 +1155,11 @@
 
           <h3>오디언스 생성 내부 10단계</h3>
           <p class="muted" style="font-size: 14px; margin: -4px 0 12px">
-            <span style="color: #0d9488; font-weight: 700">규칙</span> = 정해진
-            로직으로 100% 재현 가능 ·
+            <span style="color: #0d9488; font-weight: 700">규칙</span> = 구조화된
+            의미를 검증·컴파일하는 결정론 로직 ·
             <span style="color: #4f46e5; font-weight: 700">AI</span> = LLM 사용
-            · <span style="color: #b26a05; font-weight: 700">혼합</span> = 규칙
-            우선 + AI 보조(결과는 규칙으로 재검증)
+            · <span style="color: #b26a05; font-weight: 700">혼합</span> = AI가
+            의미만 구조화하고 결과를 애플리케이션이 검증·컴파일
           </p>
           <div class="pipe">
             <div class="pipe-row">
@@ -1190,10 +1191,11 @@
               <span class="pipe-n">3</span>
               <div class="pipe-body">
                 <span class="p-name"
-                  >질의 계획 수립<span class="badge both">혼합</span></span
+                >질의 계획 수립<span class="badge both">혼합</span></span
                 >
                 <p class="p-desc">
-                  문장을 성별·연령·행동 등 구조화된 조건표(Query Plan)로 변환.
+                  문장을 근거 구간이 붙은 하나의 오디언스 의미 트리(Event IR)로
+                  변환. 모델은 SQL·테이블·컬럼을 제출할 수 없음.
                 </p>
                 <span class="p-file">build_query_plan()</span>
               </div>
@@ -1202,13 +1204,13 @@
               <span class="pipe-n">4</span>
               <div class="pipe-body">
                 <span class="p-name"
-                  >상품·구매이력 추출<span class="badge both">혼합</span></span
+                >상품·구매이력 추출<span class="badge both">혼합</span></span
                 >
                 <p class="p-desc">
-                  “기저귀 산 고객” 같은 상품/구매 조건을 정규식 우선 + 검증된 AI
-                  보조로 추출.
+                  “기저귀 산 고객” 같은 의미를 같은 Event IR 안의 사건·필드·시간
+                  조건으로 보존. 별도 파서가 SQL 권위를 갖지 않음.
                 </p>
-                <span class="p-file">_apply_llm_object_fallback()</span>
+                <span class="p-file">audience_requirement.expression</span>
               </div>
             </div>
             <div class="pipe-row">
@@ -1255,11 +1257,11 @@
               <span class="pipe-n">8</span>
               <div class="pipe-body">
                 <span class="p-name"
-                  >타겟팅 SQL 생성<span class="badge both">혼합</span></span
+                >타겟팅 SQL 생성<span class="badge both">혼합</span></span
                 >
                 <p class="p-desc">
-                  검증된 SQL 템플릿을 우선 적용, 안 맞으면 AI가 그래프 근거로
-                  생성.
+                  Event IR을 카탈로그 기반 컴파일러로 먼저 SQL화. 닫힌 IR 보조,
+                  자유 SQL은 마지막 제한 폴백.
                 </p>
                 <span class="p-file">build_sql_result()</span>
               </div>
@@ -1268,11 +1270,11 @@
               <span class="pipe-n">9</span>
               <div class="pipe-body">
                 <span class="p-name"
-                  >SQL 안전 검증<span class="badge both">혼합</span></span
+                >SQL 안전 검증<span class="badge both">혼합</span></span
                 >
                 <p class="p-desc">
-                  읽기 전용·허용 테이블·조건 커버리지·미언급 조건 4중 관문 +
-                  원문↔SQL 의미 게이트(신규).
+                  SELECT 전용·스키마·조인·grain·조건 커버리지·미언급 조건·극성 +
+                  원문↔SQL 의미를 함께 검증.
                 </p>
                 <span class="p-file">sql_guard.py · _verify_sql_semantics</span>
               </div>
@@ -1295,46 +1297,46 @@
         <!-- design principles -->
         <section id="s-design">
           <h2><span class="num">02</span>오디언스 생성 설계 원칙</h2>
-          <div class="h2title">첫 단계는 왜 “결정론 우선, AI는 보조”인가</div>
+          <div class="h2title">말은 AI가 구조화하고, SQL은 검증된 컴파일러가 만든다</div>
           <p class="lead">
             타겟팅은 <b>고객 명단</b>을 다루는 일이라 “그럴듯한 오답”이 곧
             잘못된 발송이 된다. 그래서 이 시스템은 세 가지 원칙 위에 서 있다.
           </p>
 
-          <h3>원칙 1 · 결정론(규칙)을 먼저, AI는 “말귀” 보조만</h3>
+          <h3>원칙 1 · LLM은 SQL이 아니라 오디언스의 “뜻”만 제출</h3>
           <p>
-            조건 해석의 뼈대는 <b>정규식·룰 로직</b>이 잡는다. AI(OpenAI
-            <code>gpt-4o-mini</code>)는 사람 말투를 표준 용어로
-            바꾸거나(재작성), 규칙이 놓친 상품명을 건져 올리는 등
-            <b>“유연성(재현율)”</b>만 담당하고, 그 결과는 다시 규칙으로
-            검증한다. 실제로 AI가 계획을 세워도 그 뒤에
-            <b>규칙 추출기가 한 번 더 덧씌워</b> 브랜드 코드
-            해석·구매이력·생일·가입일 같은 핵심 조건을 결정론적으로 확정한다.
+            현재 기본 <code>auto</code> 경로에서 LLM은 원문을
+            <b>하나의 오디언스 의미 트리(Event IR)</b>로 구조화한다. 출력은
+            <code>intent</code>, <code>campaign_constraints</code>,
+            <code>result_limit</code>, <code>audience_requirement</code> 네 영역으로
+            제한되고, SQL 문자열이나 실제 테이블·컬럼은 제출할 수 없다. 각 원자
+            조건에는 원문 그대로의 근거 문구와 위치가 반드시 붙는다.
           </p>
 
-          <h3>원칙 2 · API 키가 없어도 돌아간다 (Graceful Degradation)</h3>
+          <h3>원칙 2 · 의미 구조화나 검증을 못 하면 안전하게 중단 (Fail Closed)</h3>
           <p>
-            모든 AI 단계는 <code>OPENAI_API_KEY</code>가 있는지 먼저 확인하고,
-            없으면 조용히 <b>규칙 기반 경로로 대체</b>한다. 즉 AI가 죽거나 키가
-            빠져도 타겟팅은 <b>완전한 결정론 파이프라인</b>으로 계속 동작한다.
-            AI는 품질을 높이는 옵션이지 필수 부품이 아니다.
+            현재 규칙 해석 계층은 제거되어 <code>rules</code> 모드가 완전한 자연어
+            대체 파서 역할을 하지 않는다. <code>OPENAI_API_KEY</code>가 없거나 의미
+            구조화가 실패하면 빈 규칙 계획으로 억지 SQL을 만들지 않고
+            <code>semantic_interpretation</code> 오류와 함께 <b>SQL을 차단</b>한다.
+            최종 원문↔SQL 의미 검증기를 실행할 수 없는 경우도 출고하지 않는다.
           </p>
-          <div class="note">
-            <span class="n-tag">게이트 규칙</span>
-            문장 재작성(STEP 1)과 상품 추출(STEP 4)은
-            <b>API 키 유무만으로</b> 켜진다(전처리라서). 반면 AI 질의계획(STEP
-            3)·AI SQL 생성(STEP 8)은 키가 있고 <b>동시에</b> 파서 모드가
-            <code>auto</code>/<code>llm</code>일 때만 쓴다. 운영 기본값은
-            안전하게 <code>rules</code> 경로다.
+          <div class="note warn">
+            <span class="n-tag">현재 운영 기본</span>
+            API의 기본 파서 모드는 <code>auto</code>이며, 실제 요청 경로에서는
+            LLM-first 의미 구조화가 주 권위다. “AI를 못 쓰면 규칙으로 같은 결과를
+            낸다”가 아니라, <b>검증되지 않은 명단을 내보내지 않는다</b>가 현재의
+            안전 정책이다.
           </div>
 
           <h3>원칙 3 · 지어내지 않는다 (검증 + 부분추출 고지)</h3>
           <p>
             AI가 뽑은 상품명은 <b>원문에 실제로 등장할 때만</b> 인정하고(없는
-            상품 차단), 생성된 SQL은 4중 안전 검증을 전부 통과해야 한다. 조건을
-            데이터로 매핑하지 못하면 <b>몰래 빼지 않고</b> “이 조건은 반영하지
-            못했습니다”라고 <b>미지원·제외 조건으로 고지</b>한다. “대충 맞는
-            명단”보다 “무엇이 반영되고 무엇이 빠졌는지 아는 명단”을 지향한다.
+            상품 차단), 생성된 SQL은 다중 안전·의미 검증을 전부 통과해야 한다. 조건을
+            데이터로 매핑하지 못하면 <b>몰래 빼지 않고</b> 미지원 또는 확인 필요로
+            돌린다. 원문 조건을 일부 떨어뜨린 SQL은 고지만 하고 성공시키지 않으며,
+            <code>sql=null</code>로 차단한다. “되는 조건만 담은 명단”보다
+            “조건 전체를 증명할 수 있는 명단”을 지향한다.
           </p>
 
           <div class="compare">
@@ -1349,11 +1351,11 @@
               </p>
             </div>
             <div class="col graph-rag">
-              <h4>이 시스템 (결정론 우선 + 그래프 근거)</h4>
+              <h4>이 시스템 (의미 계약 + 카탈로그 컴파일)</h4>
               <p class="flow">
-                문장 <b>→</b> 규칙 파싱(+AI 보조) <b>→</b> 그래프에서 실제
-                스키마 근거 검색 <b>→</b> 검증된 템플릿 SQL <b>→</b> 4중 검증
-                <b>→</b> 실행
+                문장 <b>→</b> LLM 의미 트리 <b>→</b> 원문 근거·카탈로그 검증
+                <b>→</b> 결정론 SQL 컴파일 <b>→</b> 다중 안전·의미 검증
+                <b>→</b> 읽기 전용 실행
               </p>
               <p class="muted" style="font-size: 13.5px; margin: 8px 0 0">
                 재현 가능·안전·설명 가능. 조건별 근거와 신뢰도까지 남긴다.
@@ -1362,14 +1364,205 @@
           </div>
         </section>
 
+        <!-- current NL2SQL path -->
+        <section id="s-current-nl2sql">
+          <h2><span class="num">03</span>현재 자연어 → SQL 핵심 경로</h2>
+          <div class="h2title">자연어를 바로 SQL로 번역하지 않는 이유와 실제 변환 순서</div>
+          <p class="lead">
+            가장 짧게 말하면 <b>자연어 → 검증 가능한 의미 트리 → 물리 스키마
+            바인딩 → SQL 후보 → 다중 검증 → 읽기 전용 실행</b> 순서다. LLM이
+            테이블과 컬럼을 추측하는 구간과 실제 실행 사이에 애플리케이션 소유의
+            계약과 검증기가 놓여 있다.
+          </p>
+
+          <div class="arch">
+            <div class="arch-tier">
+              <p class="tier-label">현재 주 실행 경로</p>
+              <div class="arch-row">
+                <div class="arch-box fe">
+                  <p class="b-name">1 · 자연어 원문</p>
+                  <span class="b-tech">POST /target-sql</span>
+                  <p class="b-desc">원문을 보존하고 타겟 절과 메시지·채널 절을 분리한다.</p>
+                </div>
+                <div class="arch-box fe">
+                  <p class="b-name">2 · 의미 계약</p>
+                  <span class="b-tech">audience_requirement</span>
+                  <p class="b-desc">LLM이 AND/OR/NOT·시간·집계·근거를 Event IR로 제출한다.</p>
+                </div>
+                <div class="arch-box be">
+                  <p class="b-name">3 · 카탈로그 컴파일</p>
+                  <span class="b-tech">event_expression → SQL</span>
+                  <p class="b-desc">논리 심볼을 등록된 실제 테이블·컬럼으로만 바꾼다.</p>
+                </div>
+                <div class="arch-box ext">
+                  <p class="b-name">4 · 검증·실행</p>
+                  <span class="b-tech">guard → read only</span>
+                  <p class="b-desc">조건 전체와 SQL 의미가 증명된 후보만 CRM에서 읽는다.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <h3>단계별로 보면</h3>
+          <ol class="steps">
+            <li>
+              <span class="st-title">원문 보존과 스코프 분리</span>
+              <span class="st-desc">
+                <code>raw_query</code>·<code>original_query</code>·실제 계획 문장을
+                따로 저장하고 identity 해시로 변경 여부를 검사한다. “누구에게”는
+                타겟 절로, “무엇을 어떤 채널로 보낼지”는 채널 절로 분리한다.
+              </span>
+            </li>
+            <li>
+              <span class="st-title">LLM이 SQL 대신 하나의 의미 트리를 제출</span>
+              <span class="st-desc">
+                모델 출력면은 네 영역으로 제한된다. 숫자·날짜 리터럴은 모델이
+                만들지 않고 애플리케이션이 원문에서 추출한다. 모든 원자 조건은
+                원문 근거 문자열과 <code>[start,end)</code> 위치가 필요하다.
+              </span>
+            </li>
+            <li>
+              <span class="st-title">Event IR·근거·지원 가능성 검증</span>
+              <span class="st-desc">
+                논리 결합, 포함/제외, EXISTS, 집계, 시간창을 트리 그대로 검증한다.
+                카탈로그에 없는 사건·필드, 컴파일러가 표현하지 못하는 조합,
+                기간 없는 “최근”은 SQL로 내려가지 않는다.
+              </span>
+            </li>
+            <li>
+              <span class="st-title">논리 심볼을 실제 CRM 스키마에 연결</span>
+              <span class="st-desc">
+                예를 들어 <code>subject</code>는 회원 테이블,
+                <code>purchase</code>는 주문 헤더,
+                <code>purchase.occurred_at</code>은 주문일 컬럼으로 바뀐다. 이
+                바인딩은 모델이 아니라 <code>audience_catalog.json</code>이 소유한다.
+              </span>
+            </li>
+            <li>
+              <span class="st-title">GraphRAG는 근거를 보조하고 조건을 만들지는 않음</span>
+              <span class="st-desc">
+                키워드·벡터·그래프 검색으로 스키마와 SQL 예시를 모은다. 검색 결과는
+                닫힌 IR/SQL 폴백과 설명을 돕지만, 원문에 없는 WHERE 조건을 추가할
+                권한은 없다. 현재 <code>/target-sql</code> 기본 벡터 top-k는 0,
+                키워드 top-k는 5다.
+              </span>
+            </li>
+            <li>
+              <span class="st-title">결정론 컴파일러가 SQL 후보 생성</span>
+              <span class="st-desc">
+                검증된 Event IR 경로가 우선이며, 새 canonical 경로에서는 이 트리가
+                SQL의 단일 오디언스 권위다. 후보가 없을 때 닫힌 Targeting IR을 먼저
+                시도하고, 자유 SQL 생성은 허용된 요청에서만 마지막 폴백으로 사용한다.
+              </span>
+            </li>
+            <li>
+              <span class="st-title">모든 검증을 통과한 SQL만 읽기 전용 실행</span>
+              <span class="st-desc">
+                SELECT 전용, 허용 테이블·컬럼, 조인키 타입과 관계, 집계 grain,
+                필수조건 누락, 미언급 조건, 극성·AND/OR, 결과 shape, 원문↔SQL
+                의미를 검사한다. 실패한 SQL은 <code>blocked_sql</code>로만 남고
+                실행용 <code>sql</code>은 null이 된다.
+              </span>
+            </li>
+          </ol>
+
+          <h3>한 문장이 바뀌는 모습</h3>
+          <p class="muted" style="font-size: 14px; margin: -4px 0 8px">
+            예시 · “최근 30일 구매가 3회 이상인 고객 중 남자는 제외해줘”
+          </p>
+          <pre>AND
+├─ COUNT(purchase.order_id WHERE purchase.occurred_at IN 최근 30일) &gt;= 3
+└─ NOT(subject.gender = male)</pre>
+
+          <div class="tablewrap">
+            <table>
+              <thead>
+                <tr><th>논리 심볼</th><th>실제 CRM 바인딩</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>subject</code></td><td><code>CRM_MB_BASEINFO B</code></td></tr>
+                <tr><td>subject 회원 키</td><td><code>B.MEMBER_NO</code></td></tr>
+                <tr><td><code>purchase</code></td><td><code>CRM_SL_ORDERHEADERMALL EO</code></td></tr>
+                <tr><td><code>purchase.occurred_at</code></td><td><code>EO.ORDER_DATE</code></td></tr>
+                <tr><td><code>purchase.order_id</code></td><td><code>EO.ORDER_ID</code></td></tr>
+                <tr><td><code>subject.gender</code></td><td><code>B.GENDER_CD</code> + 등록된 성별 코드</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <pre>SELECT B.MEMBER_NO
+FROM CRM_MB_BASEINFO B
+WHERE &lt;정상 회원 정책&gt;
+  AND (SELECT COUNT(DISTINCT EO.ORDER_ID)
+       FROM CRM_SL_ORDERHEADERMALL EO
+       WHERE EO.MEMBER_NO = B.MEMBER_NO
+         AND EO.ORDER_DATE &gt;= :window_start
+         AND EO.ORDER_DATE &lt;  :window_end) &gt;= 3
+  AND NOT (B.GENDER_CD = :male_code)</pre>
+          <p class="muted" style="font-size: 13.5px">
+            위 SQL은 이해를 위한 골격이다. 실제 날짜 표현·물리 코드·추가 정책 술어는
+            대상 DB 방언과 런타임 카탈로그가 결정한다.
+          </p>
+
+          <h3>실패할 때는 SQL 대신 이유를 반환</h3>
+          <div class="tablewrap">
+            <table>
+              <thead>
+                <tr><th>상황</th><th>처리</th><th>대표 결과</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>“최근”이라고만 쓰고 기간 없음</td>
+                  <td>임의로 30일을 만들지 않고 기간을 질문</td>
+                  <td><code>missing_argument: period</code></td>
+                </tr>
+                <tr>
+                  <td>카탈로그에 없는 사건·필드</td>
+                  <td>자유 SQL로 우회하지 않고 미지원</td>
+                  <td><code>unsupported_semantics</code></td>
+                </tr>
+                <tr>
+                  <td>원문 조건 누락 또는 반전</td>
+                  <td>후보 SQL을 표시용으로만 보존하고 실행 차단</td>
+                  <td><code>semantic_verification_failed</code></td>
+                </tr>
+                <tr>
+                  <td>LLM 구조화·의미 검증기 사용 불가</td>
+                  <td>규칙으로 추측하지 않고 안전하게 중단</td>
+                  <td><code>sql = null</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="note warn">
+            <span class="n-tag">2026-08-02 현재 상태</span>
+            최신 백엔드 아키텍처 점검에는 라이브 프롬프트 26종의 SQL 출고가
+            <b>0/26</b>으로 기록돼 있다. 가장 큰 실패군은 모델이 카탈로그에 없는
+            지표 ID를 만들거나 범주값을 수치 필드에 넣는 문제다. 단위 테스트 통과와
+            실제 SQL 출고 성공률은 다른 지표다. 현재 설계는 이 상황에서 틀린 SQL을
+            내보내기보다 안전하게 차단하는 쪽을 선택한다.
+          </div>
+
+          <div class="note">
+            <span class="n-tag">실제 요청 추적</span>
+            <code>POST /target-sql/trace</code>를 호출하면
+            <code>audience_requirement → event_expression → condition_tokens →
+            candidates → validation → failure_reason</code> 순서로 어느 단계에서
+            해석되고 막혔는지 확인할 수 있다. <code>execute=false</code>로 두면 DB를
+            실행하지 않고 추론·검증 과정만 본다.
+          </div>
+        </section>
+
         <!-- STEP 1 -->
         <section id="s1">
-          <h2><span class="num">03</span>내부 STEP 1 · 프롬프트 재작성</h2>
-          <div class="h2title">담당자의 말투를 표준 타겟 용어로 정리</div>
+          <h2><span class="num">04</span>내부 STEP 1 · 프롬프트 재작성</h2>
+          <div class="h2title">기본은 원문 보존, 전체 재작성은 선택 기능</div>
           <p class="lead">
-            파싱을 시작하기 <b>전에</b>, 구어체·오타·모호한 표현을 표준화된
-            타겟팅 문장으로 다시 쓴다. 원문은 그대로 보존하고, 이
-            <b>재작성본</b>이 이후 모든 해석의 기준이 된다.
+            현재 기본 <code>unresolved_only</code> 모드는 문장 전체를 다시 쓰지
+            않고 공백만 정리한 원문을 다음 단계로 넘긴다. 명시적으로
+            <code>targeting</code> 또는 <code>conservative</code> 모드를 켠 경우에만
+            구어체·오타를 재작성하며, 원문은 항상 별도로 보존한다.
           </p>
 
           <h4>하는 일 (쉽게)</h4>
@@ -1481,7 +1674,7 @@
 
         <!-- STEP 2 -->
         <section id="s2">
-          <h2><span class="num">04</span>내부 STEP 2 · 타겟 / 채널 분리</h2>
+          <h2><span class="num">05</span>내부 STEP 2 · 타겟 / 채널 분리</h2>
           <div class="h2title">“누구에게”와 “무엇을 어떻게”를 갈라낸다</div>
           <p class="lead">
             한 문장에는 대상 조건(누구를 뽑을지)과 발송 조건(어떤 채널로 무엇을
@@ -1565,15 +1758,15 @@
 
         <!-- STEP 3 -->
         <section id="s3">
-          <h2><span class="num">05</span>내부 STEP 3 · 질의 계획 수립</h2>
+          <h2><span class="num">06</span>내부 STEP 3 · 질의 계획 수립</h2>
           <div class="h2title">
-            문장을 “구조화된 조건표”로 바꾼다 — 핵심 단계
+            문장을 “근거가 붙은 하나의 의미 트리”로 바꾼다 — 핵심 단계
           </div>
           <p class="lead">
-            정리된 타겟 문장을, 기계가 다룰 수 있는 <b>조건표(Query Plan)</b>로
-            변환한다. 이 단계가 타겟팅의 심장이며,
-            <b>규칙 파서가 먼저 전부 돌고 AI는 그 위에 얹히는</b> 하이브리드
-            구조다.
+            정리된 타겟 문장을 LLM이 strict tool schema에 맞는
+            <b>Campaign Query Plan V4</b>로 구조화한다. 고객 조건은 여러 실행
+            슬롯에 흩어 쓰지 않고 <code>audience_requirement.expression</code>
+            하나에 완전한 Event IR 의미로 제출한다.
           </p>
 
           <h4>Query Plan에 담기는 것</h4>
@@ -1583,60 +1776,55 @@
               등)
             </li>
             <li>
-              <b>target_user</b> — 성별, 연령(“20대” → 20~29),
-              라이프사이클(신규·휴면 등), 관심사, 행동,
-              <b>구매이력(구매 상품)</b>, 미활동 기간, 생일, 가입 시점
-            </li>
-            <li><b>exclude</b> — 제외 조건</li>
-            <li>
-              <b>campaign_constraints</b> — 캠페인 목적·오퍼·판매 상품(발송
-              맥락)
+              <b>campaign_constraints</b> — 캠페인 목적·오퍼·채널·판매 상품.
+              고객을 고르는 조건과 분리된 메시지·캠페인 메타데이터
             </li>
             <li>
-              <b>dimension_filters / set_expressions / computed_metrics</b> — 값
-              해석·집합식·계산 지표(STEP 5·6에서 상세)
+              <b>result_limit</b> — 사용자가 “100명만”처럼 명시한 경우의 결과 제한
             </li>
+            <li>
+              <b>audience_requirement.expression</b> — 성별·연령·구매·제외·집계·시간
+              조건 전체를 담은 단일 Event IR 트리
+            </li>
+            <li><b>audience_requirement.issues</b> — 빠진 인자, 모호함, 미지원 의미</li>
           </ul>
 
-          <h4>규칙 우선 → AI 보조 → 규칙 재적용 (3중 구조)</h4>
+          <h4>LLM 의미 제출 → 애플리케이션 검증 → 실행 IR 파생</h4>
           <ol class="steps">
             <li>
               <span class="st-title"
-                >규칙 파서가 먼저 전부 실행
-                (<code>_build_rule_query_plan</code>)</span
+                >LLM이 네 영역만 strict schema로 제출</span
               >
               <span class="st-desc"
-                >정규화 사전으로 동의어를 표준값으로 바꾸고,
-                연령·구매이력·미활동·생일·가입·지역·지표 등을 정규식으로
-                추출한다. 이 결과만으로도 완결적인 계획이 나온다.</span
+                >SQL·물리 테이블·물리 컬럼·레거시 target_user/exclude 슬롯은
+                모델 출력에서 금지된다.</span
               >
             </li>
             <li>
               <span class="st-title"
-                >(선택) AI 파서가 보강 (<code>_try_llm_query_plan</code>,
-                <code>auto</code>/<code>llm</code> 모드에서만)</span
+                >원문 근거와 애플리케이션 소유 리터럴 검증</span
               >
               <span class="st-desc"
-                >OpenAI가 규칙 계획을 fallback으로 참고해 더 정교한 계획을
-                만들고, <b>화이트리스트 검증</b>으로 허용된 필드만 남긴다.</span
+                >각 원자 조건의 문구·시작·끝 위치가 원문과 정확히 일치해야 하며,
+                숫자·기간·날짜는 애플리케이션이 추출한 값과 맞아야 한다.</span
               >
             </li>
             <li>
               <span class="st-title"
-                >AI 결과 위에 규칙 추출기를 다시 덧씌움</span
+                >카탈로그·컴파일러 검증 후 event_expression 파생</span
               >
               <span class="st-desc"
-                >브랜드→코드 해석·구매이력·생일·가입 창(window) 등
-                <b>핵심 조건은 파서 모드와 무관하게 항상 결정론</b>으로 확정 —
-                AI 오분류를 막는 안전장치.</span
+                >등록되지 않은 사건·필드 또는 표현 불가능한 연산이 하나라도 있으면
+                실행 IR을 만들지 않는다. 모두 통과한 경우에만 같은 표현식을
+                <code>event_expression</code>으로 단방향 복사한다.</span
               >
             </li>
           </ol>
-          <div class="note">
-            <span class="n-tag">다중 표현 병합 (옵션)</span>
-            한 문장을 AI로 여러 방식으로 바꿔 말한 뒤 각각을 규칙으로 파싱해
-            조건을 <b>합집합으로 병합</b>하는 옵션도 있다. 한 가지 표현에서 놓친
-            조건을 다른 표현에서 건져, 조건 커버리지를 높인다.
+          <div class="note warn">
+            <span class="n-tag">중요 · 현재 rules 모드</span>
+            규칙 해석 계층이 제거된 현재 코드에서 <code>rules</code> 모드는 완전한
+            자연어 조건표를 만들지 않는다. LLM 구조화를 사용할 수 없을 때는
+            조용히 같은 결과를 만드는 것이 아니라 <b>의미 구조화 불가로 차단</b>한다.
           </div>
           <div class="trace">
             <span class="t-tag">이 예시에서는 · STEP 3</span>
@@ -1653,17 +1841,17 @@
             <div class="trace-row">
               <span class="t-k">조건표</span
               ><span class="t-v"
-                >목적 = <b>캠페인 발송</b><br />성별 = <b>여성</b> · 연령 =
-                <b>20~29세</b> · 지역 = <b>서울</b><br />구매 상품 =
-                <b>기저귀</b></span
+                >intent = <b>find_user_segment</b><br />Event IR =
+                <b>서울 AND 20~29세 AND 여성 AND 구매(기저귀)</b><br />각 조건 =
+                <b>원문 근거 위치 포함</b></span
               >
             </div>
             <div class="trace-row">
               <span class="t-k">방식</span
               ><span class="t-v"
                 ><span class="t-skip"
-                  >규칙 파서가 먼저 전부 추출 → (있으면) AI 보조 → 핵심 조건은
-                  규칙으로 다시 확정</span
+                  >LLM이 의미만 제출 → 원문 근거·리터럴·카탈로그 검증 → 통과 시
+                  event_expression 파생</span
                 ></span
               >
             </div>
@@ -1672,16 +1860,23 @@
 
         <!-- STEP 4 -->
         <section id="s4">
-          <h2><span class="num">06</span>내부 STEP 4 · 상품·구매이력 추출</h2>
+          <h2><span class="num">07</span>내부 STEP 4 · 상품·구매이력 추출</h2>
           <div class="h2title">
-            “무엇을 산/살 사람인가” — 정규식 우선 + 검증된 AI 보조
+            “무엇을 산/살 사람인가”를 같은 Event IR 안에서 보존
           </div>
           <p class="lead">
-            문장에서 상품·카테고리를 뽑아 <b>구매이력 조건</b>(과거에 그 상품을
-            <b>산</b> 고객)과 <b>판매 상품</b>(캠페인이 <b>팔려는</b> 상품)으로
-            나눈다. 재작성이 표현을 다양화하므로, 고정 정규식만으로는 놓치는
-            경우를 AI가 메운다.
+            현재 canonical 경로에서는 별도 상품 정규식 파서가 오디언스의 두 번째
+            권위가 되지 않는다. 구매 사건·상품 필드·시간창·포함/제외 관계를 STEP
+            3의 <code>audience_requirement.expression</code> 안에서 함께 구조화하고,
+            상품을 팔려는 캠페인 목적은 <code>campaign_constraints</code>에 분리한다.
           </p>
+
+          <div class="note warn">
+            <span class="n-tag">현재 코드와의 관계</span>
+            아래의 정규식·AI 보조 설명은 화면 트레이스와 호환 경로를 이해하기 위한
+            보충이다. 신규 V4 실행에서 SQL 권위는 오직 검증된
+            <code>event_expression</code>이며, 별도 추출 결과가 이를 덮어쓰지 않는다.
+          </div>
 
           <h4>왜 하이브리드인가</h4>
           <p>
@@ -1762,7 +1957,7 @@
         <!-- STEP 5 -->
         <section id="s5">
           <h2>
-            <span class="num">07</span>내부 STEP 5 · 값 해석 (브랜드명 → 코드)
+            <span class="num">08</span>내부 STEP 5 · 값 해석 (브랜드명 → 코드)
           </h2>
           <div class="h2title">사람이 쓰는 이름을 DB가 아는 코드값으로</div>
           <p class="lead">
@@ -1771,6 +1966,15 @@
             <b>디멘션 값(브랜드·지역 등)</b>을 실제 코드로
             <b>실시간 변환</b>하는 단계 — <b>100% 규칙(AI 미사용)</b>이다.
           </p>
+
+          <div class="note warn">
+            <span class="n-tag">canonical 경로의 우선순위</span>
+            신규 Event IR 경로의 사건·필드·값 도메인은
+            <code>audience_catalog.json</code>이 먼저 검증한다. 아래 DS_SQL 기반
+            값 해석은 레거시 디멘션 슬롯과 호환 조건을 위한 별도 경로이며,
+            canonical Event IR을 덮어쓰지 않는다. 외부 상식 조건은 현재 기본
+            resolver가 비활성이라 미해결이면 SQL을 차단한다.
+          </div>
 
           <h4>변환 경로 (예: 상품브랜드 “포멜카멜리”)</h4>
           <ol class="steps">
@@ -1868,13 +2072,21 @@
 
         <!-- STEP 6 -->
         <section id="s6">
-          <h2><span class="num">08</span>내부 STEP 6 · 집합식 파싱</h2>
+          <h2><span class="num">09</span>내부 STEP 6 · 집합식 파싱</h2>
           <div class="h2title">“A 제외”, “그중 B만” 같은 집합 연산 해석</div>
           <p class="lead">
             여러 세그먼트를 합치고(합집합), 겹치고(교집합), 빼는(차집합) 한국어
             집합 표현을 연산 구조로 파싱한다.
             <b>순수 규칙(정규식 + 연산자 우선순위)</b>으로 처리한다.
           </p>
+
+          <div class="note">
+            <span class="n-tag">신규 V4 경로</span>
+            일반적인 AND/OR/NOT과 포함·제외는
+            <code>audience_requirement.expression</code>의 Event IR이 직접
+            보존한다. 이 절의 <code>set_expression_engine.py</code>는 명시적인
+            세그먼트 집합식과 호환 플랜 경로를 설명한다.
+          </div>
 
           <div class="tablewrap">
             <table>
@@ -1948,7 +2160,7 @@
         <!-- STEP 7 -->
         <section id="s7">
           <h2>
-            <span class="num">09</span>내부 STEP 7 · 지식그래프 검색 (GraphRAG)
+            <span class="num">10</span>내부 STEP 7 · 지식그래프 검색 (GraphRAG)
           </h2>
           <div class="h2title">SQL을 짜는 데 필요한 “근거”를 찾아온다</div>
           <p class="lead">
@@ -2073,80 +2285,76 @@
 
         <!-- STEP 8 -->
         <section id="s8">
-          <h2><span class="num">10</span>내부 STEP 8 · 타겟팅 SQL 생성</h2>
+          <h2><span class="num">11</span>내부 STEP 8 · 타겟팅 SQL 생성</h2>
           <div class="h2title">
-            검증된 템플릿 우선, 안 맞으면 AI가 근거 위에서 생성
+            Event IR 컴파일이 우선, 자유 SQL은 마지막 제한 폴백
           </div>
           <p class="lead">
-            지금까지 모은 조건표와 그래프 근거로 최종 CRM SQL을 조립한다.
-            <b>결정론 템플릿이 1순위</b>, 템플릿으로 표현 못 하는 형태만
-            <b>AI가 2순위 폴백</b>으로 생성한다.
+            검증된 <code>event_expression</code>이 있으면 해당 전용 빌더가
+            배타적으로 선택된다. 컴파일러는 자연어를 다시 읽지 않고 Event IR과
+            런타임 카탈로그만 이용해 CRM SQL을 조립한다.
           </p>
 
-          <h4>1순위 · 결정론 템플릿 (의도별 라우팅)</h4>
+          <h4>1순위 · canonical Event IR 결정론 컴파일</h4>
           <p>
-            <code>build_sql_template_candidate()</code>가 조건에 맞는 템플릿을
-            순서대로 시도한다: 장바구니-브랜드 → 장바구니 재구매(담고 안 산) →
-            <b>구매이력</b> → 주문횟수(첫구매·재구매·미구매) → 지표 랭킹(매출
-            상위 N) → 일반 회원속성. 모두
-            <code>compile_member_target_conditions()</code>를 공유해 조건을 회원
-            허브 테이블(<code>CRM_MB_BASEINFO</code>) 조건으로 변환한다.
+            <code>build_event_expression_sql_candidate()</code>가 Event IR의
+            AND/OR/NOT, EXISTS/NOT EXISTS, 시간창과 집계를 트리 모양 그대로 SQL로
+            내린다. 신규 canonical 표현식에는 회원 속성도 같은 IR에 들어 있으므로
+            레거시 <code>target_user</code>/<code>exclude</code>를 다시 읽어 두 번째
+            오디언스 모델을 만들지 않는다.
           </p>
 
           <p class="muted" style="font-size: 14px; margin: -2px 0 8px">
-            예 · “카트에 담고 안 산” 계열 템플릿의 골격:
+            예 · “최근 30일 구매 3회 이상, 남성 제외”의 이해용 골격:
           </p>
           <pre>
-SELECT DISTINCT B.MEMBER_NO AS CUST_ID, ... , 'cart_abandoner' AS target_segment
-FROM   ODS_MALL_OMS_CART A
-       INNER JOIN CRM_MB_BASEINFO B ON A.CART_ID = B.MEMBER_ID
-WHERE  A.KEEP_YN = 'Y'                                  -- 담아둔 채 미결제
-   AND B.GENDER_CD = 'GENDER_CD.FEMALE'                 -- 여성
-   AND B.AGE >= 20 AND B.AGE <= 29                      -- 20대
-   AND B.MEMBER_STATE_CD = 'MEMBER_STATE_CD.NORMAL'     -- 정상 회원 기본 게이트</pre
+SELECT B.MEMBER_NO
+FROM CRM_MB_BASEINFO B
+WHERE &lt;정상 회원 정책&gt;
+  AND (SELECT COUNT(DISTINCT EO.ORDER_ID)
+       FROM CRM_SL_ORDERHEADERMALL EO
+       WHERE EO.MEMBER_NO = B.MEMBER_NO
+         AND EO.ORDER_DATE &gt;= :window_start
+         AND EO.ORDER_DATE &lt; :window_end) &gt;= 3
+  AND NOT (B.GENDER_CD = :male_code)</pre
           >
 
-          <h4>2순위 · AI SQL 폴백 (템플릿이 없을 때만)</h4>
+          <h4>후순위 · 닫힌 IR 우선, 자유 SQL은 마지막</h4>
           <p>
-            어떤 템플릿에도 맞지 않고 파서 모드가
-            <code>auto</code>/<code>llm</code>일 때만, OpenAI가
-            <b>그래프 검색 근거(상위 컨텍스트 + 허용 테이블 목록) 안에서만</b>
-            SQL을 만든다. 규칙: MSSQL <code>SELECT</code> 전용, 첫 컬럼
-            <code>B.MEMBER_NO AS CUST_ID</code>, 정상 회원 게이트 기본,
-            <b>언급되지 않은 조건 추가 금지</b>. 이 결과에는
-            <code>llm_generated</code> 꼬리표가 붙는다.
+            결정론 빌더가 후보를 못 만들면 회원 집합 요청은 자유 SQL보다 먼저
+            <b>닫힌 Targeting IR</b> 후보를 시도한다. 그것도 불가능하고 요청이
+            미지원·미해결 상태가 아닐 때만 LLM 자유 SQL 폴백을 허용한다. 이 후보도
+            허용 테이블과 GraphRAG 근거 안에서 생성되며 아래 STEP 9의 동일한 검증
+            스택을 전부 통과해야 한다.
           </p>
           <div class="note">
-            <span class="n-tag">공통 · 부분추출 고지</span>
-            데이터로 매핑하지 못한 조건은 몰래 빼지 않고
-            <b>미지원(unsupported)·제외(dropped) 조건</b>으로 표시해 담당자에게
-            알린다. 또 <code>confidence.py</code>가 조건별 근거와 함께 0~100
-            <b>신뢰도 점수</b>를 붙인다.
+            <span class="n-tag">공통 · 의미 축소 폴백 금지</span>
+            미해결 조건, 명시적 미지원, 또는 빌더가 떨어뜨린 조건이 생기면 더
+            단순한 빌더로 내려가 “되는 조건만” 실행하지 않는다. 후보 생성을
+            중단하고 확인 질문이나 미지원 결과를 반환한다.
           </div>
           <div class="trace">
             <span class="t-tag">이 예시에서는 · STEP 8</span>
             <div class="trace-row">
               <span class="t-k">템플릿 선택</span
               ><span class="t-v"
-                ><b>상품 구매 이력</b> 결정론 템플릿 (구매 상품 조건이
-                있으므로)</span
+                ><b>event_expression</b> 전용 결정론 컴파일러</span
               >
             </div>
             <div class="trace-sep"></div>
             <div class="trace-row">
               <span class="t-k">만든 조회</span
               ><span class="t-v"
-                ><b>주문상세 ⨝ 상품 ⨝ 회원</b> 을 이어서 —<br />상품명에
-                <b>‘기저귀’</b> 포함 · 성별 <b>여성</b> · <b>20~29세</b> · 지역
-                <b>서울</b> · <b>정상 회원</b></span
+                >카탈로그에 등록된 회원·주문 소스와 필드를 사용해 Event IR의
+                <b>논리·극성·시간창</b>을 그대로 SQL로 렌더</span
               >
             </div>
             <div class="trace-row">
               <span class="t-k">고지</span
               ><span class="t-v"
                 ><span class="t-skip"
-                  >데이터로 못 옮긴 조건이 있으면 몰래 빼지 않고 ‘미반영’으로
-                  표시 + 신뢰도 점수 부여</span
+                  >데이터로 못 옮긴 조건이 있으면 부분 SQL을 성공시키지 않고
+                  sql=null로 차단</span
                 ></span
               >
             </div>
@@ -2155,9 +2363,9 @@ WHERE  A.KEEP_YN = 'Y'                                  -- 담아둔 채 미결�
 
         <!-- STEP 9 -->
         <section id="s9">
-          <h2><span class="num">11</span>내부 STEP 9 · SQL 안전 검증</h2>
+          <h2><span class="num">12</span>내부 STEP 9 · SQL 안전 검증</h2>
           <div class="h2title">
-            실행 전, 결정론 4중 관문 + 원문↔SQL 의미 게이트
+            실행 전, 스키마·조인·grain·조건·원문 의미를 다중 검증
           </div>
           <p class="lead">
             템플릿이든 AI든 <b>모든 SQL 후보는 동일한 검증 관문</b>을 통과해야
@@ -2206,30 +2414,40 @@ WHERE  A.KEEP_YN = 'Y'                                  -- 담아둔 채 미결�
                 검사해 차단. “시키지 않은 필터링”을 막는다.</span
               >
             </li>
+            <li>
+              <span class="st-title">조인키·분석 grain·집계 계약 검증</span>
+              <span class="st-desc"
+                >조인 컬럼 타입과 검증된 관계를 확인하고, 주문·상품 단위 조건을
+                회원 단위로 잘못 평탄화하지 않았는지 검사한다. 집계 함수·GROUP
+                BY·HAVING·랭킹·결과 shape도 구조화된 계약과 대조한다.</span
+              >
+            </li>
+            <li>
+              <span class="st-title">논리·극성·최종 전달 계약 검증</span>
+              <span class="st-desc"
+                >AND/OR, 포함/제외, EXISTS/NOT EXISTS, 요구 결과 grain과 회원 ID
+                포함 여부를 확인한다. 결정론 불변식 검증도 별도로 실행된다.</span
+              >
+            </li>
           </ol>
           <p class="muted" style="font-size: 14px">
-            네 관문을 모두 통과한 후보만 “사용 가능(eligible)”으로 인정된다.
-            대량 조회 방지를 위해 조회 건수 상한도 함께 관리한다.
+            모든 관문을 통과한 후보만 “사용 가능(eligible)”으로 인정된다. 사용자가
+            명시한 결과 제한이 있을 때만 대상 DB 방언에 맞는 TOP/LIMIT를 적용한다.
           </p>
 
           <div class="note">
-            <span class="n-tag">신규 · 원문↔SQL 의미 검증 게이트</span>
-            위 4중 관문은 <b>SQL을 “계획(plan)”과</b> 대조한다. 그래서
-            <b>계획 자체가 뒤집히면</b> — 예컨대 정규식이 “캠페인 구매 이력이
-            <b>없는</b>”을 구매 <b>있음</b>으로 잘못 파싱하면 — 커버리지·의도
-            검증도 “계획대로 잘 반영됨”이라며 <b>그대로 통과</b>시켜 버린다.
-            이를 막기 위해, 4중 관문을 통과한
+            <span class="n-tag">필수 · 원문↔SQL 의미 검증 게이트</span>
+            구조 검증은 SQL을 계획과 대조하므로 계획 자체의 오해까지 발견하지
+            못할 수 있다. 이를 막기 위해 구조 관문을 통과한
             <b>최종 SQL을 원문 자연어와 직접 LLM으로 1:1 대조</b>하는
             게이트(<code>_verify_sql_semantics</code>)를 마지막에 뒀다.
-            <b>누락(dropped)·반전(inverted)</b>이 확신될 때만 차단하고, 그때는
+            <b>누락(dropped)·반전(inverted)</b> 등 중대한 불일치가 있으면
             틀린 SQL을 조용히 내보내는 대신
-            <b>되물음(clarification)으로 전환</b>한다. 키 없음·게이트 꺼짐·호출
-            실패면 <b>통과(fail-open)</b> — 운영 <code>rules</code> 경로엔
-            걸리지 않는 <code>auto</code> 경로 전용이다. (환경변수
-            <code>SQL_SEMANTIC_VERIFY</code>, 기본 on) 판정 유형·차단 규칙
-            상세는
-            <a class="inline" href="#s-policy">16장 · 데이터 밖 파이썬 정책</a>
-            참고.
+            <b>되물음(clarification)으로 전환</b>한다. 현재 API는
+            <code>strict_source_coverage=true</code>를 강제하므로 검증기가 실행되지
+            못한 경우도 통과시키지 않고 <code>semantic_verification_unavailable</code>
+            로 차단한다. 상세는
+            <a class="inline" href="#s-policy">17장 · 데이터 밖 파이썬 정책</a> 참고.
           </div>
           <div class="trace">
             <span class="t-tag">이 예시에서는 · STEP 9</span>
@@ -2271,7 +2489,7 @@ WHERE  A.KEEP_YN = 'Y'                                  -- 담아둔 채 미결�
 
         <!-- STEP 10 -->
         <section id="s10">
-          <h2><span class="num">12</span>내부 STEP 10 · 실행 · 결과</h2>
+          <h2><span class="num">13</span>내부 STEP 10 · 실행 · 결과</h2>
           <div class="h2title">
             읽기 전용 실행 → 대상 고객 수와 세그먼트 구성
           </div>
@@ -2331,9 +2549,9 @@ WHERE  A.KEEP_YN = 'Y'                                  -- 담아둔 채 미결�
             신호가 SQL에 안 담겼을 때의
             <b>놓친 신호 경고</b>(<code>dropped_signal_warnings</code>), 그리고
             의미 게이트가 되물음으로 전환했을 때의
-            <b>확인 질문</b>(<code>clarification_questions</code>). 셋 다
-            <b>SQL을 바꾸지 않는다</b>(차단·수정이 아니라 알림) — 동작 상세는
-            <a class="inline" href="#s-policy">16장 · 데이터 밖 파이썬 정책</a>.
+            <b>확인 질문</b>(<code>clarification_questions</code>). 성능 자문은
+            SQL을 바꾸지 않지만 의미 검증 실패는 SQL 출고를 차단한다. 동작 상세는
+            <a class="inline" href="#s-policy">17장 · 데이터 밖 파이썬 정책</a>.
           </div>
 
           <div class="note">
@@ -2377,7 +2595,7 @@ WHERE  A.KEEP_YN = 'Y'                                  -- 담아둔 채 미결�
 
         <!-- worked example -->
         <section id="s-example">
-          <h2><span class="num">13</span>오디언스 생성 워크스루</h2>
+          <h2><span class="num">14</span>오디언스 생성 워크스루</h2>
           <div class="h2title">
             “서울 사는 20대 여성 중에 기저귀 산 사람한테 쿠폰 문자 보내줘”의 첫
             단계를 따라가기
@@ -2466,7 +2684,7 @@ WHERE  A.KEEP_YN = 'Y'                                  -- 담아둔 채 미결�
 
         <!-- failure -->
         <section id="s-fail">
-          <h2><span class="num">14</span>실패 · 부분추출 처리</h2>
+          <h2><span class="num">15</span>실패 · 부분추출 처리</h2>
           <div class="h2title">막혔을 때 어떻게 행동하나</div>
           <p class="lead">
             타겟팅은 “틀린 명단을 자신 있게 내놓는 것”을 가장 경계한다. 그래서
@@ -2484,8 +2702,8 @@ WHERE  A.KEEP_YN = 'Y'                                  -- 담아둔 채 미결�
                 <tr>
                   <td>AI 키 없음 / AI 실패</td>
                   <td>
-                    규칙 기반 경로로 자동 대체 — 파이프라인은 결정론으로 계속
-                    동작
+                    의미 구조화 또는 원문↔SQL 검증을 실행할 수 없으면
+                    <b>SQL을 생성·출고하지 않고 실패 사유 반환</b>
                   </td>
                 </tr>
                 <tr>
@@ -2497,8 +2715,8 @@ WHERE  A.KEEP_YN = 'Y'                                  -- 담아둔 채 미결�
                 <tr>
                   <td>조건을 데이터로 못 옮김</td>
                   <td>
-                    몰래 빼지 않고 <b>미지원·제외 조건으로 고지</b> + 신뢰도
-                    하향
+                    몰래 빼지 않고 <b>미지원·확인 필요로 종료</b>. 부분 SQL은
+                    <code>sql=null</code>로 차단
                   </td>
                 </tr>
                 <tr>
@@ -2514,7 +2732,10 @@ WHERE  A.KEEP_YN = 'Y'                                  -- 담아둔 채 미결�
                 </tr>
                 <tr>
                   <td>SQL이 검증 탈락</td>
-                  <td>다른 후보 시도, 최종 실패 시 실패 사유를 담아 반환</td>
+                  <td>
+                    자격 있는 다른 후보만 검증하고, 최종 실패 시 후보는
+                    <code>blocked_sql</code>로만 보존한 뒤 실패 사유 반환
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -2523,7 +2744,7 @@ WHERE  A.KEEP_YN = 'Y'                                  -- 담아둔 채 미결�
 
         <!-- stack -->
         <section id="s-stack">
-          <h2><span class="num">15</span>기술 스택 요약</h2>
+          <h2><span class="num">16</span>기술 스택 요약</h2>
           <div class="h2title">한 장으로 보는 구성·모델·게이트</div>
           <div class="tablewrap">
             <table>
@@ -2569,8 +2790,8 @@ WHERE  A.KEEP_YN = 'Y'                                  -- 담아둔 채 미결�
                 <tr>
                   <td>LLM 제공자·모델</td>
                   <td>
-                    <b>OpenAI 단독</b> · 기본 <code>gpt-4o-mini</code> ·
-                    temperature 0 · JSON 모드 (Anthropic/타사 미사용)
+                    <b>OpenAI</b> · 메인/fast/repair/semantic verify 모델을 환경별로
+                    분리 가능 · temperature 0 · strict tool schema
                   </td>
                 </tr>
                 <tr>
@@ -2597,15 +2818,17 @@ WHERE  A.KEEP_YN = 'Y'                                  -- 담아둔 채 미결�
                 <tr>
                   <td>AI 사용 단계</td>
                   <td>
-                    재작성 · 타겟/채널 분리 · 질의계획(보조) · 상품추출(보조) ·
-                    SQL 폴백 · <b>의미 검증 게이트(auto)</b>
+                    선택적 재작성 · 필요 시 타겟/채널 분리 ·
+                    <b>canonical 의미 구조화(주 경로)</b> · 제한적 IR/SQL 폴백 ·
+                    <b>필수 원문↔SQL 의미 검증</b>
                   </td>
                 </tr>
                 <tr>
-                  <td>규칙 전용 단계</td>
+                  <td>애플리케이션 소유 결정론 단계</td>
                   <td>
-                    값 해석 · 집합식 · SQL 템플릿 · 4중 검증 · 실행 · 세그먼트
-                    집계 · 0명 진단 · <b>성능/드롭 자문</b>
+                    리터럴 추출 · Event IR/카탈로그 검증 · 값 바인딩 · SQL 컴파일 ·
+                    다중 검증 · 읽기 전용 실행 · 세그먼트 집계 · 0명 진단 ·
+                    <b>성능 자문</b>
                   </td>
                 </tr>
                 <tr>
@@ -2619,9 +2842,9 @@ WHERE  A.KEEP_YN = 'Y'                                  -- 담아둔 채 미결�
                 <tr>
                   <td>마스터 게이트</td>
                   <td>
-                    <code>OPENAI_API_KEY</code> — 없으면 모든 AI 단계(의미
-                    게이트 포함)가 규칙으로 자동 대체 · 의미 게이트는
-                    <code>SQL_SEMANTIC_VERIFY</code>로 별도 on/off
+                    기본 <code>query_parser=auto</code> + LLM-first 의미 구조화.
+                    구조화나 필수 의미 검증이 불가능하면 규칙 추측으로 우회하지
+                    않고 fail-close
                   </td>
                 </tr>
               </tbody>
@@ -2631,13 +2854,13 @@ WHERE  A.KEEP_YN = 'Y'                                  -- 담아둔 채 미결�
 
         <!-- python-only policies (not in docs/data) -->
         <section id="s-policy">
-          <h2><span class="num">16</span>데이터 밖 · 파이썬 정책</h2>
+          <h2><span class="num">17</span>데이터 밖 · 파이썬 정책</h2>
           <div class="h2title">
             JSON 어디에도 없고 <b>코드에만</b> 있는 판단 규칙 — 최근 프로세스
             변경의 핵심
           </div>
           <p class="lead">
-            바로 뒤 17장이
+            바로 뒤 18장이
             <b>“<code class="file">docs/data</code> JSON이라는 연료”</b>라면, 이
             장은 그 <b>정반대</b>다. 여기 정리하는 정책들은
             <b>어떤 데이터 파일에도 담기지 않고 오직 파이썬 코드에만 존재</b
@@ -2722,11 +2945,9 @@ WHERE  A.KEEP_YN = 'Y'                                  -- 담아둔 채 미결�
             >
           </h4>
           <p>
-            STEP 9의 4중 관문은 모두 <b>SQL을 “계획(plan)”과</b> 대조한다.
-            문제는 <b>계획 그 자체가 틀렸을 때</b>다. 정규식 파서가 “캠페인 구매
-            이력이 <b>없는</b>”을 <code>EXISTS 구매</code>(정반대)로 뒤집어
-            계획을 짜면, 커버리지·의도 검증은 “계획대로 반영됨”이라며 통과시켜
-            <b>정반대 명단</b>을 내보낸다. 이 게이트는 계획을 건너뛰고
+            STEP 9의 구조 관문은 주로 <b>SQL을 계획과</b> 대조한다. 문제는
+            <b>의미 구조화 결과 자체가 원문을 오해했을 때</b>다. 이 게이트는
+            계획 검증과 별도로
             <b>원문 자연어와 최종 SQL을 LLM으로 직접 1:1 대조</b>해, 그 조용한
             뒤집힘을 마지막에 잡는다.
           </p>
@@ -2751,11 +2972,10 @@ WHERE  A.KEEP_YN = 'Y'                                  -- 담아둔 채 미결�
               >), 확인 질문을 응답에 담아 담당자에게 되돌린다.
             </li>
             <li>
-              <b>안전(fail-open)</b> — 게이트 꺼짐·키 없음·호출 실패·응답 형식
-              불명이면 <b>모두 통과</b>. 운영 기본 <code>rules</code> 경로는
-              <code>llm_model=None</code>이라 자연히 skip → 사실상
-              <b><code>auto</code> 경로 전용</b>. 환경변수
-              <code>SQL_SEMANTIC_VERIFY</code>(기본 on)로 별도 제어.
+              <b>현재 API는 fail-close</b> — <code>strict_source_coverage=true</code>
+              이므로 키 없음·호출 실패·응답 형식 불명처럼 의미 검증을 실행하지
+              못한 경우에도 SQL을 출고하지 않는다. 생성된 후보는
+              <code>blocked_sql</code>로만 남고 실행용 <code>sql</code>은 null이다.
             </li>
           </ul>
 
@@ -2920,11 +3140,10 @@ WHERE  A.KEEP_YN = 'Y'                                  -- 담아둔 채 미결�
             >
           </h4>
           <p>
-            원문에서 <b>정밀 추출된 신호</b>가 최종 plan 슬롯에
-            <b>하나도 안 잡히면</b> “이 조건이 빠졌을 수 있다”고 경고한다. 위
-            LLM 의미 게이트는 <code>auto</code> 전용이라, 그
-            <b>보완재로 <code>rules</code>·<code>auto</code> 양쪽에서 항상</b>
-            도는 결정론 경고다(차단은 안 함).
+            레거시 실행 슬롯 경로에서는 원문의 정밀 신호가 최종 plan 슬롯에
+            하나도 안 잡히면 “이 조건이 빠졌을 수 있다”고 경고한다. 신규
+            canonical Event IR 경로는 근거·심볼 해석·컴파일 영수증이 이미 원자
+            조건을 회계하므로 이 슬롯 기반 경고를 다시 실행하지 않는다.
           </p>
           <ul class="dash">
             <li>
@@ -2953,7 +3172,7 @@ WHERE  A.KEEP_YN = 'Y'                                  -- 담아둔 채 미결�
 
         <!-- data input catalog -->
         <section id="s-data">
-          <h2><span class="num">17</span>데이터 입력 카탈로그</h2>
+          <h2><span class="num">18</span>데이터 입력 카탈로그</h2>
           <div class="h2title">
             <code class="file">docs/data</code> JSON은 언제·왜 들어가나 —
             파이프라인의 “연료”
@@ -2981,6 +3200,16 @@ WHERE  A.KEEP_YN = 'Y'                                  -- 담아둔 채 미결�
             <b>미리 묶어 지식그래프로 굳힌 것</b>. 그래서 STEP 7 검색이 실제로
             뒤지는 실체는 이 한 파일이고, 원천 파일들은 “빌드 재료”이자 “런타임
             사전”의 두 역할을 겸한다.
+          </div>
+
+          <div class="note warn">
+            <span class="n-tag">현재 canonical 실행의 핵심 카탈로그</span>
+            신규 자연어→SQL 주 경로는
+            <code class="file">runtime/semantics/audience_catalog.json</code>의
+            subject·sources·fields·value_domains를 실행 바인딩의 단일 권위로
+            사용한다. 아래 정규화·디멘션·정책 파일 상당수는 검색·화면 트레이스·
+            레거시 슬롯 호환 경로에도 쓰이므로, “파일이 존재한다”와 “신규 Event
+            IR SQL 권위다”를 구분해야 한다.
           </div>
 
           <h3>파일 → 단계 요약</h3>
@@ -3027,9 +3256,9 @@ WHERE  A.KEEP_YN = 'Y'                                  -- 담아둔 채 미결�
                   <td style="color: #0d9488; font-weight: 700">규칙</td>
                 </tr>
                 <tr>
-                  <td><code class="file">metric_lexicon.sample.json</code></td>
-                  <td>계산지표(공식 기반 metric) 인식 어휘</td>
-                  <td>STEP 3</td>
+                  <td><code class="file">audience_catalog.json</code></td>
+                  <td>Event IR 사건·필드·값 도메인 → 실제 CRM 바인딩</td>
+                  <td>STEP 3·8·9</td>
                   <td style="color: #0d9488; font-weight: 700">규칙</td>
                 </tr>
                 <tr>
@@ -3076,15 +3305,15 @@ WHERE  A.KEEP_YN = 'Y'                                  -- 담아둔 채 미결�
             </table>
           </div>
 
-          <h3>A · “말귀”를 표준 조건으로 — STEP 2·3·4 사전</h3>
+          <h3>A · 스코프·호환 표현을 돕는 어휘 — STEP 2·3·4</h3>
 
           <h4>
             <code class="file">targeting_lexicon.json</code> — 타겟팅 어휘 단일
             출처
           </h4>
           <p>
-            시스템이 <b>인식하는 모든 타겟팅 표현</b>을 한 곳에 모은 사전. 새
-            말투·새 판매 동사 등은 코드가 아니라 여기에 추가한다.
+            타겟/채널 분리와 호환 파서·화면 트레이스가 쓰는 표면 어휘 사전이다.
+            신규 canonical 오디언스 의미 전체를 이 파일 하나가 결정하지는 않는다.
           </p>
           <ul class="dash">
             <li>
@@ -3123,8 +3352,8 @@ WHERE  A.KEEP_YN = 'Y'                                  -- 담아둔 채 미결�
           </p>
           <ul class="dash">
             <li>
-              <b>들어가는 시점</b> — STEP 3(성별·등급·행동 등 조건을 canonical로
-              확정), STEP 6(<b>집합식 피연산자</b> 용어 카탈로그
+              <b>들어가는 시점</b> — 검색어·호환 슬롯의 canonical 보조, STEP
+              6(<b>집합식 피연산자</b> 용어 카탈로그
               <code>load_set_term_catalog()</code>로 재사용), + 신뢰도
               근거(<code>matched_terms</code>)
             </li>
@@ -3157,18 +3386,15 @@ WHERE  A.KEEP_YN = 'Y'                                  -- 담아둔 채 미결�
           </ul>
 
           <h4>
-            <code class="file">metric_lexicon.sample.json</code> ·
-            <code class="file">member_metrics.json</code> — 지표 어휘
+            <code class="file">runtime/sql/metrics/*.json</code> ·
+            <code class="file">member_metrics.json</code> — 지표 계약
           </h4>
           <ul class="dash">
             <li>
-              <code class="file">metric_lexicon.sample.json</code> —
-              <b>공식 기반 계산지표</b>(예: 객단가 = 매출/주문수)를 문장에서
-              인식. STEP 3
-              <code>parse_computed_metrics_from_query()</code>(<code
-                class="file"
-                >formula_engine.py</code
-              >).
+              과거 별칭 기반 <code class="file">metric_lexicon.sample.json</code>
+              규칙 파서는 제거됐다. 현재 지표의 물리 소스·단위·시간 지원 여부는
+              <code class="file">runtime/sql/metrics/*.json</code> 레지스트리가
+              소유한다.
             </li>
             <li>
               <code class="file">member_metrics.json</code> — 회원
