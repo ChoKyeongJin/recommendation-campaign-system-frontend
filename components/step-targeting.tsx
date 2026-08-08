@@ -5,6 +5,7 @@ import {
   Check,
   Copy,
   Database,
+  HelpCircle,
   ListTree,
   MessageSquareText,
   Users,
@@ -20,12 +21,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ConfidenceCard } from "@/components/confidence-card";
+import { ClarificationPanel } from "@/components/clarification-panel";
 import {
   buildReinforcementHints,
   type ReinforcementHint,
 } from "@/lib/targeting-hints";
 import type {
   Channel,
+  ClarificationAnswer,
   TargetingFailureStage,
   TargetSegment,
   TargetSegmentGroup,
@@ -899,22 +902,37 @@ function ReinforcementHintsCard({ hints }: { hints: ReinforcementHint[] }) {
 function FailureStageNotice({
   stage,
   message,
+  awaitingClarification = false,
 }: {
   stage: TargetingFailureStage;
   message?: string;
+  /** 되묻기 대기 상태. 실패가 아니라 "답을 기다리는 중"이므로 톤을 낮춘다. */
+  awaitingClarification?: boolean;
 }) {
   const pipeline = stage.pipeline?.length
     ? stage.pipeline
     : [{ order: stage.order, code: stage.code, label: stage.label }];
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-destructive/40 bg-destructive/5 p-4">
+    <div
+      className={`flex flex-col gap-3 rounded-lg border p-4 ${
+        awaitingClarification
+          ? "border-amber-300/80 bg-amber-50/50"
+          : "border-destructive/40 bg-destructive/5"
+      }`}
+    >
       <div className="flex flex-wrap items-center gap-2">
-        <Badge variant="destructive" className="text-[10px]">
-          실패 단계 {stage.order}/{stage.total}
+        <Badge
+          variant={awaitingClarification ? "secondary" : "destructive"}
+          className="text-[10px]"
+        >
+          {awaitingClarification ? "확인 필요" : "실패"} 단계 {stage.order}/
+          {stage.total}
         </Badge>
         <span className="text-sm font-semibold text-foreground">
-          {stage.label} 단계에서 막혔습니다
+          {awaitingClarification
+            ? `${stage.label} 단계에서 멈춰 답을 기다리고 있습니다`
+            : `${stage.label} 단계에서 막혔습니다`}
         </span>
       </div>
 
@@ -929,14 +947,22 @@ function FailureStageNotice({
                 className={[
                   "flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium",
                   isFailed
-                    ? "bg-destructive text-destructive-foreground"
+                    ? awaitingClarification
+                      ? "bg-amber-200 text-amber-900"
+                      : "bg-destructive text-destructive-foreground"
                     : isPassed
                       ? "bg-secondary text-muted-foreground"
                       : "bg-muted text-muted-foreground/60",
                 ].join(" ")}
               >
                 <span aria-hidden className="font-mono">
-                  {isFailed ? "✕" : isPassed ? "✓" : step.order}
+                  {isFailed
+                    ? awaitingClarification
+                      ? "?"
+                      : "✕"
+                    : isPassed
+                      ? "✓"
+                      : step.order}
                 </span>
                 {step.label}
               </span>
@@ -965,6 +991,9 @@ export function StepTargeting({
   onNext,
   isNextLoading = false,
   nextError = null,
+  onClarify,
+  isClarifying = false,
+  clarificationAnswers,
 }: {
   result: TargetingResult;
   prompt?: string;
@@ -973,6 +1002,11 @@ export function StepTargeting({
   onNext: () => void | Promise<void>;
   isNextLoading?: boolean;
   nextError?: string | null;
+  /** 되묻기 답을 모아 같은 프롬프트로 타겟팅을 다시 실행한다. */
+  onClarify?: (answers: ClarificationAnswer[]) => void | Promise<void>;
+  isClarifying?: boolean;
+  /** 지금까지 답한 되묻기 값들 (이번 라운드가 재질문인지 판별하는 기준). */
+  clarificationAnswers?: ClarificationAnswer[];
 }) {
   const trimmedPrompt = prompt?.trim();
   const normalizedPrompt = result.normalizedPrompt?.trim();
@@ -991,8 +1025,17 @@ export function StepTargeting({
   const hiddenSegmentGroups = (result.hiddenSegmentGroups ?? []).filter(
     (group) => group.segments.length > 0,
   );
+  // 되묻기 대기 상태: SQL 을 아직 만들지 않았다. 숫자·세그먼트·SQL 이 "비어 있는 결과"가 아니라
+  // "아직 만들지 않은 상태"임을 화면 전체에서 같은 말로 설명해야 한다.
+  const awaitingClarification =
+    result.resolution?.status === "needs_clarification" ||
+    result.diagnostics?.status === "needs_clarification";
   // 실패·부분추출 시 어디를 보강하면 좋을지 힌트(온전히 성공하면 빈 배열).
-  const reinforcementHints = buildReinforcementHints(result);
+  // 되묻기 대기 중에는 되물음 문구를 힌트로 반복하지 않는다 — 같은 질문이 위 패널에 이미 있고,
+  // 여기서는 사용자가 아니라 운영자가 손볼 지점만 남긴다.
+  const reinforcementHints = buildReinforcementHints(result, {
+    includeClarificationHint: !awaitingClarification,
+  });
   const metrics = [
     {
       label: "추출된 타겟 고객 수",
@@ -1010,11 +1053,25 @@ export function StepTargeting({
 
   return (
     <div className="flex flex-col gap-6">
+      {/* 확정 계층 결과. 되묻기가 있으면 결과 숫자보다 먼저 보여준다 — 답하기 전의
+          숫자는 시스템이 임의로 고른 해석의 결과일 수 있기 때문이다. */}
+      {result.resolution && (
+        <ClarificationPanel
+          resolution={result.resolution}
+          onSubmit={onClarify}
+          isSubmitting={isClarifying}
+          previousAnswers={clarificationAnswers}
+        />
+      )}
       <Card>
         <CardHeader>
-          <CardTitle>타겟팅 결과</CardTitle>
+          <CardTitle>
+            타겟팅 결과{awaitingClarification && " (미확정)"}
+          </CardTitle>
           <CardDescription>
-            타겟팅 프롬프트를 기준으로 SQL을 실행한 결과입니다.
+            {awaitingClarification
+              ? "확인 항목에 답하기 전이라 아직 SQL을 실행하지 않았습니다. 아래는 지금까지 인식한 요청 내용입니다."
+              : "타겟팅 프롬프트를 기준으로 SQL을 실행한 결과입니다."}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
@@ -1054,41 +1111,61 @@ export function StepTargeting({
             </div>
           )}
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            {metrics.map((metric) => {
-              const Icon = metric.icon;
-              return (
-                <div
-                  key={metric.label}
-                  className="flex items-center gap-3 rounded-lg border border-border bg-accent p-4"
-                >
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                    <Icon className="h-5 w-5" aria-hidden />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-xs text-muted-foreground">
-                      {metric.label}
-                    </p>
-                    <p className="font-sans text-2xl font-bold text-foreground">
-                      {typeof metric.value === "number"
-                        ? metric.value.toLocaleString()
-                        : "-"}
-                      {typeof metric.value === "number" && (
-                        <span className="ml-1 text-sm font-medium text-muted-foreground">
-                          {metric.suffix}
-                        </span>
-                      )}
-                    </p>
+          {/* 되묻기 대기 중에는 "-" 숫자 타일을 세우지 않는다 — 0명으로 추출된 것처럼 읽힌다. */}
+          {awaitingClarification ? (
+            <div className="flex gap-3 rounded-lg border border-border bg-accent p-4">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <HelpCircle className="h-5 w-5" aria-hidden />
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-foreground">
+                  아직 타겟을 추출하지 않았습니다
+                </p>
+                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                  위 <b className="text-foreground">확인이 필요합니다</b> 항목에
+                  답해 주시면 그 조건만 확정해 곧바로 추출합니다. 고객 수·SQL·세그먼트는
+                  그때 함께 채워집니다.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {metrics.map((metric) => {
+                const Icon = metric.icon;
+                return (
+                  <div
+                    key={metric.label}
+                    className="flex items-center gap-3 rounded-lg border border-border bg-accent p-4"
+                  >
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                      <Icon className="h-5 w-5" aria-hidden />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-xs text-muted-foreground">
+                        {metric.label}
+                      </p>
+                      <p className="font-sans text-2xl font-bold text-foreground">
+                        {typeof metric.value === "number"
+                          ? metric.value.toLocaleString()
+                          : "-"}
+                        {typeof metric.value === "number" && (
+                          <span className="ml-1 text-sm font-medium text-muted-foreground">
+                            {metric.suffix}
+                          </span>
+                        )}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
 
           {result.failureStage ? (
             <FailureStageNotice
               stage={result.failureStage}
               message={result.message}
+              awaitingClarification={awaitingClarification}
             />
           ) : (
             result.message && (
@@ -1104,7 +1181,9 @@ export function StepTargeting({
                 세그먼트 구성
               </p>
               <p className="text-xs text-muted-foreground">
-                질문과 관련된 타겟 조건 위주로 보여줍니다.
+                {awaitingClarification
+                  ? "조건이 확정되면 질문과 관련된 타겟 조건 위주로 보여줍니다."
+                  : "질문과 관련된 타겟 조건 위주로 보여줍니다."}
               </p>
             </div>
             {segmentGroups.some((group) => group.segments.length > 0) ? (
@@ -1115,7 +1194,9 @@ export function StepTargeting({
               </div>
             ) : (
               <p className="rounded-lg border border-border bg-secondary p-3 text-sm text-muted-foreground">
-                Python 응답에 세그먼트 구성 정보가 없습니다.
+                {awaitingClarification
+                  ? "확인 항목에 답하면 조건별 세그먼트 구성을 보여드립니다."
+                  : "Python 응답에 세그먼트 구성 정보가 없습니다."}
               </p>
             )}
 
@@ -1145,15 +1226,21 @@ export function StepTargeting({
 
       <ReinforcementHintsCard hints={reinforcementHints} />
 
-      {result.confidence && <ConfidenceCard confidence={result.confidence} />}
+      {/* SQL 이 없는 되묻기 대기 상태에서는 신뢰도 점수가 "생성물의 품질"이 아니라
+          "아직 아무것도 만들지 않았다"는 사실을 낮은 점수로 잘못 말한다. */}
+      {result.confidence && !awaitingClarification && (
+        <ConfidenceCard confidence={result.confidence} />
+      )}
 
       <Card>
         <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
           {/* 실패(failureStage)면 실행되지 않았으므로 "생성된 SQL(미실행)"로, 성공이면 "실행된 SQL"로 라벨링한다. */}
           <CardTitle className="text-base">
-            {result.failureStage
-              ? "생성된 SQL (검증 실패 · 미실행)"
-              : "실행된 SQL"}
+            {awaitingClarification
+              ? "타겟 SQL (확인 후 생성)"
+              : result.failureStage
+                ? "생성된 SQL (검증 실패 · 미실행)"
+                : "실행된 SQL"}
           </CardTitle>
           <Badge variant="secondary">read-only</Badge>
         </CardHeader>
@@ -1167,7 +1254,9 @@ export function StepTargeting({
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">
-              SQL이 생성되지 않았습니다.
+              {awaitingClarification
+                ? "확인 항목에 답하면 그 조건으로 SQL을 생성합니다."
+                : "SQL이 생성되지 않았습니다."}
             </p>
           )}
         </CardContent>

@@ -14,8 +14,26 @@ import {
   type CampaignCtrScore,
   type CampaignExperimentResult,
   type Channel,
+  type ClarificationAnswer,
   type TargetingResult,
 } from "@/lib/campaign-data";
+
+/**
+ * 되묻기 답 누적. `/api/targeting` 은 상태를 갖지 않으므로, 라운드가 이어질 때마다 이전 라운드의
+ * 답까지 전부 다시 보내야 한다(안 보내면 앞서 확정한 조건이 라운드마다 초기화된다).
+ * 같은 의미 슬롯을 다시 물어 온 경우에는 최신 답만 남긴다 — 백엔드가 라운드마다 issueId 를
+ * 새로 만들기 때문에 issueId 만으로 묶으면 같은 슬롯의 낡은 답이 계속 쌓인다.
+ */
+function mergeClarificationAnswers(
+  previous: ClarificationAnswer[],
+  next: ClarificationAnswer[],
+): ClarificationAnswer[] {
+  const merged = new Map<string, ClarificationAnswer>();
+  for (const answer of [...previous, ...next]) {
+    merged.set(answer.slot?.trim() || `issue:${answer.issueId}`, answer);
+  }
+  return [...merged.values()];
+}
 
 export function CampaignWizard() {
   const [step, setStep] = useState(0);
@@ -31,6 +49,13 @@ export function CampaignWizard() {
     useState<CampaignExperimentResult | null>(null);
   const [isPredictingClicks, setIsPredictingClicks] = useState(false);
   const [predictionError, setPredictionError] = useState<string | null>(null);
+  // 되묻기에 답하는 중인지. 프롬프트는 그대로이고 답만 덧붙여 다시 추출한다.
+  const [isClarifying, setIsClarifying] = useState(false);
+  // 이번 프롬프트에서 지금까지 확정한 되묻기 답. 다음 라운드 요청에 그대로 다시 실어 보내고,
+  // 화면에는 "무엇에 답했는지 / 무엇을 다시 묻는지"를 보여주는 기준으로 쓴다.
+  const [clarificationAnswers, setClarificationAnswers] = useState<
+    ClarificationAnswer[]
+  >([]);
 
   const getVariantCode = (index: number) =>
     String.fromCharCode("A".charCodeAt(0) + index);
@@ -84,6 +109,8 @@ export function CampaignWizard() {
     setMessages([]);
     setExperimentResult(null);
     setPredictionError(null);
+    // 문장이 바뀌면 앞선 답이 가리키던 결핍도 사라진다.
+    setClarificationAnswers([]);
   };
 
   const updateChannel = (value: Channel) => {
@@ -93,15 +120,34 @@ export function CampaignWizard() {
     setMessages([]);
     setExperimentResult(null);
     setPredictionError(null);
+    setClarificationAnswers([]);
   };
 
-  const analyzeTargeting = async () => {
+  /**
+   * 타겟팅 추출. `clarificationAnswers` 는 되묻기 답변이며 **프롬프트를 바꾸지 않는다** —
+   * 백엔드가 각 답이 가리키는 의미 슬롯 하나만 확정하고 나머지 조건은 그대로 둔다.
+   */
+  const runTargeting = async (newAnswers: ClarificationAnswer[] = []) => {
     const trimmedPrompt = prompt.trim();
-    if (!trimmedPrompt || isAnalyzing) {
+    if (!trimmedPrompt) {
       return;
     }
 
-    setIsAnalyzing(true);
+    const isFollowUp = newAnswers.length > 0;
+    if (isFollowUp ? isClarifying : isAnalyzing) {
+      return;
+    }
+
+    // 첫 추출은 답 없이 시작하고, 이어지는 라운드는 지금까지의 답을 모두 함께 보낸다.
+    const answers = isFollowUp
+      ? mergeClarificationAnswers(clarificationAnswers, newAnswers)
+      : [];
+
+    if (isFollowUp) {
+      setIsClarifying(true);
+    } else {
+      setIsAnalyzing(true);
+    }
     setTargetingError(null);
 
     try {
@@ -110,7 +156,11 @@ export function CampaignWizard() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ prompt: trimmedPrompt, channel }),
+        body: JSON.stringify({
+          prompt: trimmedPrompt,
+          channel,
+          clarificationAnswers: answers,
+        }),
       });
 
       const data = await response.json().catch(() => null);
@@ -124,6 +174,7 @@ export function CampaignWizard() {
       }
 
       setTargeting(data as TargetingResult);
+      setClarificationAnswers(answers);
       setMessages([]);
       setMessageError(null);
       setExperimentResult(null);
@@ -134,9 +185,15 @@ export function CampaignWizard() {
         error instanceof Error ? error.message : "타겟팅 분석에 실패했습니다.",
       );
     } finally {
-      setIsAnalyzing(false);
+      if (isFollowUp) {
+        setIsClarifying(false);
+      } else {
+        setIsAnalyzing(false);
+      }
     }
   };
+
+  const analyzeTargeting = () => runTargeting();
 
   const recommendMessages = async () => {
     const trimmedPrompt = prompt.trim();
@@ -261,6 +318,7 @@ export function CampaignWizard() {
     setTargetingError(null);
     setMessageError(null);
     setPredictionError(null);
+    setClarificationAnswers([]);
   };
 
   return (
@@ -320,6 +378,9 @@ export function CampaignWizard() {
           onNext={recommendMessages}
           isNextLoading={isGeneratingMessages}
           nextError={messageError}
+          onClarify={runTargeting}
+          isClarifying={isClarifying}
+          clarificationAnswers={clarificationAnswers}
         />
       )}
       {step === 2 && (

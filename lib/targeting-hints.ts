@@ -86,10 +86,15 @@ function mapFailureReason(reason: string): ReinforcementHint | null {
 /**
  * 타겟팅 결과의 진단 신호를 보강 힌트 목록으로 변환한다.
  * 힌트가 없으면(모든 조건이 온전히 반영된 성공) 빈 배열을 반환한다.
+ *
+ * includeClarificationHint=false 는 되묻기 패널이 같은 질문을 이미 띄우고 있을 때 쓴다.
+ * 같은 문장을 "보강 힌트"로 한 번 더 보여 주면 답하면 풀릴 일이 시스템 결함처럼 읽힌다.
  */
 export function buildReinforcementHints(
   result: TargetingResult,
+  options: { includeClarificationHint?: boolean } = {},
 ): ReinforcementHint[] {
+  const { includeClarificationHint = true } = options;
   const d = result.diagnostics;
   const hints: ReinforcementHint[] = [];
   if (!d) {
@@ -124,12 +129,11 @@ export function buildReinforcementHints(
 
   // 3) 되물음/입력 부족 — 백엔드가 보낸 되물음 문구를 그대로 증상으로 쓴다.
   //    ("되물음이 필요합니다" 같은 고정 문구는 어떤 실패든 똑같이 보여서 진단값이 0이었다.)
-  const questions = [
-    ...d.clarificationQuestions,
-    ...d.missingInputConditions,
-  ]
-    .map((question) => question.trim())
-    .filter(Boolean);
+  const questions = includeClarificationHint
+    ? [...d.clarificationQuestions, ...d.missingInputConditions]
+        .map((question) => question.trim())
+        .filter(Boolean)
+    : [];
   if (questions.length) {
     mappedFailureUsed = mappedFailure !== null;
     hints.push({
