@@ -69,6 +69,40 @@ test("알려진 누락 필드는 사용자 질문으로 번역한다", () => {
   assert.match(hints[0]?.symptom ?? "", /상위 몇 %/);
 });
 
+test("데이터 한계로 막힌 실패는 입력 수정 안내를 만들지 않는다", () => {
+  const result = resultWithDiagnostics(
+    diagnostics({
+      failureReason: "unsupported_semantics",
+      clarificationQuestions: [
+        "요청한 조건을 현재 실행 자산으로 표현할 수 없습니다.",
+      ],
+    }),
+  );
+  result.failureExplanation = {
+    failureType: "data_capability_failure",
+    failureReason: "event_history_missing",
+    message: "조건은 이해했지만 현재 데이터로 계산할 수 없습니다.",
+    summary:
+      "현재 '로그인' 데이터에는 마지막 값 하나만 있어 최근 1개월 동안의 '서로 다른 날짜 수'를 계산할 수 없습니다.",
+    steps: [
+      { id: "conclusion", title: "결론", detail: "조건 자체는 정상적으로 인식했습니다." },
+    ],
+    suggestedData: "회원별 발생 날짜 이력(하루에 한 행)",
+    retryCount: 1,
+    trace: [],
+    developerDiagnostic: null,
+  };
+
+  const hints = buildReinforcementHints(result);
+
+  assert.equal(hints.length, 1);
+  assert.match(hints[0]?.symptom ?? "", /계산할 수 없습니다/);
+  // 무용한 조언(값을 다시 입력하라)이 사라졌는지가 이 테스트의 요점이다.
+  assert.doesNotMatch(hints[0]?.how ?? "", /입력 문장에 명시/);
+  assert.match(hints[0]?.how ?? "", /적재를 요청/);
+  assert.doesNotMatch(JSON.stringify(hints), /LAST_LOGIN_DATE|login\./);
+});
+
 test("미지원 조건은 조건명과 가능한 다음 행동만 안내한다", () => {
   const hints = buildReinforcementHints(
     resultWithDiagnostics(

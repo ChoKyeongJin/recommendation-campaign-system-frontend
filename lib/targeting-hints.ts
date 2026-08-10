@@ -90,6 +90,30 @@ function mapFailureReason(reason: string): ReinforcementHint | null {
 }
 
 /**
+ * 데이터가 없어서 막힌 실패의 안내. **입력 수정 안내를 만들지 않는다.**
+ *
+ * 예전에는 이 경우에도 확인 질문을 그대로 실어 "위 항목의 값을 입력 문장에 명시한 뒤 다시
+ * 실행해 주세요"가 나갔다. 회원별 방문 이력이 없어서 막힌 요청에 그 조언은 무용하고, 사용자는
+ * 같은 문장을 고쳐 쓰며 같은 곳에서 다시 막힌다(실측 2026-08-10). 원인 설명은
+ * `failureExplanation` 카드가 소유하므로 여기서는 **다음 행동 하나만** 남긴다.
+ */
+function dataLimitHint(result: TargetingResult): ReinforcementHint | null {
+  const explanation = result.failureExplanation;
+  if (!explanation || explanation.failureType !== "data_capability_failure") {
+    return null;
+  }
+
+  return {
+    severity: "fail",
+    symptom: explanation.summary || explanation.message,
+    where: "요청한 조건이 필요로 하는 데이터",
+    how: explanation.suggestedData
+      ? `문장을 고쳐도 열리지 않습니다. 담당자에게 '${explanation.suggestedData}' 적재를 요청하거나, 이 조건을 빼고 다시 실행해 주세요.`
+      : "문장을 고쳐도 열리지 않습니다. 담당자에게 해당 데이터 적재를 요청하거나, 이 조건을 빼고 다시 실행해 주세요.",
+  };
+}
+
+/**
  * 구체적인 근거가 있는 안내만 반환한다. 빈 배열이면 카드가 렌더링되지 않는다.
  */
 export function buildReinforcementHints(
@@ -98,6 +122,12 @@ export function buildReinforcementHints(
   const diagnostics = result.diagnostics;
   if (!diagnostics) {
     return [];
+  }
+
+  // 데이터 한계로 닫힌 실패는 입력 보강으로 열리지 않는다 — 아래 입력 수정 갈래를 타지 않는다.
+  const dataLimit = dataLimitHint(result);
+  if (dataLimit) {
+    return [dataLimit];
   }
 
   const hints: ReinforcementHint[] = [];

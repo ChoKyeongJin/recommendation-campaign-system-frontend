@@ -92,6 +92,53 @@ export type TargetingFailureStage = {
   pipeline: TargetingFailureStageStep[];
 };
 
+/**
+ * 실패 설명 한 단계 — "무엇을 요청했나 → 어떻게 이해했나 → 무엇이 없나" 순서의 한 칸.
+ * 백엔드가 관측된 단계만 만들므로 화면은 순서대로 그대로 그린다(추측한 단계는 없다).
+ */
+export type TargetingFailureExplanationStep = {
+  /** 닫힌 id (user_request · interpretation · data_binding · … · conclusion) */
+  id: string;
+  title: string;
+  detail: string;
+};
+
+/** 실패 트레이스 한 줄(개발자 상세). status = success | failed | observed. */
+export type TargetingFailureTraceEntry = {
+  stage: string;
+  stageLabel: string;
+  status: string;
+  description: string;
+  evidencePath?: string;
+  evidenceCode?: string;
+};
+
+/**
+ * api_response.failure_explanation — **왜** 계산할 수 없는지의 결정론 설명.
+ *
+ * `failureStage`(어디서 막혔나)와 다른 축이다. 사용자에게 보여주는 것은 steps 이고,
+ * 내부 심볼(소스·바인딩·컬럼)은 developerDiagnostic 에만 있다 — 상세보기 전용이다.
+ * 이 블록이 없으면(구버전 Python) null 이고, 화면은 기존처럼 message 만 보여준다.
+ */
+export type TargetingFailureExplanation = {
+  /** 닫힌 분류 (data_capability_failure · semantic_parsing_failure · …) */
+  failureType: string;
+  /** 결핍의 이름이 있으면 그것(예: event_history_missing), 없으면 원 사유 코드 */
+  failureReason: string;
+  /** 분류 수준의 한 문장(사용자 표시용) */
+  message: string;
+  /** 관측된 사실로 만든 한 문장 요약 */
+  summary: string;
+  steps: TargetingFailureExplanationStep[];
+  /** 이 조건을 계산하려면 어떤 데이터가 필요한가(관측됐을 때만) */
+  suggestedData?: string | null;
+  /** 재시도 횟수(0이면 재시도 없이 종결) */
+  retryCount: number;
+  trace: TargetingFailureTraceEntry[];
+  /** 개발/디버깅용 원값. 화면 기본 노출 금지(상세보기에서만). */
+  developerDiagnostic: Record<string, unknown> | null;
+};
+
 /** 되묻기 질문의 선택지 하나. 값(value)은 백엔드가 슬롯에 넣는 canonical 값이다. */
 export type ClarificationOption = {
   id: string;
@@ -192,6 +239,8 @@ export type TargetingResult = {
   diagnostics?: TargetingDiagnostics | null;
   /** 타겟 SQL 생성이 막힌 파이프라인 단계(어디서). 성공이면 null. */
   failureStage?: TargetingFailureStage | null;
+  /** 왜 계산할 수 없는지의 설명(무엇이 없어서 막혔나). 성공이면 null. */
+  failureExplanation?: TargetingFailureExplanation | null;
   /** 확정 계층 결과: 자동 확정 영수증 · 되묻기 질문 · 미지원 사유. */
   resolution?: TargetingResolution | null;
 };

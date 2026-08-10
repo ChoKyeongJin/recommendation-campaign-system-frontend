@@ -29,6 +29,7 @@ import {
 import type {
   Channel,
   ClarificationAnswer,
+  TargetingFailureExplanation,
   TargetingFailureStage,
   TargetSegment,
   TargetSegmentGroup,
@@ -988,6 +989,154 @@ function FailureStageNotice({
   );
 }
 
+/** 실패 종류 → 배지 문구. 백엔드가 분류를 닫힌 집합으로 주므로 여기서 새로 판단하지 않는다. */
+const FAILURE_TYPE_LABELS: Record<string, string> = {
+  data_capability_failure: "데이터 부족",
+  semantic_parsing_failure: "의미 해석 실패",
+  input_clarification_required: "입력 확인 필요",
+  execution_asset_missing: "실행 설정 미비",
+  sql_generation_failure: "SQL 검증 실패",
+  execution_policy_rejected: "실행 정책 차단",
+  internal_failure: "내부 오류",
+  unclassified: "원인 미분류",
+};
+
+/** 데이터가 없어서 막힌 실패 — 사용자가 문장을 고쳐도 열리지 않는다. */
+function isDataLimit(failureType: string): boolean {
+  return failureType === "data_capability_failure";
+}
+
+/**
+ * **왜** 계산할 수 없는지를 순서대로 보여준다.
+ *
+ * 예전 화면에는 "현재 Query Plan 조건을 완전히 만족하는 검증된 SQL이 없습니다." 한 줄만 떴다 —
+ * 조건을 잘못 썼는지, 데이터가 없는지, 시스템이 고장인지 구분할 수 없는 문장이다. 백엔드가
+ * 관측한 단계(요청 → 해석 → 데이터 연결 → 부족한 것 → 결론)를 그대로 흘려 보여주고,
+ * 내부 심볼은 상세보기(개발자 진단)에만 남긴다.
+ */
+function FailureExplanationNotice({
+  explanation,
+}: {
+  explanation: TargetingFailureExplanation;
+}) {
+  const dataLimit = isDataLimit(explanation.failureType);
+  const typeLabel =
+    FAILURE_TYPE_LABELS[explanation.failureType] ?? "확인 필요";
+  // 원문은 바로 위 "타겟팅 프롬프트" 박스가 이미 보여준다(그리고 그 값은 채널 지시가 빠진
+  // 오디언스 라벨이다). 같은 문장을 두 번 싣지 않되, 제목 문자열이 아니라 id 로 고른다.
+  const steps = explanation.steps.filter((step) => step.id !== "user_request");
+
+  return (
+    <div className="flex flex-col gap-4 rounded-lg border border-border bg-secondary/50 p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant={dataLimit ? "secondary" : "destructive"} className="text-[10px]">
+          {typeLabel}
+        </Badge>
+        <span className="text-sm font-semibold text-foreground">
+          {explanation.summary || explanation.message}
+        </span>
+      </div>
+
+      {/* 관측된 단계만 온다 — 화면은 순서를 바꾸거나 칸을 채워 넣지 않는다. */}
+      <ol className="flex flex-col gap-0">
+        {steps.map((step, index) => (
+          <li
+            key={`${step.id || step.title}-${index}`}
+            className="flex flex-col gap-0"
+          >
+            <div className="rounded-md border border-border bg-card p-3">
+              <p className="text-xs font-medium text-muted-foreground">
+                {step.title}
+              </p>
+              <p className="mt-1 text-sm leading-relaxed whitespace-pre-line text-foreground">
+                {step.detail}
+              </p>
+            </div>
+            {index < steps.length - 1 && (
+              <span
+                aria-hidden
+                className="py-1 pl-3 text-xs text-muted-foreground/60"
+              >
+                ↓
+              </span>
+            )}
+          </li>
+        ))}
+      </ol>
+
+      {dataLimit && (
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          이 조건은 문장을 다시 써도 열리지 않습니다
+          {explanation.suggestedData
+            ? ` — 담당자에게 '${explanation.suggestedData}' 적재를 요청해 주세요.`
+            : " — 담당자에게 해당 데이터 적재를 요청해 주세요."}
+        </p>
+      )}
+
+      {(explanation.trace.length > 0 || explanation.developerDiagnostic) && (
+        <details className="group rounded-md border border-border bg-card">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-2 p-3 text-xs font-medium text-muted-foreground">
+            <span>
+              개발자 진단 보기
+              <span className="ml-1 font-normal">
+                (단계 {explanation.trace.length}개 · 재시도{" "}
+                {explanation.retryCount}회)
+              </span>
+            </span>
+            <span className="shrink-0 transition-transform group-open:rotate-180">
+              ▼
+            </span>
+          </summary>
+          <div className="flex flex-col gap-3 border-t border-border p-3">
+            <ul className="flex flex-col gap-1.5">
+              {explanation.trace.map((entry) => (
+                <li
+                  key={`${entry.stage}-${entry.evidencePath ?? ""}`}
+                  className="flex flex-wrap items-baseline gap-x-2 text-xs"
+                >
+                  <span
+                    aria-hidden
+                    className={
+                      entry.status === "failed"
+                        ? "font-mono text-destructive"
+                        : "font-mono text-muted-foreground"
+                    }
+                  >
+                    {entry.status === "failed"
+                      ? "✕"
+                      : entry.status === "success"
+                        ? "✓"
+                        : "·"}
+                  </span>
+                  <span className="font-medium text-foreground">
+                    {entry.stageLabel}
+                  </span>
+                  <span className="text-muted-foreground">
+                    {entry.description}
+                  </span>
+                  {entry.evidencePath && (
+                    <code className="rounded bg-muted px-1 py-0.5 font-mono text-[10px] text-muted-foreground">
+                      {entry.evidencePath}
+                      {entry.evidenceCode ? ` · ${entry.evidenceCode}` : ""}
+                    </code>
+                  )}
+                </li>
+              ))}
+            </ul>
+            {explanation.developerDiagnostic && (
+              <pre className="overflow-x-auto rounded bg-foreground p-3 text-[10px] leading-relaxed text-background">
+                <code className="font-mono">
+                  {JSON.stringify(explanation.developerDiagnostic, null, 2)}
+                </code>
+              </pre>
+            )}
+          </div>
+        </details>
+      )}
+    </div>
+  );
+}
+
 export function StepTargeting({
   result,
   prompt,
@@ -1140,7 +1289,17 @@ export function StepTargeting({
             })}
           </div>
 
-          {result.failureStage ? (
+          {/* 실패는 두 축으로 보여준다: 어디서 막혔나(failureStage) + 왜 막혔나(failureExplanation).
+              설명이 있으면 그것이 서사를 소유하므로, 아무것도 알려 주지 못하는 범용 message
+              ("현재 Query Plan 조건을 완전히 만족하는 검증된 SQL이 없습니다.")는 함께 띄우지 않는다. */}
+          {result.failureExplanation ? (
+            <div className="flex flex-col gap-3">
+              {result.failureStage && (
+                <FailureStageNotice stage={result.failureStage} />
+              )}
+              <FailureExplanationNotice explanation={result.failureExplanation} />
+            </div>
+          ) : result.failureStage ? (
             <FailureStageNotice
               stage={result.failureStage}
               message={result.message}

@@ -869,6 +869,69 @@ function getFailureStageFromPythonResponse(data: unknown) {
   };
 }
 
+/**
+ * api_response.failure_explanation — **왜** 계산할 수 없는지.
+ *
+ * `failure_stage`(어디서 막혔나)와 다른 축이므로 합치지 않는다. 백엔드가 관측된 단계만 넣으므로
+ * 여기서 단계를 채워 넣거나 순서를 바꾸지 않는다 — 그러면 발생하지 않은 단계를 화면이 지어낸다.
+ * 성공이면 백엔드가 null 을 주고, 구버전 Python 에는 이 키가 없다(둘 다 null).
+ */
+function getFailureExplanationFromPythonResponse(data: unknown) {
+  const apiResponse = getApiResponse(data);
+  const record = asRecord(apiResponse?.failure_explanation);
+  const failureType = getStringValue(record, ["failure_type"]);
+  if (!record || !failureType) {
+    return null;
+  }
+
+  const userExplanation = asRecord(record.user_explanation);
+  const steps = getArrayValue(userExplanation, "steps").flatMap((item) => {
+    const step = asRecord(item);
+    const title = getStringValue(step, ["title"]);
+    const detail = getStringValue(step, ["detail"]);
+    const id = getStringValue(step, ["id"]);
+    return title && detail ? [{ id, title, detail }] : [];
+  });
+  if (steps.length === 0) {
+    return null;
+  }
+
+  const explanation = asRecord(record.explanation);
+  const trace = getArrayValue(record, "trace").flatMap((item) => {
+    const entry = asRecord(item);
+    const stage = getStringValue(entry, ["stage"]);
+    const description = getStringValue(entry, ["description"]);
+    if (!stage || !description) {
+      return [];
+    }
+    const evidence = asRecord(entry?.evidence);
+    return [
+      {
+        stage,
+        stageLabel: getStringValue(entry, ["stage_label"]) || stage,
+        status: getStringValue(entry, ["status"]),
+        description,
+        evidencePath: getStringValue(evidence, ["path"]),
+        evidenceCode: getStringValue(evidence, ["code"]),
+      },
+    ];
+  });
+
+  return {
+    failureType,
+    failureReason: getStringValue(record, ["failure_reason"]),
+    message: getStringValue(record, ["message"]),
+    summary:
+      getStringValue(userExplanation, ["summary"]) ||
+      getStringValue(explanation, ["summary"]),
+    steps,
+    suggestedData: getStringValue(explanation, ["suggested_data"]) || null,
+    retryCount: getNumberValue(record, ["retry_count"]) ?? 0,
+    trace,
+    developerDiagnostic: asRecord(record.developer_diagnostic),
+  };
+}
+
 function parsePythonResponse(rawText: string) {
   if (!rawText) {
     return null;
@@ -968,6 +1031,7 @@ export async function POST(request: Request) {
       confidence: getConfidenceFromPythonResponse(data),
       diagnostics: getDiagnosticsFromPythonResponse(data),
       failureStage: getFailureStageFromPythonResponse(data),
+      failureExplanation: getFailureExplanationFromPythonResponse(data),
       resolution: getResolutionFromPythonResponse(data),
     });
   } catch (error) {
