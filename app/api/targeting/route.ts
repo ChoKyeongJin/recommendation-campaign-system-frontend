@@ -2,8 +2,14 @@ import { NextResponse } from "next/server";
 
 import {
   type Channel,
+  type ClarificationAnswer,
+  type ClarificationOption,
+  type ClarificationQuestion,
+  type ResolutionAssumption,
+  type ResolutionUnsupported,
   type TargetSegment,
   type TargetSegmentGroup,
+  type TargetingResolution,
 } from "@/lib/campaign-data";
 
 const PYTHON_TARGET_SQL_URL =
@@ -729,6 +735,103 @@ function getDiagnosticsFromPythonResponse(data: unknown) {
   };
 }
 
+
+function getEvidenceText(record: Record<string, unknown> | null) {
+  const evidence = asRecord(record?.evidence);
+  return getStringValue(evidence, ["text"]);
+}
+
+/**
+ * api_response.resolution — 백엔드 확정 계층의 결과.
+ *
+ * 이 블록이 없으면(구버전 Python) null 을 준다. 화면은 그때 기존처럼
+ * diagnostics.clarificationQuestions(문자열)만 보여준다.
+ */
+function getResolutionFromPythonResponse(data: unknown): TargetingResolution | null {
+  const apiResponse = getApiResponse(data);
+  const record = asRecord(apiResponse?.resolution);
+  const status = getStringValue(record, ["status"]);
+  if (!record || !status) {
+    return null;
+  }
+
+  const questions: ClarificationQuestion[] = getArrayValue(record, "questions").flatMap(
+    (entry) => {
+      const question = asRecord(entry);
+      const issueId = getStringValue(question, ["issue_id"]);
+      const text = getStringValue(question, ["text"]);
+      if (!issueId || !text) {
+        return [];
+      }
+
+      const options: ClarificationOption[] = getArrayValue(question, "options").flatMap(
+        (item) => {
+          const option = asRecord(item);
+          const id = getStringValue(option, ["id"]);
+          const label = getStringValue(option, ["label"]);
+          return id && label ? [{ id, label }] : [];
+        },
+      );
+
+      return [
+        {
+          questionId: getStringValue(question, ["question_id"]) || issueId,
+          issueId,
+          code: getStringValue(question, ["code"]),
+          text,
+          slot: getStringValue(question, ["slot"]),
+          options,
+          allowFreeText: question?.allow_free_text === true,
+          entityType: getStringValue(question, ["entity_type"]) || null,
+          evidenceText: getEvidenceText(question),
+        },
+      ];
+    },
+  );
+
+  const assumptions: ResolutionAssumption[] = getArrayValue(record, "assumptions").flatMap(
+    (entry) => {
+      const assumption = asRecord(entry);
+      const code = getStringValue(assumption, ["code"]);
+      if (!code) {
+        return [];
+      }
+      return [
+        {
+          code,
+          slot: getStringValue(assumption, ["slot"]),
+          value: assumption?.value ?? null,
+          provenance: getStringValue(assumption, ["provenance"]),
+          evidenceText: getEvidenceText(assumption),
+        },
+      ];
+    },
+  );
+
+  const unsupported: ResolutionUnsupported[] = getArrayValue(record, "unsupported").flatMap(
+    (entry) => {
+      const issue = asRecord(entry);
+      const kind = getStringValue(issue, ["kind"]);
+      const message = getStringValue(issue, ["message"]);
+      return kind && message
+        ? [{ kind, message, evidenceText: getEvidenceText(issue) }]
+        : [];
+    },
+  );
+
+  const resolution = getStringValue(record, ["resolution"]);
+  return {
+    status: status as TargetingResolution["status"],
+    resolution: resolution === "assumed" ? "assumed" : "exact",
+    mode: getStringValue(record, ["mode"]),
+    assumptions,
+    questions,
+    deferredQuestionCount:
+      getNumberValue(record, ["deferred_question_count"]) ?? 0,
+    unsupported,
+  };
+}
+
 // 타겟 SQL 이 어느 파이프라인 단계에서 막혔는지(어디서)를 백엔드에서 그대로 통과시킨다.
 // 성공이면 백엔드가 null 을 주므로 그대로 null 을 반환한다(프론트에서 배지 미노출).
 function getFailureStageFromPythonResponse(data: unknown) {
@@ -783,6 +886,28 @@ export async function POST(request: Request) {
   const prompt =
     body && typeof body.prompt === "string" ? body.prompt.trim() : "";
   const channel = body && isChannel(body.channel) ? body.channel : null;
+  // 되묻기 답변. 프롬프트에 이어 붙이지 않고 issue_id 그대로 Python 에 넘긴다 —
+  // 백엔드가 그 결핍이 가리키는 의미 슬롯 하나만 고친다.
+  const clarificationAnswers: ClarificationAnswer[] = Array.isArray(
+    body?.clarificationAnswers,
+  )
+    ? body.clarificationAnswers.flatMap((entry: unknown) => {
+        const record = asRecord(entry);
+        const issueId = getStringValue(record, ["issueId", "issue_id"]);
+        if (!issueId) {
+          return [];
+        }
+        const optionId = getStringValue(record, ["optionId", "option_id"]);
+        const text = getStringValue(record, ["text"]);
+        return [
+          {
+            issueId,
+            ...(optionId ? { optionId } : {}),
+            ...(text ? { text } : {}),
+          },
+        ];
+      })
+    : [];
 
   if (!prompt || !channel) {
     return NextResponse.json(
@@ -799,7 +924,14 @@ export async function POST(request: Request) {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ prompt: pythonPrompt }),
+      body: JSON.stringify({
+        prompt: pythonPrompt,
+        clarification_answers: clarificationAnswers.map((answer) => ({
+          issue_id: answer.issueId,
+          ...(answer.optionId ? { option_id: answer.optionId } : {}),
+          ...(answer.text ? { text: answer.text } : {}),
+        })),
+      }),
       cache: "no-store",
     });
 
@@ -836,6 +968,7 @@ export async function POST(request: Request) {
       confidence: getConfidenceFromPythonResponse(data),
       diagnostics: getDiagnosticsFromPythonResponse(data),
       failureStage: getFailureStageFromPythonResponse(data),
+      resolution: getResolutionFromPythonResponse(data),
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "알 수 없는 오류";

@@ -5,6 +5,7 @@ import {
   Check,
   Copy,
   Database,
+  HelpCircle,
   ListTree,
   MessageSquareText,
   Users,
@@ -19,12 +20,15 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ConfidenceCard } from "@/components/confidence-card";
+import { ClarificationPanel } from "@/components/clarification-panel";
 import {
   buildReinforcementHints,
   type ReinforcementHint,
 } from "@/lib/targeting-hints";
 import type {
   Channel,
+  ClarificationAnswer,
   TargetingFailureStage,
   TargetSegment,
   TargetSegmentGroup,
@@ -427,6 +431,9 @@ function TraceStepCard({
       technicalLines.push(parts.join(" · "));
     }
   }
+  const structuredTechnicalBlocks = technicalLines.filter((line) =>
+    /^[①②③④⑤⑥⑦⑧⑨⑩]\s/.test(line),
+  ).length;
 
   // 단계 번호 원의 색: 실패=빨강 · 미실행=흐림 · 그 외=기본.
   const circleClass =
@@ -571,15 +578,43 @@ function TraceStepCard({
               </span>
               자세히 (기술 정보)
             </summary>
-            <ul className="mt-2 flex flex-col gap-1 border-l-2 border-border pl-3">
-              {technicalLines.map((line, i) => (
-                <li
-                  key={i}
-                  className="whitespace-pre-wrap break-words font-mono text-[11px] leading-relaxed text-muted-foreground"
-                >
-                  {line}
-                </li>
-              ))}
+            <ul
+              className={`mt-2 flex flex-col ${
+                structuredTechnicalBlocks > 0
+                  ? "gap-2.5"
+                  : "gap-1 border-l-2 border-border pl-3"
+              }`}
+            >
+              {technicalLines.map((line, i) => {
+                const [heading, ...body] = line.split("\n");
+                const isStructuredBlock =
+                  /^[①②③④⑤⑥⑦⑧⑨⑩]\s/.test(heading);
+                return (
+                  <li
+                    key={i}
+                    className={
+                      isStructuredBlock
+                        ? "overflow-hidden rounded-md border border-border bg-muted/25"
+                        : "whitespace-pre-wrap break-words font-mono text-[11px] leading-relaxed text-muted-foreground"
+                    }
+                  >
+                    {isStructuredBlock ? (
+                      <>
+                        <p className="border-b border-border bg-muted/50 px-3 py-2 text-xs font-semibold text-foreground">
+                          {heading}
+                        </p>
+                        {body.length > 0 && (
+                          <pre className="max-h-80 overflow-auto whitespace-pre-wrap break-words px-3 py-2.5 font-mono text-[11px] leading-relaxed text-muted-foreground">
+                            {body.join("\n")}
+                          </pre>
+                        )}
+                      </>
+                    ) : (
+                      line
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           </details>
         )}

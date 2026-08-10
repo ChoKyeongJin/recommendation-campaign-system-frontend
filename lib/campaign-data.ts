@@ -92,6 +92,84 @@ export type TargetingFailureStage = {
   pipeline: TargetingFailureStageStep[];
 };
 
+/** 되묻기 질문의 선택지 하나. 값(value)은 백엔드가 슬롯에 넣는 canonical 값이다. */
+export type ClarificationOption = {
+  id: string;
+  label: string;
+};
+
+/**
+ * 백엔드 확정 계층(Resolution)이 만든 되묻기 질문 하나.
+ *
+ * 답할 때는 issueId 를 그대로 돌려준다 — 답을 프롬프트에 이어 붙이지 않는다.
+ * 백엔드는 그 결핍이 가리키는 의미 슬롯 하나만 고친다.
+ */
+export type ClarificationQuestion = {
+  questionId: string;
+  issueId: string;
+  /** 닫힌 질문 코드 (예: AMBIGUOUS_AMOUNT_GRAIN) */
+  code: string;
+  text: string;
+  /** 이 답이 확정하는 의미 슬롯 (예: comparison.grain) */
+  slot: string;
+  options: ClarificationOption[];
+  /** 선택지가 없고 직접 입력해야 하는 질문 (상품명 등) */
+  allowFreeText: boolean;
+  entityType?: string | null;
+  /** 이 질문이 가리키는 원문 구간 */
+  evidenceText?: string;
+};
+
+/** 사용자가 말하지 않았지만 운영 정책이 채운 의미 하나의 영수증. */
+export type ResolutionAssumption = {
+  code: string;
+  slot: string;
+  value: unknown;
+  /** policy_default = 배포 설정 · user_clarification = 사용자가 답한 값 */
+  provenance: string;
+  evidenceText?: string;
+};
+
+/** 미지원으로 닫힌 조건 하나(사용자가 답해도 열리지 않는다). */
+export type ResolutionUnsupported = {
+  kind: string;
+  message: string;
+  evidenceText?: string;
+};
+
+/** api_response.resolution — 확정 계층의 결과 블록. */
+export type TargetingResolution = {
+  status: "resolved" | "needs_clarification" | "unsupported";
+  /** exact = 모든 의미가 사용자의 말 · assumed = 정책/답변이 채운 값이 있다 */
+  resolution: "exact" | "assumed";
+  /** 이 배포의 자동 확정 허용선 (strict | safe_defaults | best_effort) */
+  mode: string;
+  assumptions: ResolutionAssumption[];
+  questions: ClarificationQuestion[];
+  /** 질문 수 상한 때문에 이번에 보여주지 않은 질문 수 */
+  deferredQuestionCount?: number;
+  unsupported?: ResolutionUnsupported[];
+};
+
+/**
+ * 되묻기 답 하나. 선택지 질문은 optionId, 자유 입력 질문은 text 를 채운다.
+ *
+ * slot/optionLabel/questionText 는 화면 전용이다(백엔드로 보내지 않는다).
+ * 백엔드는 라운드마다 issueId 를 새로 만들기 때문에, 같은 결핍을 다시 물었는지
+ * 판단하려면 issueId 가 아니라 의미 슬롯(slot)으로 맞춰 봐야 한다.
+ */
+export type ClarificationAnswer = {
+  issueId: string;
+  optionId?: string;
+  text?: string;
+  /** 표시 전용: 이 답이 확정하려던 의미 슬롯 (예: predicate.product) */
+  slot?: string;
+  /** 표시 전용: 선택지 질문에서 고른 항목의 라벨 */
+  optionLabel?: string;
+  /** 표시 전용: 무엇에 답했는지 되짚어 주기 위한 질문 문구 */
+  questionText?: string;
+};
+
 export type TargetingResult = {
   campaignId?: string;
   total: number | null;
@@ -114,6 +192,8 @@ export type TargetingResult = {
   diagnostics?: TargetingDiagnostics | null;
   /** 타겟 SQL 생성이 막힌 파이프라인 단계(어디서). 성공이면 null. */
   failureStage?: TargetingFailureStage | null;
+  /** 확정 계층 결과: 자동 확정 영수증 · 되묻기 질문 · 미지원 사유. */
+  resolution?: TargetingResolution | null;
 };
 
 /** Graph 확장 경로의 한 노드 (출발점 A ─관계→ B ─관계→ 목표). */
