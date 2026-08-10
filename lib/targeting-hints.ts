@@ -1,193 +1,181 @@
 import type { TargetingResult } from "@/lib/campaign-data";
 
 /**
- * 타겟팅 실패·부분추출 시 "어디를 보강하면 좋을지" 힌트.
- * 백엔드 진단 신호(diagnostics)를 사람이 손볼 수 있는 위치·행동으로 번역한다.
+ * 타겟팅 실패·부분 추출 뒤 사용자가 직접 실행할 수 있는 안내.
+ * 내부 슬롯명이나 설정 파일은 사용자가 해결할 수 없으므로 노출하지 않는다.
  */
 export type ReinforcementHint = {
-  /** fail=명단을 못 뽑음(치명) · warn=명단은 나왔으나 일부 미반영/주의 */
   severity: "fail" | "warn";
-  /** 무슨 일이 있었나(증상) */
   symptom: string;
-  /** 어디를 보강하면 되는가(파일·설정 위치) */
+  /** 사용자가 입력에서 확인하거나 고칠 대상 */
   where: string;
-  /** 어떻게 보강하나(행동) */
+  /** 그대로 따라 할 수 있는 다음 행동 */
   how: string;
 };
 
-// 보강 대상 파일(설정 → 참조 파일 화면에서 열람 가능). 대부분의 회원 조건은
-// member_target_filters.json 이 커버리지를 넓히는 1순위 손잡이다.
-const MEMBER_FILTERS = "member_target_filters.json";
-const DIMENSION_CATALOG = "dimension_catalog.sample.json";
-const MEMBER_VALUE_INDEX = "member_value_index.json";
-const NORMALIZATION = "normalization_rules.sample.json";
-const LEXICON = "targeting_lexicon.json";
-const SCHEMA_CATALOG = "schema_catalog.json";
-// 파일이 아니라 프롬프트 문장 자체를 손봐야 하는 실패의 "어디를".
-const PROMPT_POLARITY = "프롬프트 조건 표현(포함/제외)";
+const INPUT_CONDITION = "입력한 타겟 조건";
 
-/** 조건 경로/라벨로 보강할 파일을 추정한다(브랜드/지역은 값 해석 파일, 그 외 회원 조건은 매핑 파일). */
-function whereForConditions(paths: string[], labels: string[]): string {
-  const hay = [...paths, ...labels].join(" ").toLowerCase();
-  if (/(dimension|브랜드|brand)/.test(hay)) return DIMENSION_CATALOG;
-  if (/(region|지역|sido|sigungu|시도|시군구|거주)/.test(hay)) {
-    return `${MEMBER_VALUE_INDEX} · ${MEMBER_FILTERS}`;
+const MISSING_FIELD_QUESTIONS: Record<string, string> = {
+  "audience.percentage": "상위 몇 %인지 숫자로 입력해 주세요.",
+  "audience.threshold": "비교할 기준값과 이상·이하 조건을 입력해 주세요.",
+  "audience.period": "조회 기간을 일·주·개월 단위로 입력해 주세요.",
+  "audience.window": "조건을 계산할 기간을 입력해 주세요.",
+  "audience.metric": "순위나 비교에 사용할 기준 지표를 입력해 주세요.",
+  "audience.population": "순위를 계산할 비교 대상 회원군을 입력해 주세요.",
+  "audience.group_by":
+    "순위를 전체 기준으로 계산할지 그룹별로 계산할지 입력해 주세요.",
+};
+
+/** 내부 경로는 사용자 질문으로 번역할 수 있을 때만 살린다. */
+function userFacingQuestion(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
   }
-  return MEMBER_FILTERS;
+
+  const mapped = MISSING_FIELD_QUESTIONS[trimmed.toLowerCase()];
+  if (mapped) {
+    return mapped;
+  }
+
+  // audience.requirement, semantic_interpretation, req-1.member_entity 같은 값은
+  // 구현 좌표일 뿐 사용자가 무엇을 고쳐야 하는지 말해 주지 못한다.
+  if (/^[a-z][a-z0-9_-]*(?:\.[a-z0-9_-]+)*$/i.test(trimmed)) {
+    return null;
+  }
+
+  return trimmed;
 }
 
-/**
- * failure_reason 코드를 보강 위치·행동으로 번역한다.
- * 되물음 힌트(3번)의 where/how 도 이 매핑을 우선 쓴다 — 되물음이 떴다는 사실보다
- * "왜 막혔는지"가 항상 더 구체적이기 때문이다.
- */
+function uniqueQuestions(values: string[]): string[] {
+  return [
+    ...new Set(
+      values
+        .map(userFacingQuestion)
+        .filter((value): value is string => Boolean(value)),
+    ),
+  ];
+}
+
+/** 실패 사유가 사용자 입력으로 해결 가능한 경우에만 안내를 만든다. */
 function mapFailureReason(reason: string): ReinforcementHint | null {
-  const r = reason.toLowerCase();
-  // 같은 값이 포함·제외 양쪽에 잡힌 의미 충돌. 사전에 낱말을 더해도 절대 풀리지 않는다.
-  if (r.includes("conflict")) {
+  const normalized = reason.toLowerCase();
+
+  if (normalized.includes("conflict")) {
     return {
       severity: "fail",
-      symptom: "조건의 포함/제외가 서로 모순되어 명단을 뽑지 못했습니다.",
-      where: PROMPT_POLARITY,
-      how: "같은 값을 포함과 제외로 동시에 지정하지 않도록 문장을 정리해 주세요(예: '여자만 빼줘' → '여성 제외').",
+      symptom: "같은 조건이 포함과 제외로 동시에 지정됐습니다.",
+      where: "포함·제외 조건",
+      how: "한 값에는 포함 또는 제외 중 하나만 남겨 다시 실행해 주세요. 예: '여성 제외'.",
     };
   }
-  if (r.includes("unsupported_condition") || r.includes("real_db_unsupported")) {
-    return {
-      severity: "fail",
-      symptom: "요청한 조건을 실DB 타겟 추출로 옮기지 못했습니다.",
-      where: MEMBER_FILTERS,
-      how: "조건→회원 컬럼·코드 매핑(eq_filters/activity_filters 등)을 추가하세요.",
-    };
-  }
-  if (r.includes("guard") || r.includes("schema")) {
-    return {
-      severity: "fail",
-      symptom: "생성된 SQL이 안전 검증(허용 테이블·컬럼)을 통과하지 못했습니다.",
-      where: SCHEMA_CATALOG,
-      how: "사용한 테이블·컬럼이 스키마 카탈로그의 허용 목록에 있는지 확인·추가하세요.",
-    };
-  }
+
   if (
-    r.includes("no_target") ||
-    r.includes("no_condition") ||
-    r.includes("empty_condition")
+    normalized.includes("no_target") ||
+    normalized.includes("no_condition") ||
+    normalized.includes("empty_condition") ||
+    normalized === "no_sql_candidates"
   ) {
     return {
       severity: "fail",
-      symptom: "문장에서 타겟 조건을 찾지 못했습니다.",
-      where: `${LEXICON} · ${NORMALIZATION}`,
-      how: "구매/판매 신호어·동의어를 사전에 추가하거나, 프롬프트를 표준 표현으로 바꿔 주세요.",
+      symptom: "실행할 타겟 조건을 찾지 못했습니다.",
+      where: INPUT_CONDITION,
+      how: "대상·기간·기준값을 함께 적어 주세요. 예: '최근 30일 구매한 서울 거주 30대 회원'.",
     };
   }
+
+  // SQL 가드, 스키마, 구조화기, 실행 표현 방출 실패는 사용자가 입력을 바꿔서
+  // 해결된다고 보장할 수 없다. 실패 단계 카드만 남기고 거짓 해결책은 만들지 않는다.
   return null;
 }
 
 /**
- * 타겟팅 결과의 진단 신호를 보강 힌트 목록으로 변환한다.
- * 힌트가 없으면(모든 조건이 온전히 반영된 성공) 빈 배열을 반환한다.
+ * 구체적인 근거가 있는 안내만 반환한다. 빈 배열이면 카드가 렌더링되지 않는다.
  */
 export function buildReinforcementHints(
   result: TargetingResult,
 ): ReinforcementHint[] {
-  const d = result.diagnostics;
-  const hints: ReinforcementHint[] = [];
-  if (!d) {
-    return hints;
+  const diagnostics = result.diagnostics;
+  if (!diagnostics) {
+    return [];
   }
-  // 실패 사유 매핑은 되물음 힌트의 where/how 로도 쓰고, 아무 힌트도 안 잡혔을 때 단독 힌트로도 쓴다.
-  const mappedFailure = d.failureReason ? mapFailureReason(d.failureReason) : null;
+
+  const hints: ReinforcementHint[] = [];
+  const mappedFailure = diagnostics.failureReason
+    ? mapFailureReason(diagnostics.failureReason)
+    : null;
   let mappedFailureUsed = false;
 
-  // 1) 부분추출 — SQL 은 나왔지만 일부 조건이 실DB 미지원이라 빠짐
-  if (d.droppedConditionLabels.length) {
+  if (diagnostics.droppedConditionLabels.length > 0) {
+    const labels = diagnostics.droppedConditionLabels.join(", ");
     hints.push({
       severity: "warn",
-      symptom: `일부 조건이 실DB 타겟 추출로 지원되지 않아 제외됐습니다: ${d.droppedConditionLabels.join(", ")}`,
-      where: whereForConditions(d.droppedConditions, d.droppedConditionLabels),
-      how: "이 조건을 실제 회원 컬럼·코드로 매핑하는 규칙을 추가하면 다음부터 반영됩니다.",
+      symptom: `다음 조건은 결과에 반영되지 않았습니다: ${labels}`,
+      where: labels,
+      how: "해당 조건을 뺀 결과를 원한 것이 아니라면 현재 결과를 사용하지 말고, 조건 지원 여부를 확인한 뒤 다시 실행해 주세요.",
     });
   }
 
-  // 2) 미지원 — 명단 자체를 못 뽑음
-  if (d.unsupportedConditionLabels.length) {
+  if (diagnostics.unsupportedConditionLabels.length > 0) {
+    const labels = diagnostics.unsupportedConditionLabels.join(", ");
     hints.push({
       severity: "fail",
-      symptom: `조건을 실DB로 옮기지 못했습니다: ${d.unsupportedConditionLabels.join(", ")}`,
-      where: whereForConditions(
-        d.unsupportedConditions,
-        d.unsupportedConditionLabels,
-      ),
-      how: "조건→컬럼 매핑을 추가하거나, 프롬프트를 지원되는 조건으로 바꿔 주세요.",
+      symptom: `현재 실행할 수 없는 조건입니다: ${labels}`,
+      where: labels,
+      how: "이 조건을 제외하거나 지원되는 조건으로 바꿔 주세요. 꼭 필요한 조건이면 관리자에게 해당 조건의 DB 매핑 추가를 요청해 주세요.",
     });
   }
 
-  // 3) 되물음/입력 부족 — 백엔드가 보낸 되물음 문구를 그대로 증상으로 쓴다.
-  //    ("되물음이 필요합니다" 같은 고정 문구는 어떤 실패든 똑같이 보여서 진단값이 0이었다.)
-  const questions = [
-    ...d.clarificationQuestions,
-    ...d.missingInputConditions,
-  ]
-    .map((question) => question.trim())
-    .filter(Boolean);
-  if (questions.length) {
+  const questions = uniqueQuestions([
+    ...diagnostics.clarificationQuestions,
+    ...diagnostics.missingInputConditions,
+  ]);
+  if (questions.length > 0) {
     mappedFailureUsed = mappedFailure !== null;
     hints.push({
       severity: mappedFailure?.severity ?? "warn",
       symptom: questions.join(" · "),
-      where: mappedFailure?.where ?? `${NORMALIZATION} · ${LEXICON}`,
+      where: mappedFailure?.where ?? INPUT_CONDITION,
       how:
         mappedFailure?.how ??
-        "새 동의어·신호어를 사전에 추가하거나, 프롬프트를 표준 용어로 바꿔 주세요.",
+        "위 항목의 값을 입력 문장에 명시한 뒤 다시 실행해 주세요.",
     });
   }
 
-  // 4) 0명 진단 — 어느 조건이 명단을 비웠나
-  const c = d.cardinality;
-  if (c) {
-    if (c.injectedDefaultIsCulprit) {
-      hints.push({
-        severity: "warn",
-        symptom: "기본 '정상 회원' 게이트가 명단을 비웠습니다(휴면·탈퇴 제외).",
-        where: `${MEMBER_FILTERS} (active_state)`,
-        how: "휴면/탈퇴 포함이 필요한 캠페인이면 상태 조건을 조정하세요.",
-      });
-    } else if (c.cause === "predicate_empty") {
-      const which = c.culpritPredicates.length
-        ? `: ${c.culpritPredicates.join(" · ")}`
-        : "";
-      hints.push({
-        severity: "fail",
-        symptom: `특정 조건이 단독으로도 0명입니다${which}.`,
-        where: `${DIMENSION_CATALOG} · ${MEMBER_VALUE_INDEX}`,
-        how: "값·코드 표기가 실DB와 맞는지 확인하거나, 과도한 조건을 완화하세요.",
-      });
-    } else if (c.cause === "predicate_interaction") {
-      hints.push({
-        severity: "warn",
-        symptom: "개별 조건은 매칭되나 조합하면 0명입니다(상호 배타).",
-        where: "프롬프트 조건 조합",
-        how: "AND 로 겹친 조건 중 일부를 빼거나 범위를 넓혀 보세요.",
-      });
-    }
+  const cardinality = diagnostics.cardinality;
+  if (cardinality?.injectedDefaultIsCulprit) {
+    hints.push({
+      severity: "warn",
+      symptom: "기본 '정상 회원' 조건 때문에 조회 결과가 0명입니다.",
+      where: "회원 상태 조건",
+      how: "휴면·탈퇴 회원도 대상이라면 포함할 상태를 입력 문장에 명시해 주세요.",
+    });
+  } else if (cardinality?.cause === "predicate_empty") {
+    const predicates = cardinality.culpritPredicates.join(" · ");
+    hints.push({
+      severity: "fail",
+      symptom: predicates
+        ? `이 조건만 적용해도 결과가 0명입니다: ${predicates}`
+        : "입력한 조건 중 하나만 적용해도 결과가 0명입니다.",
+      where: predicates || INPUT_CONDITION,
+      how: "기간이나 기준값을 넓혀 다시 조회해 주세요.",
+    });
+  } else if (cardinality?.cause === "predicate_interaction") {
+    hints.push({
+      severity: "warn",
+      symptom: "각 조건에는 대상이 있지만 모든 조건을 동시에 만족하는 회원은 없습니다.",
+      where: "AND로 결합한 조건",
+      how: "조건을 하나씩 빼서 다시 조회하거나 기간·기준값을 넓혀 주세요.",
+    });
   }
 
-  // 5) failure_reason 힌트. 이전에는 앞 규칙이 하나라도 힌트를 넣으면 통째로 건너뛰어, 가장 구체적인
-  //    신호(왜 막혔는지)가 늘 묻혔다. 이제는 되물음 힌트가 흡수했거나 같은 보강 위치를 이미 안내한
-  //    구체적 힌트가 있을 때만 생략한다.
-  //    조건 단위 힌트(1·2)가 이미 "어떤 조건이 왜 빠졌는지"를 말한 경우, 같은 원인(조건→컬럼 매핑)의
-  //    일반 힌트는 덜 구체적이므로 생략한다.
-  const conditionHintsShown =
-    d.droppedConditionLabels.length > 0 ||
-    d.unsupportedConditionLabels.length > 0;
-  const failureIsConditionMapping =
-    /unsupported_condition|real_db_unsupported/.test(
-      (d.failureReason ?? "").toLowerCase(),
-    );
+  const conditionHintShown =
+    diagnostics.droppedConditionLabels.length > 0 ||
+    diagnostics.unsupportedConditionLabels.length > 0;
   if (
     mappedFailure &&
     !mappedFailureUsed &&
-    !(conditionHintsShown && failureIsConditionMapping) &&
+    !conditionHintShown &&
     !hints.some((hint) => hint.where === mappedFailure.where)
   ) {
     hints.push(mappedFailure);

@@ -19,7 +19,6 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ConfidenceCard } from "@/components/confidence-card";
 import {
   buildReinforcementHints,
   type ReinforcementHint,
@@ -828,7 +827,7 @@ function TraceSection({
   );
 }
 
-// 타겟팅 실패·부분추출 시 "어디를 보강하면 좋을지" 힌트 카드. 힌트가 없으면 렌더링하지 않는다.
+// 사용자가 직접 다시 시도할 수 있는 근거가 있을 때만 보여 주는 안내 카드.
 function ReinforcementHintsCard({ hints }: { hints: ReinforcementHint[] }) {
   if (hints.length === 0) {
     return null;
@@ -843,11 +842,11 @@ function ReinforcementHintsCard({ hints }: { hints: ReinforcementHint[] }) {
           <Wrench className="h-5 w-5" aria-hidden />
         </span>
         <div className="min-w-0">
-          <CardTitle className="text-base">보강 힌트</CardTitle>
+          <CardTitle className="text-base">다시 시도하는 방법</CardTitle>
           <CardDescription>
             {hasFail
-              ? "요청한 조건이 타겟팅에 온전히 반영되지 않았습니다. 어디를 손보면 좋은지 알려드립니다."
-              : "일부 조건이 빠졌거나 주의가 필요합니다. 개선 지점을 알려드립니다."}
+              ? "현재 결과를 그대로 사용할 수 없습니다. 입력에서 바로 확인할 항목입니다."
+              : "일부 조건이 빠졌거나 결과가 0명입니다. 다시 조회할 때 확인해 주세요."}
           </CardDescription>
         </div>
       </CardHeader>
@@ -870,21 +869,18 @@ function ReinforcementHintsCard({ hints }: { hints: ReinforcementHint[] }) {
             </div>
             <div className="mt-2 grid gap-x-3 gap-y-1 text-sm sm:grid-cols-[3.5rem_1fr]">
               <span className="text-xs font-semibold text-muted-foreground sm:pt-0.5">
-                어디를
+                확인할 부분
               </span>
               <code className="break-all font-mono text-xs text-foreground">
                 {hint.where}
               </code>
               <span className="text-xs font-semibold text-muted-foreground sm:pt-0.5">
-                어떻게
+                다시 입력
               </span>
               <span className="text-muted-foreground">{hint.how}</span>
             </div>
           </div>
         ))}
-        <p className="text-xs text-muted-foreground">
-          보강 대상 파일은 [설정 → 참조 파일] 화면에서 열람할 수 있습니다.
-        </p>
       </CardContent>
     </Card>
   );
@@ -1144,8 +1140,6 @@ export function StepTargeting({
       </Card>
 
       <ReinforcementHintsCard hints={reinforcementHints} />
-
-      {result.confidence && <ConfidenceCard confidence={result.confidence} />}
 
       <Card>
         <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
