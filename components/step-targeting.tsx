@@ -1085,6 +1085,30 @@ export function StepTargeting({
             </div>
           )}
 
+          {/* 실패(failureStage)면 실행되지 않았으므로 "생성된 SQL(미실행)"로, 성공이면 "실행된 SQL"로 라벨링한다. */}
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-medium text-foreground">
+                {result.failureStage
+                  ? "생성된 SQL (검증 실패 · 미실행)"
+                  : "실행된 SQL"}
+              </p>
+              <Badge variant="secondary">read-only</Badge>
+            </div>
+            {result.sql ? (
+              <div className="relative">
+                <CopyButton text={result.sql} />
+                <pre className="overflow-x-auto rounded-lg bg-foreground p-4 pr-20 text-xs leading-relaxed text-background">
+                  <code className="font-mono">{result.sql}</code>
+                </pre>
+              </div>
+            ) : (
+              <p className="rounded-lg border border-border bg-secondary p-3 text-sm text-muted-foreground">
+                SQL이 생성되지 않았습니다.
+              </p>
+            )}
+          </div>
+
           <div className="grid gap-3 sm:grid-cols-2">
             {metrics.map((metric) => {
               const Icon = metric.icon;
@@ -1175,32 +1199,6 @@ export function StepTargeting({
       </Card>
 
       <ReinforcementHintsCard hints={reinforcementHints} />
-
-      <Card>
-        <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
-          {/* 실패(failureStage)면 실행되지 않았으므로 "생성된 SQL(미실행)"로, 성공이면 "실행된 SQL"로 라벨링한다. */}
-          <CardTitle className="text-base">
-            {result.failureStage
-              ? "생성된 SQL (검증 실패 · 미실행)"
-              : "실행된 SQL"}
-          </CardTitle>
-          <Badge variant="secondary">read-only</Badge>
-        </CardHeader>
-        <CardContent>
-          {result.sql ? (
-            <div className="relative">
-              <CopyButton text={result.sql} />
-              <pre className="overflow-x-auto rounded-lg bg-foreground p-4 pr-20 text-xs leading-relaxed text-background">
-                <code className="font-mono">{result.sql}</code>
-              </pre>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              SQL이 생성되지 않았습니다.
-            </p>
-          )}
-        </CardContent>
-      </Card>
 
       <TraceSection prompt={prompt} channel={channel} />
 
