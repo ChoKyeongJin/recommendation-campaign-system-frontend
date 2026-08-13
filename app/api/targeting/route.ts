@@ -597,6 +597,16 @@ function getNormalizedPromptFromPythonResponse(data: unknown) {
   return normalized.replace(/\s*발송\s*채널\s*:[\s\S]*$/, "").trim();
 }
 
+// 백엔드가 사용자 문장의 오타를 고친 경우 그 목록("팔란 -> 팔린"). 비어 있으면 교정이 없었다는 뜻이다.
+// 이 값을 화면에 안 띄우면 사용자가 친 문장과 시스템이 읽은 문장이 다른 채로 결과만 보게 된다.
+function getTypoCorrectionsFromPythonResponse(data: unknown) {
+  const apiResponse = getApiResponse(data);
+  const corrections = getArrayValue(apiResponse, "prompt_typo_corrections");
+  return corrections.filter(
+    (item): item is string => typeof item === "string" && item.trim().length > 0,
+  );
+}
+
 // 표시용 오디언스 절 끝에 남는 대상 지향 조사("…여성에게", "…인 곳에")를 다듬는다. 의미 판단이 아니라
 // 표시 정리일 뿐이므로 라벨 끝에서만 제거한다.
 function trimAudienceDirectionSuffix(label: string) {
@@ -1025,6 +1035,7 @@ export async function POST(request: Request) {
       hiddenSegmentGroups,
       normalizedPrompt: getNormalizedPromptFromPythonResponse(data),
       targetingLabel: getTargetingLabelFromPythonResponse(data),
+      typoCorrections: getTypoCorrectionsFromPythonResponse(data),
       sql,
       message: getStringValue(getApiResponse(data), ["message"]),
       sampleRows: getSampleRowsFromPythonResponse(data),

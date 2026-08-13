@@ -230,6 +230,12 @@ export type TargetingResult = {
   normalizedPrompt?: string;
   /** 오디언스(누구를 타겟하는가)만 담은 표시용 라벨. offer·행동·채널이 빠진 값이라 "타겟팅 프롬프트"에 우선 사용 */
   targetingLabel?: string;
+  /**
+   * 백엔드가 파이프라인 맨 앞에서 고친 오타 목록("팔란 -> 팔린"). 교정이 없으면 빈 배열.
+   * 반드시 화면에 노출한다 — 사용자가 친 문장과 시스템이 읽은 문장이 다른데 그 사실을 알리지
+   * 않으면, 결과만 보고 자기 요청대로 만들어졌다고 오독한다(조용한 치환).
+   */
+  typoCorrections?: string[];
   sql: string;
   message?: string;
   sampleRows?: Record<string, string | number | null>[];

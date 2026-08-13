@@ -1161,6 +1161,8 @@ export function StepTargeting({
   // 없으면 전체 재작성(normalizedPrompt), 그마저 없으면 원본을 쓴다. 실제 타겟 SQL·세그먼트는
   // 백엔드 effective_query(=normalizedPrompt)를 기준으로 만들어진다(표시값과 별개).
   const targetingPrompt = targetingLabel || normalizedPrompt || trimmedPrompt;
+  // 백엔드가 고친 오타 목록. 라벨 표시가 우선되면 한 음절 교정은 화면에서 묻히므로 따로 세운다.
+  const typoCorrections = result.typoCorrections ?? [];
   // 원본과 실제로 달라졌을 때만 원본을 따로 보여준다(동일하면 중복 표시 방지).
   const showOriginalPrompt = Boolean(
     trimmedPrompt && trimmedPrompt !== targetingPrompt,
@@ -1210,6 +1212,21 @@ export function StepTargeting({
                 <p className="mt-1 whitespace-pre-wrap break-words text-sm text-foreground">
                   {targetingPrompt}
                 </p>
+                {/* 오타 교정은 시스템이 사용자의 문장을 바꾼 것이다. 그 사실을 여기서 말하지
+                    않으면 사용자는 자기가 쓴 문장과 다른 조건으로 만들어진 결과를 보게 된다. */}
+                {typoCorrections.length > 0 && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    오타 교정:{" "}
+                    {typoCorrections.map((correction) => (
+                      <span
+                        key={correction}
+                        className="mr-2 inline-block rounded bg-primary/10 px-1.5 py-0.5 font-medium text-primary"
+                      >
+                        {correction.replace("->", "→")}
+                      </span>
+                    ))}
+                  </p>
+                )}
                 {(showOriginalPrompt || channel) && (
                   <div className="mt-3 border-t border-border/60 pt-3">
                     <div className="flex items-center gap-2">
