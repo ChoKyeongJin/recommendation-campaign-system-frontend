@@ -550,7 +550,7 @@ export function ClarificationPanel({
               : "추가로 설명해 주셔도 이 조건은 현재 실행 자산으로 만들 수 없습니다. 조건을 바꾸거나 나눠서 요청해 주세요."}
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col gap-2">
+        <CardContent className="flex flex-col gap-3">
           {unsupported.map((issue, index) => (
             <p
               key={`${issue.kind}-${index}`}
@@ -564,6 +564,14 @@ export function ClarificationPanel({
               )}
             </p>
           ))}
+          {/* 미지원으로 닫힌 화면이야말로 사용자가 다음 문장을 손으로 적어야 하는 자리다.
+              고른 문장이 같은 미지원으로 다시 끝날 수 있고, 그 사실은 보기 자신의 문구가
+              적는다("결과는 보장되지 않습니다"). */}
+          <AlternativeList
+            alternatives={alternatives}
+            onPick={onPickAlternative}
+            disabled={isSubmitting}
+          />
         </CardContent>
       </Card>
     );
