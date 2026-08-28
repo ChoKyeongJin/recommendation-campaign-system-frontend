@@ -5,7 +5,9 @@ import {
   type ClarificationAnswer,
   type ClarificationOption,
   type ClarificationQuestion,
+  type ResolutionAlternative,
   type ResolutionAssumption,
+  type ResolutionRewriteOption,
   type ResolutionUnsupported,
   type TargetSegment,
   type TargetSegmentGroup,
@@ -26,6 +28,17 @@ function isChannel(value: unknown): value is Channel {
 
 function getPromptForPython(prompt: string, channel: Channel) {
   return `${prompt.trim()}\n발송 채널: ${channel} (${channelDescriptions[channel]})`;
+}
+
+/**
+ * 파이썬이 돌려준 문장에서 **이 라우트가 붙인** 발송 채널 줄을 뗀다.
+ *
+ * 파이썬은 API 입력 문장(=채널 줄이 붙은 원문)을 기준으로 보기 문장을 만든다. 그것을 그대로
+ * 프롬프트 입력란에 넣으면 다음 요청에서 채널 줄이 두 번 붙는다. 붙인 쪽이 떼는 것이 옳다 —
+ * 무엇을 붙였는지 아는 계층이 여기뿐이기 때문이다.
+ */
+function stripChannelSuffix(prompt: string) {
+  return prompt.replace(/\s*발송\s*채널\s*:[\s\S]*$/, "").trim();
 }
 
 function asRecord(value: unknown) {
@@ -818,6 +831,42 @@ function getResolutionFromPythonResponse(data: unknown): TargetingResolution | n
     },
   );
 
+  // 확정된 자리를 다르게 돌려 보는 요청 문장 보기. 되묻기와 달리 issueId 를 되보내지 않고
+  // 문장 자체를 새 요청으로 보낸다 — 값이 문장에 명시돼 있어 그 자리가 다시 비지 않는다.
+  const alternatives: ResolutionAlternative[] = getArrayValue(record, "alternatives").flatMap(
+    (entry) => {
+      const alternative = asRecord(entry);
+      const slot = getStringValue(alternative, ["slot"]);
+      const options: ResolutionRewriteOption[] = getArrayValue(alternative, "options").flatMap(
+        (item) => {
+          const option = asRecord(item);
+          const optionId = getStringValue(option, ["option_id"]);
+          const label = getStringValue(option, ["label"]);
+          const query = stripChannelSuffix(getStringValue(option, ["query"]));
+          if (!optionId || !label || !query) {
+            return [];
+          }
+          return [{ optionId, label, query, selected: option?.selected === true }];
+        },
+      );
+      // 고를 것이 하나뿐이면 보기가 아니다. 백엔드도 같은 판정을 하지만, 채널 줄을 떼다가
+      // 두 문장이 같아지는 경우는 여기서만 보인다.
+      const distinctQueries = new Set(options.map((option) => option.query));
+      if (!slot || options.length < 2 || distinctQueries.size < 2) {
+        return [];
+      }
+      return [
+        {
+          slot,
+          code: getStringValue(alternative, ["code"]),
+          reason: getStringValue(alternative, ["reason"]),
+          evidenceText: getStringValue(alternative, ["evidence_text"]),
+          options,
+        },
+      ];
+    },
+  );
+
   const unsupported: ResolutionUnsupported[] = getArrayValue(record, "unsupported").flatMap(
     (entry) => {
       const issue = asRecord(entry);
@@ -836,6 +885,7 @@ function getResolutionFromPythonResponse(data: unknown): TargetingResolution | n
     mode: getStringValue(record, ["mode"]),
     assumptions,
     questions,
+    alternatives,
     deferredQuestionCount:
       getNumberValue(record, ["deferred_question_count"]) ?? 0,
     unsupported,

@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, HelpCircle, Info, Lock, RotateCcw } from "lucide-react";
+import {
+  CheckCircle2,
+  HelpCircle,
+  Info,
+  Lock,
+  RotateCcw,
+  SlidersHorizontal,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,6 +22,7 @@ import {
 import type {
   ClarificationAnswer,
   ClarificationQuestion,
+  ResolutionAlternative,
   ResolutionAssumption,
   TargetingResolution,
 } from "@/lib/campaign-data";
@@ -26,6 +34,7 @@ import type {
  *
  *   질문   결과가 크게 달라지는 모호성 — 답해야 SQL 이 나간다.
  *   가정   사용자가 말하지 않았지만 정책이 채운 값 — 답한 것과 구분해서 보여준다.
+ *   보기   그 가정을 다르게 둔 **요청 문장들** — 묻지 않고 고르게 한다.
  *   미지원 사용자가 답해도 열리지 않는 조건 — 입력을 요구하지 않는다.
  *
  * 답은 원문에 이어 붙이지 않는다. issueId 를 그대로 백엔드에 돌려주면 백엔드가 그 결핍이
@@ -191,6 +200,77 @@ function AssumptionList({ assumptions }: { assumptions: ResolutionAssumption[] }
   );
 }
 
+/**
+ * 확정된 자리를 다르게 돌려 보는 **요청 문장 보기**.
+ *
+ * 되묻기 질문과 생김새는 비슷하지만 성격이 다르다. 질문은 답해야 SQL 이 나가고, 이것은 이미
+ * 나간 SQL 옆에서 "이렇게도 돌릴 수 있다"고 말한다. 그래서 아무것도 고르지 않아도 결과는
+ * 그대로 유효하고, 고르면 그 문장이 **새 요청**이 된다(답을 되보내는 것이 아니다).
+ */
+function AlternativeList({
+  alternatives,
+  onPick,
+  disabled = false,
+}: {
+  alternatives: ResolutionAlternative[];
+  onPick?: (query: string) => void | Promise<void>;
+  disabled?: boolean;
+}) {
+  if (alternatives.length === 0 || !onPick) {
+    return null;
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      {alternatives.map((alternative) => (
+        <div
+          key={`${alternative.code}:${alternative.slot}`}
+          className="flex flex-col gap-2 rounded-lg border border-border bg-background p-3"
+        >
+          <div className="flex items-start gap-2">
+            <SlidersHorizontal
+              className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
+              aria-hidden
+            />
+            <div className="flex flex-col gap-0.5">
+              <p className="text-xs font-medium text-foreground">
+                {alternative.evidenceText
+                  ? `‘${alternative.evidenceText}’를 다르게 잡아 볼 수 있습니다`
+                  : "이 조건을 다르게 잡아 볼 수 있습니다"}
+              </p>
+              <p className="text-[11px] text-muted-foreground">{alternative.reason}</p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-1.5">
+            {alternative.options.map((option) => (
+              <Button
+                key={option.optionId}
+                type="button"
+                size="sm"
+                variant={option.selected ? "secondary" : "outline"}
+                disabled={disabled || option.selected}
+                title={option.query}
+                onClick={() => onPick(option.query)}
+                className="h-7 px-2.5 text-xs font-normal"
+              >
+                {option.label}
+                {option.selected && (
+                  <span className="ml-1 text-[10px] text-muted-foreground">지금</span>
+                )}
+              </Button>
+            ))}
+          </div>
+
+          <p className="text-[11px] text-muted-foreground/80">
+            고르면 그 조건을 문장에 넣어 다시 추출합니다. 지금 결과는 그대로 유효합니다.
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function QuestionCard({
   question,
   index,
@@ -310,12 +390,18 @@ function QuestionCard({
 export function ClarificationPanel({
   resolution,
   onSubmit,
+  onPickAlternative,
   isSubmitting = false,
   previousAnswers = NO_ANSWERS,
 }: {
   resolution: TargetingResolution;
   /** 답을 모아 타겟팅을 다시 실행한다. 프롬프트는 그대로다. */
   onSubmit?: (answers: ClarificationAnswer[]) => void | Promise<void>;
+  /**
+   * 보기 문장 하나를 골랐다. **프롬프트 자체를 그 문장으로 바꿔** 다시 실행한다 —
+   * 되묻기 답변과 달리 값이 문장에 명시돼 있으므로 지금까지의 답은 함께 보내지 않는다.
+   */
+  onPickAlternative?: (query: string) => void | Promise<void>;
   isSubmitting?: boolean;
   /** 직전 라운드까지 사용자가 답한 값들 (재질문 판별·이력 표시용). */
   previousAnswers?: ClarificationAnswer[];
@@ -323,6 +409,10 @@ export function ClarificationPanel({
   const questions = useMemo(
     () => resolution.questions ?? [],
     [resolution.questions],
+  );
+  const alternatives = useMemo(
+    () => resolution.alternatives ?? [],
+    [resolution.alternatives],
   );
   const [answers, setAnswers] = useState<Record<string, ClarificationAnswer>>({});
 
@@ -446,8 +536,13 @@ export function ClarificationPanel({
   }
 
   if (questions.length === 0) {
-    // 질문이 없으면 확정된 요청이다. 정책이 채운 값 또는 사용자가 답한 값이 있을 때만 알린다.
-    if (resolution.assumptions.length === 0 && settledAnswers.length === 0) {
+    // 질문이 없으면 확정된 요청이다. 정책이 채운 값·사용자가 답한 값·되돌릴 보기 중
+    // 하나라도 있을 때만 알린다.
+    if (
+      resolution.assumptions.length === 0 &&
+      settledAnswers.length === 0 &&
+      alternatives.length === 0
+    ) {
       return null;
     }
     return (
@@ -466,6 +561,11 @@ export function ClarificationPanel({
         <CardContent className="flex flex-col gap-3">
           <AnsweredList answers={settledAnswers} />
           <AssumptionList assumptions={resolution.assumptions} />
+          <AlternativeList
+            alternatives={alternatives}
+            onPick={onPickAlternative}
+            disabled={isSubmitting}
+          />
         </CardContent>
       </Card>
     );
@@ -489,6 +589,11 @@ export function ClarificationPanel({
       <CardContent className="flex flex-col gap-4">
         <AnsweredList answers={settledAnswers} />
         <AssumptionList assumptions={resolution.assumptions} />
+        <AlternativeList
+          alternatives={alternatives}
+          onPick={onPickAlternative}
+          disabled={isSubmitting}
+        />
 
         <div className="flex flex-col gap-3">
           {questions.map((question, index) => (

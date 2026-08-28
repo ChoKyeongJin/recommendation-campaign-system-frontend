@@ -177,6 +177,34 @@ export type ResolutionAssumption = {
   evidenceText?: string;
 };
 
+/**
+ * 확정된 자리를 다르게 돌리는 **요청 문장** 하나.
+ *
+ * 되묻기 선택지(ClarificationOption)와 다르다. 되묻기는 의미 슬롯 하나를 채우는 답을
+ * issueId 로 돌려보내지만, 이것은 완성된 문장이라 **그대로 새 요청으로 보내면 된다** —
+ * 값이 문장에 명시돼 있어 다음 실행에서 그 자리가 다시 비지 않는다.
+ */
+export type ResolutionRewriteOption = {
+  optionId: string;
+  /** 사람이 읽는 값 표기 (예: "7일") */
+  label: string;
+  /** 이 보기를 고르면 그대로 다시 보낼 요청 문장 */
+  query: string;
+  /** 이번 실행이 실제로 쓴 값인가 */
+  selected: boolean;
+};
+
+/** 원문이 정하지 않아 시스템이 확정한 자리 하나 + 그 자리의 보기들. */
+export type ResolutionAlternative = {
+  slot: string;
+  code: string;
+  /** 왜 시스템이 값을 채웠는지 (사용자에게 보이는 문장) */
+  reason: string;
+  /** 원문에서 이 자리를 가리키는 문구 (예: "최근") */
+  evidenceText: string;
+  options: ResolutionRewriteOption[];
+};
+
 /** 미지원으로 닫힌 조건 하나(사용자가 답해도 열리지 않는다). */
 export type ResolutionUnsupported = {
   kind: string;
@@ -193,6 +221,8 @@ export type TargetingResolution = {
   mode: string;
   assumptions: ResolutionAssumption[];
   questions: ClarificationQuestion[];
+  /** 확정된 자리를 다르게 돌려 보는 요청 문장 보기 (되묻지 않고 고르게 한다) */
+  alternatives: ResolutionAlternative[];
   /** 질문 수 상한 때문에 이번에 보여주지 않은 질문 수 */
   deferredQuestionCount?: number;
   unsupported?: ResolutionUnsupported[];

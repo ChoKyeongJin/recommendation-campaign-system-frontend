@@ -127,8 +127,13 @@ export function CampaignWizard() {
    * 타겟팅 추출. `clarificationAnswers` 는 되묻기 답변이며 **프롬프트를 바꾸지 않는다** —
    * 백엔드가 각 답이 가리키는 의미 슬롯 하나만 확정하고 나머지 조건은 그대로 둔다.
    */
-  const runTargeting = async (newAnswers: ClarificationAnswer[] = []) => {
-    const trimmedPrompt = prompt.trim();
+  const runTargeting = async (
+    newAnswers: ClarificationAnswer[] = [],
+    overridePrompt?: string,
+  ) => {
+    // 보기를 고른 경우에만 프롬프트가 바뀐다. setPrompt 는 비동기라 이번 실행에서 바로 읽을
+    // 수 없으므로, 실행에 쓸 문장을 인자로 함께 받는다.
+    const trimmedPrompt = (overridePrompt ?? prompt).trim();
     if (!trimmedPrompt) {
       return;
     }
@@ -194,6 +199,23 @@ export function CampaignWizard() {
   };
 
   const analyzeTargeting = () => runTargeting();
+
+  /**
+   * 보기 문장 하나를 골랐다.
+   *
+   * 되묻기 답변과 근본적으로 다르다. 답변은 프롬프트를 그대로 두고 의미 슬롯 하나만 고치지만,
+   * 보기는 **프롬프트 자체가 그 문장으로 바뀐다** — 값이 문장에 명시돼 있으므로 그 자리가
+   * 다시 비지 않고, 지금까지 쌓인 답을 함께 보낼 이유도 없다(그래서 답을 비운다).
+   * 입력란도 함께 갱신해, 사용자가 다음에 보는 문장과 방금 실행한 문장이 갈리지 않게 한다.
+   */
+  const pickAlternative = (query: string) => {
+    const trimmed = query.trim();
+    if (!trimmed || trimmed === prompt.trim()) {
+      return;
+    }
+    updatePrompt(trimmed);
+    return runTargeting([], trimmed);
+  };
 
   const recommendMessages = async () => {
     const trimmedPrompt = prompt.trim();
@@ -386,7 +408,8 @@ export function CampaignWizard() {
           isNextLoading={isGeneratingMessages}
           nextError={messageError}
           onClarify={runTargeting}
-          isClarifying={isClarifying}
+          onPickAlternative={pickAlternative}
+          isClarifying={isClarifying || isAnalyzing}
           clarificationAnswers={clarificationAnswers}
         />
       )}

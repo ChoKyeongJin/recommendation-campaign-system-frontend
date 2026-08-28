@@ -1137,6 +1137,9 @@ function FailureExplanationNotice({
   );
 }
 
+/** props 기본값용 안정 참조. 리터럴을 기본값으로 쓰면 매 렌더마다 새 배열이 된다. */
+const NO_CLARIFICATION_ANSWERS: ClarificationAnswer[] = [];
+
 export function StepTargeting({
   result,
   prompt,
@@ -1145,6 +1148,10 @@ export function StepTargeting({
   onNext,
   isNextLoading = false,
   nextError = null,
+  onClarify,
+  onPickAlternative,
+  isClarifying = false,
+  clarificationAnswers = NO_CLARIFICATION_ANSWERS,
 }: {
   result: TargetingResult;
   prompt?: string;
@@ -1153,6 +1160,12 @@ export function StepTargeting({
   onNext: () => void | Promise<void>;
   isNextLoading?: boolean;
   nextError?: string | null;
+  /** 되묻기 답을 모아 다시 추출한다(프롬프트는 그대로). */
+  onClarify?: (answers: ClarificationAnswer[]) => void | Promise<void>;
+  /** 보기 문장을 골랐다 — 프롬프트를 그 문장으로 바꿔 다시 추출한다. */
+  onPickAlternative?: (query: string) => void | Promise<void>;
+  isClarifying?: boolean;
+  clarificationAnswers?: ClarificationAnswer[];
 }) {
   const trimmedPrompt = prompt?.trim();
   const normalizedPrompt = result.normalizedPrompt?.trim();
@@ -1249,6 +1262,19 @@ export function StepTargeting({
                 )}
               </div>
             </div>
+          )}
+
+          {/* 확정 계층 패널 — 시스템이 채운 값과 그것을 다르게 둔 요청 문장 보기.
+              프롬프트 바로 아래에 두는 이유는, 사용자가 SQL 을 읽기 전에 "무엇으로 돌았는지"를
+              먼저 알아야 하기 때문이다. */}
+          {result.resolution && (
+            <ClarificationPanel
+              resolution={result.resolution}
+              onSubmit={onClarify}
+              onPickAlternative={onPickAlternative}
+              isSubmitting={isClarifying}
+              previousAnswers={clarificationAnswers}
+            />
           )}
 
           {/* 실패(failureStage)면 실행되지 않았으므로 "생성된 SQL(미실행)"로, 성공이면 "실행된 SQL"로 라벨링한다. */}
