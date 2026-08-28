@@ -238,7 +238,11 @@ function AlternativeList({
 
   return (
     <div className="flex flex-col gap-3">
-      {alternatives.map((alternative) => (
+      {alternatives.map((alternative) => {
+        // 실행된 값이 있는가(= '지금' 으로 표시할 보기가 있는가). 없으면 이 요청은 그 자리를
+        // 해석하지 못한 것이고, "지금 결과는 그대로 유효합니다" 는 없는 결과를 가리키게 된다.
+        const hasCurrent = alternative.options.some((option) => option.selected);
+        return (
         <div
           key={`${alternative.code}:${alternative.slot}`}
           className="flex flex-col gap-2 rounded-lg border border-border bg-background p-3"
@@ -253,8 +257,10 @@ function AlternativeList({
                 {alternative.evidenceText
                   ? `‘${alternative.evidenceText}’${objectParticle(
                       alternative.evidenceText,
-                    )} 다르게 잡아 볼 수 있습니다`
-                  : "이 조건을 다르게 잡아 볼 수 있습니다"}
+                    )} ${hasCurrent ? "다르게 잡아 볼 수 있습니다" : "이렇게 바꿔 요청할 수 있습니다"}`
+                  : hasCurrent
+                    ? "이 조건을 다르게 잡아 볼 수 있습니다"
+                    : "이 조건을 이렇게 바꿔 요청할 수 있습니다"}
               </p>
               <p className="text-[11px] text-muted-foreground">{alternative.reason}</p>
             </div>
@@ -281,10 +287,13 @@ function AlternativeList({
           </div>
 
           <p className="text-[11px] text-muted-foreground/80">
-            고르면 그 조건을 문장에 넣어 다시 추출합니다. 지금 결과는 그대로 유효합니다.
+            {hasCurrent
+              ? "고르면 그 조건을 문장에 넣어 다시 추출합니다. 지금 결과는 그대로 유효합니다."
+              : "고르면 그 표현을 구체적인 조건으로 바꿔 다시 요청합니다. 결과는 보장되지 않습니다."}
           </p>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
