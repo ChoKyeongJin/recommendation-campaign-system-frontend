@@ -522,6 +522,12 @@ export function ClarificationPanel({
     if (unsupported.length === 0) {
       return null;
     }
+    // 주체 미지원은 "조건을 나눠서" 로 열리지 않는다 — 이 시스템이 뽑는 것은 고객이고,
+    // 상품·매장 같은 다른 대상을 행으로 내는 질의는 조건을 어떻게 써도 만들어지지 않는다.
+    // 그 자리에 일반 안내를 얹으면 백엔드가 이미 정확히 적어 둔 설명과 어긋난다.
+    const subjectOnly = unsupported.every(
+      (issue) => issue.kind === "unsupported_subject",
+    );
     return (
       <Card className="border-destructive/40">
         <CardHeader>
@@ -530,8 +536,9 @@ export function ClarificationPanel({
             지원하지 않는 조건
           </CardTitle>
           <CardDescription>
-            추가로 설명해 주셔도 이 조건은 현재 실행 자산으로 만들 수 없습니다. 조건을
-            바꾸거나 나눠서 요청해 주세요.
+            {subjectOnly
+              ? "이 요청이 찾는 대상은 지금 추출할 수 없습니다. 아래 설명대로 대상을 바꿔 다시 요청해 주세요."
+              : "추가로 설명해 주셔도 이 조건은 현재 실행 자산으로 만들 수 없습니다. 조건을 바꾸거나 나눠서 요청해 주세요."}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
