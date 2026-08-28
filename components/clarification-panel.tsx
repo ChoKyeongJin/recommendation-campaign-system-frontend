@@ -201,6 +201,22 @@ function AssumptionList({ assumptions }: { assumptions: ResolutionAssumption[] }
 }
 
 /**
+ * 목적격 조사 — 받침이 있으면 '을', 없으면 '를'.
+ *
+ * 근거 문구는 축마다 다르다('최근'은 받침이 있고 '20만원 이상 구매'는 없다). 한쪽으로 고정하면
+ * 한 축의 문장이 늘 틀린 조사를 달고 나온다.
+ */
+function objectParticle(word: string) {
+  const last = word.trim().slice(-1);
+  const code = last.charCodeAt(0);
+  if (Number.isNaN(code) || code < 0xac00 || code > 0xd7a3) {
+    // 한글 음절이 아니면(숫자·영문·기호) 받침 유무를 판정할 수 없다 — 덜 어색한 쪽을 쓴다.
+    return "를";
+  }
+  return (code - 0xac00) % 28 === 0 ? "를" : "을";
+}
+
+/**
  * 확정된 자리를 다르게 돌려 보는 **요청 문장 보기**.
  *
  * 되묻기 질문과 생김새는 비슷하지만 성격이 다르다. 질문은 답해야 SQL 이 나가고, 이것은 이미
@@ -235,7 +251,9 @@ function AlternativeList({
             <div className="flex flex-col gap-0.5">
               <p className="text-xs font-medium text-foreground">
                 {alternative.evidenceText
-                  ? `‘${alternative.evidenceText}’를 다르게 잡아 볼 수 있습니다`
+                  ? `‘${alternative.evidenceText}’${objectParticle(
+                      alternative.evidenceText,
+                    )} 다르게 잡아 볼 수 있습니다`
                   : "이 조건을 다르게 잡아 볼 수 있습니다"}
               </p>
               <p className="text-[11px] text-muted-foreground">{alternative.reason}</p>
