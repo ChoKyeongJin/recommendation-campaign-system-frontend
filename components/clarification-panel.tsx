@@ -26,6 +26,7 @@ import type {
   ResolutionAssumption,
   TargetingResolution,
 } from "@/lib/campaign-data";
+import { buildClarificationSubmission } from "@/lib/clarification-submission";
 
 /**
  * 확정 계층(Resolution) 패널.
@@ -442,6 +443,7 @@ export function ClarificationPanel({
     [resolution.alternatives],
   );
   const [answers, setAnswers] = useState<Record<string, ClarificationAnswer>>({});
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
 
   // 이번 라운드 질문 ↔ 직전 답 매칭. 슬롯이 같으면 같은 결핍을 다시 묻는 것이다.
   const previousByIssueId = useMemo(() => {
@@ -508,6 +510,7 @@ export function ClarificationPanel({
     }
 
     setAnswers(seeded);
+    setSubmissionError(null);
     // questionKey 로 라운드 전환을 감지한다(같은 라운드에서 리렌더될 때 입력이 날아가면 안 된다).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [questionKey]);
@@ -665,26 +668,49 @@ export function ClarificationPanel({
         )}
 
         {onSubmit && (
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-xs text-muted-foreground">
-              {answered}/{questions.length} 선택됨
-            </p>
-            <Button
-              type="button"
-              disabled={!canSubmit}
-              onClick={() =>
-                onSubmit(
-                  Object.values(answers)
+          <div className="flex flex-col gap-2">
+            {submissionError && (
+              <p role="alert" className="text-xs text-destructive">
+                {submissionError}
+              </p>
+            )}
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs text-muted-foreground">
+                {answered}/{questions.length} 선택됨
+              </p>
+              <Button
+                type="button"
+                disabled={!canSubmit}
+                onClick={() => {
+                  const selectedAnswers = Object.values(answers)
                     .map((answer) => ({
                       ...answer,
                       ...(answer.text ? { text: answer.text.trim() } : {}),
                     }))
-                    .filter((answer) => answer.optionId || answer.text),
-                )
-              }
-            >
-              {isSubmitting ? "다시 추출하는 중..." : "이 조건으로 다시 추출"}
-            </Button>
+                    .filter((answer) => answer.optionId || answer.text);
+                  const submission = buildClarificationSubmission(
+                    questions,
+                    selectedAnswers,
+                  );
+                  if (submission.kind === "invalid") {
+                    setSubmissionError(submission.message);
+                    return;
+                  }
+                  setSubmissionError(null);
+                  if (submission.kind === "rewrite") {
+                    if (!onPickAlternative) {
+                      setSubmissionError("선택한 조건을 다시 실행할 수 없습니다.");
+                      return;
+                    }
+                    void onPickAlternative(submission.query);
+                    return;
+                  }
+                  void onSubmit(submission.answers);
+                }}
+              >
+                {isSubmitting ? "다시 추출하는 중..." : "이 조건으로 다시 추출"}
+              </Button>
+            </div>
           </div>
         )}
       </CardContent>

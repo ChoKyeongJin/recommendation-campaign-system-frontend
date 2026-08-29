@@ -139,17 +139,18 @@ export type TargetingFailureExplanation = {
   developerDiagnostic: Record<string, unknown> | null;
 };
 
-/** 되묻기 질문의 선택지 하나. 값(value)은 백엔드가 슬롯에 넣는 canonical 값이다. */
+/** 되묻기 질문의 선택지 하나. 재서술형 질문은 완성 요청 문장(query)도 함께 받는다. */
 export type ClarificationOption = {
   id: string;
   label: string;
+  /** answerShape=restatement일 때 이 선택으로 다시 실행할 완성 요청 문장 */
+  query?: string;
 };
 
 /**
  * 백엔드 확정 계층(Resolution)이 만든 되묻기 질문 하나.
  *
- * 답할 때는 issueId 를 그대로 돌려준다 — 답을 프롬프트에 이어 붙이지 않는다.
- * 백엔드는 그 결핍이 가리키는 의미 슬롯 하나만 고친다.
+ * slot_fill은 issueId를 그대로 돌려주고, restatement는 선택지의 완성 문장을 새 요청으로 보낸다.
  */
 export type ClarificationQuestion = {
   questionId: string;
@@ -165,6 +166,8 @@ export type ClarificationQuestion = {
   entityType?: string | null;
   /** 이 질문이 가리키는 원문 구간 */
   evidenceText?: string;
+  /** 슬롯 값 응답인지, 완성 요청 문장으로 다시 실행해야 하는지 */
+  answerShape: "slot_fill" | "restatement";
 };
 
 /** 사용자가 말하지 않았지만 운영 정책이 채운 의미 하나의 영수증. */

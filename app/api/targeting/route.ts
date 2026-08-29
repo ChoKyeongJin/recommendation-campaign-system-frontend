@@ -787,12 +787,25 @@ function getResolutionFromPythonResponse(data: unknown): TargetingResolution | n
         return [];
       }
 
+      const answerShape =
+        getStringValue(question, ["answer_shape"]) === "restatement"
+          ? "restatement"
+          : "slot_fill";
+
       const options: ClarificationOption[] = getArrayValue(question, "options").flatMap(
         (item) => {
           const option = asRecord(item);
           const id = getStringValue(option, ["id"]);
           const label = getStringValue(option, ["label"]);
-          return id && label ? [{ id, label }] : [];
+          if (!id || !label) {
+            return [];
+          }
+          const value = option?.value;
+          const query =
+            answerShape === "restatement" && typeof value === "string"
+              ? stripChannelSuffix(value)
+              : "";
+          return [{ id, label, ...(query ? { query } : {}) }];
         },
       );
 
@@ -807,6 +820,7 @@ function getResolutionFromPythonResponse(data: unknown): TargetingResolution | n
           allowFreeText: question?.allow_free_text === true,
           entityType: getStringValue(question, ["entity_type"]) || null,
           evidenceText: getEvidenceText(question),
+          answerShape,
         },
       ];
     },
