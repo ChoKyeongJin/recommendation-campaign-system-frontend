@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { JsonTree, computeJsonSearch } from "@/components/json-tree";
 import { SqlHighlight } from "@/components/sql-highlight";
+import { copyTextToClipboard } from "@/lib/clipboard";
 
 // 백엔드 /reference-files 응답 형태.
 type ReferenceFile = {
@@ -65,7 +66,9 @@ export function ReferenceViewer() {
   const [detail, setDetail] = useState<ReferenceFileDetail | null>(null);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [copyStatus, setCopyStatus] = useState<
+    "idle" | "copied" | "failed"
+  >("idle");
 
   const loadFiles = useCallback(async () => {
     setIsLoadingList(true);
@@ -99,7 +102,7 @@ export function ReferenceViewer() {
     setSelected(file);
     setDetail(null);
     setDetailError(null);
-    setCopied(false);
+    setCopyStatus("idle");
     setIsLoadingDetail(true);
     try {
       const response = await fetch(
@@ -130,13 +133,9 @@ export function ReferenceViewer() {
     if (!detail) {
       return;
     }
-    try {
-      await navigator.clipboard.writeText(detail.content);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // 클립보드 권한이 없어도 화면 열람에는 영향 없음.
-    }
+    const copied = await copyTextToClipboard(detail.content);
+    setCopyStatus(copied ? "copied" : "failed");
+    setTimeout(() => setCopyStatus("idle"), 2000);
   };
 
   const filtered = useMemo(() => {
@@ -172,7 +171,7 @@ export function ReferenceViewer() {
         detail={detail}
         isLoading={isLoadingDetail}
         error={detailError}
-        copied={copied}
+        copyStatus={copyStatus}
         onBack={backToList}
         onCopy={handleCopy}
         onRetry={() => openFile(selected)}
@@ -303,7 +302,7 @@ type DetailViewProps = {
   detail: ReferenceFileDetail | null;
   isLoading: boolean;
   error: string | null;
-  copied: boolean;
+  copyStatus: "idle" | "copied" | "failed";
   onBack: () => void;
   onCopy: () => void;
   onRetry: () => void;
@@ -314,7 +313,7 @@ function DetailView({
   detail,
   isLoading,
   error,
-  copied,
+  copyStatus,
   onBack,
   onCopy,
   onRetry,
@@ -340,9 +339,14 @@ function DetailView({
           size="sm"
           onClick={onCopy}
           disabled={!detail}
+          aria-live="polite"
         >
           <Copy className="h-3.5 w-3.5" aria-hidden />
-          {copied ? "복사됨" : "본문 복사"}
+          {copyStatus === "copied"
+            ? "복사됨"
+            : copyStatus === "failed"
+              ? "복사 실패"
+              : "본문 복사"}
         </Button>
       </div>
 

@@ -974,6 +974,69 @@ runtime/sql + schema
     });
   });
 
+  function copyWithExecCommand(text){
+    var textarea = null;
+    var previouslyFocused = null;
+    try {
+      if (!document.body || typeof document.execCommand !== 'function') { return false; }
+      textarea = document.createElement('textarea');
+      previouslyFocused = document.activeElement;
+      textarea.value = text;
+      textarea.setAttribute('readonly', '');
+      textarea.setAttribute('aria-hidden', 'true');
+      textarea.style.position = 'fixed';
+      textarea.style.top = '0';
+      textarea.style.left = '-9999px';
+      textarea.style.width = '1px';
+      textarea.style.height = '1px';
+      textarea.style.fontSize = '16px';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      textarea.setSelectionRange(0, textarea.value.length);
+      return document.execCommand('copy');
+    } catch (error) {
+      return false;
+    } finally {
+      try {
+        if (textarea && textarea.parentNode) { textarea.parentNode.removeChild(textarea); }
+      } catch (error) { /* 정리 실패는 복사 결과에 영향을 주지 않는다. */ }
+      try {
+        if (previouslyFocused && typeof previouslyFocused.focus === 'function') {
+          previouslyFocused.focus({ preventScroll: true });
+        }
+      } catch (error) {
+        try {
+          if (previouslyFocused && typeof previouslyFocused.focus === 'function') {
+            previouslyFocused.focus();
+          }
+        } catch (focusError) { /* 포커스 복원은 최선으로 시도한다. */ }
+      }
+    }
+  }
+
+  function copyText(text){
+    /* 비동기 경계 전에 실행해야 Safari/WKWebView에서도 클릭 권한이 유지된다. */
+    try {
+      var legacyClipboard = window.clipboardData;
+      if (legacyClipboard && legacyClipboard.setData('Text', text)) {
+        return Promise.resolve(true);
+      }
+    } catch (error) { /* execCommand로 다시 시도한다. */ }
+
+    if (copyWithExecCommand(text)) { return Promise.resolve(true); }
+
+    try {
+      if (window.isSecureContext !== false && navigator.clipboard && navigator.clipboard.writeText) {
+        return navigator.clipboard.writeText(text).then(function(){ return true; }, function(){ return false; });
+      }
+    } catch (error) {
+      return Promise.resolve(false);
+    }
+    return Promise.resolve(false);
+  }
+
   btnCopy.addEventListener('click', function(){
     if (!current || !current.detail) { return; }
     var text = current.detail.content || '';
@@ -982,9 +1045,15 @@ runtime/sql + schema
       clearTimeout(copyTimer);
       copyTimer = setTimeout(function(){ btnCopy.textContent = '본문 복사'; }, 1600);
     };
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(done, function(){ /* 권한 없으면 열람만 */ });
-    }
+    var failed = function(){
+      btnCopy.textContent = '복사 실패';
+      clearTimeout(copyTimer);
+      copyTimer = setTimeout(function(){ btnCopy.textContent = '본문 복사'; }, 1600);
+    };
+    copyText(text).then(function(copied){
+      if (copied) { done(); }
+      else { failed(); }
+    }, failed);
   });
 
   /* ── JSON 접이식 트리 ───────────────────────────────────────── */

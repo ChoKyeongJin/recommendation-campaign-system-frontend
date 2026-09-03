@@ -26,6 +26,7 @@ import {
   buildReinforcementHints,
   type ReinforcementHint,
 } from "@/lib/targeting-hints";
+import { copyTextToClipboard } from "@/lib/clipboard";
 import type {
   Channel,
   ClarificationAnswer,
@@ -44,25 +45,31 @@ const DEFAULT_VISIBLE_SEGMENTS = 6;
 
 // 코드 블록 우상단에 얹는 복사 버튼. 복사 성공 시 잠깐 체크 아이콘으로 바뀐다.
 function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
+  const [copyStatus, setCopyStatus] = useState<
+    "idle" | "copied" | "failed"
+  >("idle");
 
   const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      // 클립보드 접근 실패 시 조용히 무시한다.
-    }
+    const copied = await copyTextToClipboard(text);
+    setCopyStatus(copied ? "copied" : "failed");
+    setTimeout(() => setCopyStatus("idle"), 1500);
   };
+
+  const copied = copyStatus === "copied";
+  const label = copied
+    ? "복사됨"
+    : copyStatus === "failed"
+      ? "복사 실패"
+      : "쿼리 복사";
 
   return (
     <button
       type="button"
       onClick={handleCopy}
-      aria-label={copied ? "복사됨" : "쿼리 복사"}
-      title={copied ? "복사됨" : "쿼리 복사"}
-      className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-md bg-background/10 px-2 py-1 text-xs text-background transition-colors hover:bg-background/20"
+      aria-label={label}
+      aria-live="polite"
+      title={label}
+      className="absolute right-2 top-2 z-10 inline-flex items-center gap-1 rounded-md bg-background/10 px-2 py-1 text-xs text-background transition-colors hover:bg-background/20"
     >
       {copied ? (
         <>
@@ -72,7 +79,7 @@ function CopyButton({ text }: { text: string }) {
       ) : (
         <>
           <Copy className="h-3.5 w-3.5" />
-          복사
+          {copyStatus === "failed" ? "복사 실패" : "복사"}
         </>
       )}
     </button>
