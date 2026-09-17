@@ -15,9 +15,17 @@ import { cn } from "@/lib/utils";
 import type { Channel } from "@/lib/campaign-data";
 
 const EXAMPLES = [
-  "장바구니에 상품을 담고 결제하지 않은 고객에게 재구매를 유도하고 싶어요",
-  "6개월 이상 접속하지 않은 휴면 고객을 다시 활성화하고 싶어요",
-  "VIP 등급 고객에게 신제품 출시 소식을 알리고 싶어요",
+  "2026년 2월보다 3월 구매금액이 감소한 고객 리스트를 추출해줘",
+  "2026년 1월, 2월, 3월에 모두 구매한 고객 리스트를 추출해줘",
+  "2026년 3월 판매량 상위 10개 상품 중 하나 이상을 구매한 고객 리스트를 추출해줘",
+  "2026년 2월보다 3월 구매금액이 감소한 고객 리스트를 추출해줘",
+  "2026년 3월 판매량 상위 5개 상품 중 하나 이상을 구매한 고객 리스트를 추출해줘",
+  "30대 여성 고객 중 재구매 가능성이 낮은 고객 리스트를 추출해줘",
+  "2026년 3월 구매 고객 중 구매금액이 높은 고객 리스트를 추출해줘",
+  "2026년에 전환율이 높은 캠페인 상위 3개에 참여한 고객 리스트를 추출해줘",
+  "2026년 3월 판매량 상위 10개 상품을 구매하지 않았지만 같은 카테고리 상품을 구매한 고객 리스트를 추출해줘",
+  "불만 접수 또는 부정적인 피드백이 많은 VIP 고객 리스트를 추출해줘",
+  "2026년 2월 또는 3월에 진행된 캠페인에 참여했지만 구매까지 전환되지 않은 고객 리스트를 추출해줘",
 ];
 
 const CHANNELS: {
@@ -77,9 +85,9 @@ export function StepPrompt({
             className="min-h-32 resize-none"
           />
           <div className="flex flex-wrap gap-2 pt-1">
-            {EXAMPLES.map((ex) => (
+            {EXAMPLES.map((ex, index) => (
               <button
-                key={ex}
+                key={`${index}-${ex}`}
                 type="button"
                 onClick={() => setPrompt(ex)}
                 className="rounded-full border border-border bg-secondary px-3 py-1 text-left text-xs text-secondary-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
