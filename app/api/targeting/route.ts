@@ -12,12 +12,8 @@ import {
   type TargetSegmentGroup,
   type TargetingResolution,
 } from "@/lib/campaign-data";
-import {
-  getTargetingResponseTransport,
-  NdjsonParser,
-  TargetingStreamContract,
-  type TargetingStreamEvent,
-} from "@/lib/targeting-progress";
+import { getTargetingResponseTransport } from "@/lib/targeting-progress";
+import { createTargetingProxyStream } from "@/lib/targeting-stream-proxy";
 
 const PYTHON_TARGET_SQL_URL =
   process.env.PYTHON_TARGET_SQL_URL ?? "http://127.0.0.1:8000/target-sql";
@@ -1041,73 +1037,10 @@ function streamTargetingResponse(pythonResponse: Response): Response {
       { status: 502 },
     );
   }
-  const reader = pythonResponse.body.getReader();
-  const decoder = new TextDecoder();
-  const encoder = new TextEncoder();
-  const parser = new NdjsonParser();
-  const contract = new TargetingStreamContract();
-  let terminalEvent: TargetingStreamEvent | null = null;
-
-  const encodeEvent = (event: TargetingStreamEvent) =>
-    encoder.encode(`${JSON.stringify(event)}\n`);
-  const closeWithContractError = async (
-    controller: ReadableStreamDefaultController<Uint8Array>,
-  ) => {
-    await reader.cancel().catch(() => undefined);
-    controller.enqueue(
-      encodeEvent({
-        type: "error",
-        request_id:
-          contract.requestId ?? `targeting-proxy-${Date.now().toString(36)}`,
-        sequence: contract.nextSequence,
-        error: {
-          status: 502,
-          code: "upstream_stream_contract_invalid",
-          message: "타겟 추출 진행 응답을 확인하지 못했습니다.",
-        },
-      }),
-    );
-    controller.close();
-  };
-  const output = new ReadableStream<Uint8Array>({
-    async pull(controller) {
-      try {
-        const { done, value } = await reader.read();
-        const events = parser.push(decoder.decode(value, { stream: !done }));
-        if (done) events.push(...parser.finish());
-        for (const parsed of events) {
-          const event = contract.accept(parsed);
-          if (event === null) {
-            await closeWithContractError(controller);
-            return;
-          }
-          if (event.type === "result") {
-            terminalEvent = {
-              ...event,
-              data: mapTargetingResponse(event.data),
-            };
-          } else if (event.type === "error") {
-            terminalEvent = event;
-          } else {
-            controller.enqueue(encodeEvent(event));
-          }
-        }
-        if (done && terminalEvent === null) {
-          await closeWithContractError(controller);
-          return;
-        }
-        if (done) {
-          controller.enqueue(encodeEvent(terminalEvent!));
-          controller.close();
-        }
-      } catch {
-        await closeWithContractError(controller);
-      }
-    },
-    cancel() {
-      return reader.cancel();
-    },
-  });
+  const output = createTargetingProxyStream(
+    pythonResponse.body,
+    mapTargetingResponse,
+  );
   return new Response(output, {
     headers: {
       "Content-Type": "application/x-ndjson; charset=utf-8",

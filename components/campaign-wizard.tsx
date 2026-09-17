@@ -111,20 +111,35 @@ export function CampaignWizard() {
               throw new Error("타겟 추출 진행 응답을 확인하지 못했습니다.");
             }
             setProgress((current) => reduceTargetingProgress(current, event));
-            if (event.type === "result") result = event.data as TargetingResult;
-            if (event.type === "error") terminalError = event.error.message;
+            if (event.type === "result") {
+              result = event.data as TargetingResult;
+              return true;
+            }
+            if (event.type === "error") {
+              terminalError = event.error.message;
+              return true;
+            }
           }
+          return false;
         };
         try {
-          while (true) {
+          let terminalSeen = false;
+          while (!terminalSeen) {
             const { done, value } = await reader.read();
-            if (done) break;
-            consume(parser.push(decoder.decode(value, { stream: true })));
+            if (done) {
+              terminalSeen = consume(parser.push(decoder.decode()));
+              if (!terminalSeen) terminalSeen = consume(parser.finish());
+              break;
+            }
+            terminalSeen = consume(
+              parser.push(decoder.decode(value, { stream: true })),
+            );
           }
-          consume(parser.push(decoder.decode()));
-          consume(parser.finish());
+          if (terminalSeen) {
+            void reader.cancel().catch(() => undefined);
+          }
         } catch (error) {
-          await reader.cancel().catch(() => undefined);
+          void reader.cancel().catch(() => undefined);
           throw error;
         }
         if (terminalError) throw new Error(terminalError);
