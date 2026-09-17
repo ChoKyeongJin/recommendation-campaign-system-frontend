@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 
-import { type Channel } from "@/lib/campaign-data";
 import { normalizeTargetingTrace, parsePythonResponse } from "@/lib/targeting-trace";
 
 const PYTHON_TARGET_SQL_URL =
@@ -8,33 +7,17 @@ const PYTHON_TARGET_SQL_URL =
 const PYTHON_TARGET_SQL_TRACE_URL =
   process.env.PYTHON_TARGET_SQL_TRACE_URL ?? `${PYTHON_TARGET_SQL_URL}/trace`;
 
-const channelDescriptions: Record<Channel, string> = {
-  LMS: "장문 문자 메시지, 텍스트 중심",
-  RCS: "리치 메시지, 버튼 및 이미지 지원",
-};
-
-function isChannel(value: unknown): value is Channel {
-  return value === "LMS" || value === "RCS";
-}
-
-function getPromptForPython(prompt: string, channel: Channel) {
-  return `${prompt.trim()}\n발송 채널: ${channel} (${channelDescriptions[channel]})`;
-}
-
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
   const prompt =
     body && typeof body.prompt === "string" ? body.prompt.trim() : "";
-  const channel = body && isChannel(body.channel) ? body.channel : null;
 
-  if (!prompt || !channel) {
+  if (!prompt) {
     return NextResponse.json(
-      { error: "prompt와 channel이 필요합니다." },
+      { error: "prompt가 필요합니다." },
       { status: 400 },
     );
   }
-
-  const pythonPrompt = getPromptForPython(prompt, channel);
 
   try {
     const pythonResponse = await fetch(PYTHON_TARGET_SQL_TRACE_URL, {
@@ -42,7 +25,7 @@ export async function POST(request: Request) {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ prompt: pythonPrompt, execute: true }),
+      body: JSON.stringify({ prompt, execute: true }),
       cache: "no-store",
     });
 

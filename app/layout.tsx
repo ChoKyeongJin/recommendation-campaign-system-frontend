@@ -8,7 +8,7 @@ const geistMono = Geist_Mono({ subsets: ['latin'], variable: '--font-geist-mono'
 
 export const metadata: Metadata = {
   title: '캠페인 자동 생성 시스템',
-  description: '프롬프트 기반 타겟팅과 채널 메시지를 자동으로 생성하는 캠페인 도구',
+  description: '자연어 조건을 검증된 타겟 SQL과 오디언스로 변환하는 도구',
   generator: 'v0.app',
   icons: {
     icon: [

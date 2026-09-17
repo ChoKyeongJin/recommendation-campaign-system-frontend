@@ -4,7 +4,7 @@ export type PromptCatalogEntry = {
 };
 
 /**
- * 편집 대상 9종 프롬프트의 역할과 사용 가능한 템플릿 변수.
+ * 타겟팅 프롬프트의 역할과 사용 가능한 템플릿 변수.
  * 본문에서 변수는 `${변수명}` 형식으로 사용한다.
  * 상세 화면의 변수 도우미 패널과 저장 전 `${...}` 검증에 사용한다.
  */
@@ -24,53 +24,6 @@ export const PROMPT_CATALOG: Record<string, PromptCatalogEntry> = {
   "answer_user.txt": {
     role: "Query Plan·Context·SQL 결과로 답변 입력 구성",
     variables: ["query", "query_plan", "context", "sql_result", "sql_policy"],
-  },
-  "message_generation_system.txt": {
-    role: "메시지 생성 역할, 허위 혜택 방지, 채널 제약",
-    variables: [],
-  },
-  "message_generation_user.txt": {
-    role: "캠페인/타겟/SQL context로 메시지 3종 생성",
-    variables: [
-      "query",
-      "requested_channel",
-      "channel_policy",
-      "selected_channel_policy",
-      "query_plan",
-      "campaign_context",
-      "target_context",
-      "message_examples",
-      "tone_manner_rules",
-      "sql_result",
-    ],
-  },
-  "message_generation_variant_user.txt": {
-    role: "variant 1개만 생성",
-    variables: [
-      "variant",
-      "requested_channel",
-      "selected_channel_policy",
-      "campaign_context",
-      "target_context",
-      "message_examples",
-      "tone_manner_rules",
-      "repair_context",
-    ],
-  },
-  "message_generation_retry_user.txt": {
-    role: "검증 실패 사유로 재시도 수정",
-    variables: [
-      "original_prompt",
-      "previous_content",
-      "failure_reason",
-      "validation_issues",
-      "attempt_number",
-      "max_attempts",
-    ],
-  },
-  "message_generation_tone_manner.txt": {
-    role: "브랜드 톤·스타일·설득 포인트",
-    variables: [],
   },
 };
 

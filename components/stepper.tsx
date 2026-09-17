@@ -1,7 +1,7 @@
 import { Check } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-const STEPS = ["프롬프트 입력", "타겟팅 결과", "메시지 추천", "클릭률 분석"]
+const STEPS = ["타겟 조건 입력", "타겟팅 결과"]
 
 export function Stepper({ current }: { current: number }) {
   return (

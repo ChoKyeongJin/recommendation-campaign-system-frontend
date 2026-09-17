@@ -20,7 +20,6 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ConfidenceCard } from "@/components/confidence-card";
 import { ClarificationPanel } from "@/components/clarification-panel";
 import {
   buildReinforcementHints,
@@ -28,7 +27,6 @@ import {
 } from "@/lib/targeting-hints";
 import { copyTextToClipboard } from "@/lib/clipboard";
 import type {
-  Channel,
   ClarificationAnswer,
   TargetingFailureExplanation,
   TargetingFailureStage,
@@ -178,7 +176,6 @@ function nodeTypeLabel(type?: string) {
 // intent 코드 → 사람이 읽는 요청 유형.
 const INTENT_LABELS: Record<string, string> = {
   recommend_campaign: "캠페인 추천",
-  recommend_message: "메시지 추천",
   target_only: "타겟 고객 추출",
   find_user_segment: "타겟 세그먼트 조회",
 };
@@ -689,17 +686,15 @@ function TraceFailureDiagnosisNotice({
 
 function TraceSection({
   prompt,
-  channel,
 }: {
   prompt?: string;
-  channel?: Channel;
 }) {
   const [trace, setTrace] = useState<TargetingTrace | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const trimmedPrompt = prompt?.trim();
-  const canFetch = Boolean(trimmedPrompt && channel);
+  const canFetch = Boolean(trimmedPrompt);
 
   const loadTrace = async () => {
     if (!canFetch || isLoading) {
@@ -713,7 +708,7 @@ function TraceSection({
       const response = await fetch("/api/targeting/trace", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: trimmedPrompt, channel }),
+        body: JSON.stringify({ prompt: trimmedPrompt }),
       });
 
       const data = await response.json().catch(() => null);
@@ -1150,11 +1145,7 @@ const NO_CLARIFICATION_ANSWERS: ClarificationAnswer[] = [];
 export function StepTargeting({
   result,
   prompt,
-  channel,
   onBack,
-  onNext,
-  isNextLoading = false,
-  nextError = null,
   onClarify,
   onPickAlternative,
   isClarifying = false,
@@ -1162,11 +1153,7 @@ export function StepTargeting({
 }: {
   result: TargetingResult;
   prompt?: string;
-  channel?: Channel;
   onBack: () => void;
-  onNext: () => void | Promise<void>;
-  isNextLoading?: boolean;
-  nextError?: string | null;
   /** 되묻기 답을 모아 다시 추출한다(프롬프트는 그대로). */
   onClarify?: (answers: ClarificationAnswer[]) => void | Promise<void>;
   /** 보기 문장을 골랐다 — 프롬프트를 그 문장으로 바꿔 다시 추출한다. */
@@ -1247,24 +1234,14 @@ export function StepTargeting({
                     ))}
                   </p>
                 )}
-                {(showOriginalPrompt || channel) && (
+                {showOriginalPrompt && (
                   <div className="mt-3 border-t border-border/60 pt-3">
-                    <div className="flex items-center gap-2">
-                      <p className="text-xs font-medium text-muted-foreground">
-                        입력한 프롬프트
-                      </p>
-                      {/* 발송 채널(LMS/RCS)은 타겟 조건이 아니라 발송 채널이므로 입력 프롬프트 옆에 표시한다. */}
-                      {channel && (
-                        <Badge variant="secondary" className="text-[10px]">
-                          {channel}
-                        </Badge>
-                      )}
-                    </div>
-                    {showOriginalPrompt && (
-                      <p className="mt-1 whitespace-pre-wrap break-words text-sm text-muted-foreground">
-                        {trimmedPrompt}
-                      </p>
-                    )}
+                    <p className="text-xs font-medium text-muted-foreground">
+                      입력한 프롬프트
+                    </p>
+                    <p className="mt-1 whitespace-pre-wrap break-words text-sm text-muted-foreground">
+                      {trimmedPrompt}
+                    </p>
                   </div>
                 )}
               </div>
@@ -1409,18 +1386,12 @@ export function StepTargeting({
 
       <ReinforcementHintsCard hints={reinforcementHints} />
 
-      <TraceSection prompt={prompt} channel={channel} />
+      <TraceSection prompt={prompt} />
 
-      <div className="flex justify-between">
+      <div className="flex justify-start">
         <Button variant="outline" onClick={onBack}>
-          이전
+          타겟 조건 수정
         </Button>
-        <div className="flex flex-col items-end gap-2">
-          {nextError && <p className="text-sm text-destructive">{nextError}</p>}
-          <Button onClick={onNext} size="lg" disabled={isNextLoading}>
-            {isNextLoading ? "메시지 추천 중..." : "메시지 추천 받기"}
-          </Button>
-        </div>
       </div>
     </div>
   );

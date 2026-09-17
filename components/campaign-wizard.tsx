@@ -1,29 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { Database, FileText, Sparkles, Target } from "lucide-react";
+import { Database, FileText, Sparkles } from "lucide-react";
 import { SettingsMenu } from "@/components/settings-menu";
 import { Stepper } from "@/components/stepper";
 import { StepPrompt } from "@/components/step-prompt";
 import { StepTargeting } from "@/components/step-targeting";
-import { StepMessages } from "@/components/step-messages";
-import { StepResults } from "@/components/step-results";
-import {
-  type CampaignMessage,
-  type CampaignCtrScore,
-  type CampaignExperimentResult,
-  type Channel,
-  type ClarificationAnswer,
-  type TargetingResult,
+import type {
+  ClarificationAnswer,
+  TargetingResult,
 } from "@/lib/campaign-data";
 
-/**
- * 되묻기 답 누적. `/api/targeting` 은 상태를 갖지 않으므로, 라운드가 이어질 때마다 이전 라운드의
- * 답까지 전부 다시 보내야 한다(안 보내면 앞서 확정한 조건이 라운드마다 초기화된다).
- * 같은 의미 슬롯을 다시 물어 온 경우에는 최신 답만 남긴다 — 백엔드가 라운드마다 issueId 를
- * 새로 만들기 때문에 issueId 만으로 묶으면 같은 슬롯의 낡은 답이 계속 쌓인다.
- */
 function mergeClarificationAnswers(
   previous: ClarificationAnswer[],
   next: ClarificationAnswer[],
@@ -38,336 +25,83 @@ function mergeClarificationAnswers(
 export function CampaignWizard() {
   const [step, setStep] = useState(0);
   const [prompt, setPrompt] = useState("");
-  const [channel, setChannel] = useState<Channel>("RCS");
   const [targeting, setTargeting] = useState<TargetingResult | null>(null);
-  const [messages, setMessages] = useState<CampaignMessage[]>([]);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isExtracting, setIsExtracting] = useState(false);
   const [targetingError, setTargetingError] = useState<string | null>(null);
-  const [isGeneratingMessages, setIsGeneratingMessages] = useState(false);
-  const [messageError, setMessageError] = useState<string | null>(null);
-  const [experimentResult, setExperimentResult] =
-    useState<CampaignExperimentResult | null>(null);
-  const [isPredictingClicks, setIsPredictingClicks] = useState(false);
-  const [predictionError, setPredictionError] = useState<string | null>(null);
-  // 되묻기에 답하는 중인지. 프롬프트는 그대로이고 답만 덧붙여 다시 추출한다.
   const [isClarifying, setIsClarifying] = useState(false);
-  // 이번 프롬프트에서 지금까지 확정한 되묻기 답. 다음 라운드 요청에 그대로 다시 실어 보내고,
-  // 화면에는 "무엇에 답했는지 / 무엇을 다시 묻는지"를 보여주는 기준으로 쓴다.
   const [clarificationAnswers, setClarificationAnswers] = useState<
     ClarificationAnswer[]
   >([]);
 
-  const getVariantCode = (index: number) =>
-    String.fromCharCode("A".charCodeAt(0) + index);
-
-  const getCtrScore = async ({
-    campaignId,
-    experimentResult,
-  }: {
-    campaignId: string;
-    experimentResult: CampaignExperimentResult;
-  }) => {
-    const response = await fetch("/api/ai/ctr/score", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json; charset=utf-8",
-      },
-      body: JSON.stringify({
-        campaignId,
-        experimentId:
-          experimentResult.experimentId ??
-          experimentResult.experiment?.experiment_id,
-        prompt: prompt.trim(),
-        channel: channel.toLowerCase(),
-        variants: messages.map((message, index) => ({
-          code: getVariantCode(index),
-          name: message.title || message.tone || `시안 ${message.id}`,
-          messageBody: message.body,
-          isControl: index === 0,
-        })),
-      }),
-      cache: "no-store",
-    });
-
-    const data = await response.json().catch(() => null);
-
-    if (!response.ok) {
-      const message =
-        data && typeof data.error === "string"
-          ? data.error
-          : "클릭률 근거 조회에 실패했습니다.";
-      throw new Error(message);
-    }
-
-    return data as CampaignCtrScore;
-  };
-
   const updatePrompt = (value: string) => {
     setPrompt(value);
     setTargetingError(null);
-    setMessageError(null);
-    setMessages([]);
-    setExperimentResult(null);
-    setPredictionError(null);
-    // 문장이 바뀌면 앞선 답이 가리키던 결핍도 사라진다.
+    setTargeting(null);
     setClarificationAnswers([]);
   };
 
-  const updateChannel = (value: Channel) => {
-    setChannel(value);
-    setTargetingError(null);
-    setMessageError(null);
-    setMessages([]);
-    setExperimentResult(null);
-    setPredictionError(null);
-    setClarificationAnswers([]);
-  };
-
-  /**
-   * 타겟팅 추출. `clarificationAnswers` 는 되묻기 답변이며 **프롬프트를 바꾸지 않는다** —
-   * 백엔드가 각 답이 가리키는 의미 슬롯 하나만 확정하고 나머지 조건은 그대로 둔다.
-   */
   const runTargeting = async (
     newAnswers: ClarificationAnswer[] = [],
     overridePrompt?: string,
   ) => {
-    // 보기를 고른 경우에만 프롬프트가 바뀐다. setPrompt 는 비동기라 이번 실행에서 바로 읽을
-    // 수 없으므로, 실행에 쓸 문장을 인자로 함께 받는다.
     const trimmedPrompt = (overridePrompt ?? prompt).trim();
-    if (!trimmedPrompt) {
-      return;
-    }
+    if (!trimmedPrompt) return;
 
     const isFollowUp = newAnswers.length > 0;
-    if (isFollowUp ? isClarifying : isAnalyzing) {
-      return;
-    }
+    if (isFollowUp ? isClarifying : isExtracting) return;
 
-    // 첫 추출은 답 없이 시작하고, 이어지는 라운드는 지금까지의 답을 모두 함께 보낸다.
     const answers = isFollowUp
       ? mergeClarificationAnswers(clarificationAnswers, newAnswers)
       : [];
-
-    if (isFollowUp) {
-      setIsClarifying(true);
-    } else {
-      setIsAnalyzing(true);
-    }
+    isFollowUp ? setIsClarifying(true) : setIsExtracting(true);
     setTargetingError(null);
 
     try {
       const response = await fetch("/api/targeting", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt: trimmedPrompt,
-          channel,
           clarificationAnswers: answers,
         }),
       });
-
       const data = await response.json().catch(() => null);
-
       if (!response.ok) {
-        const message =
+        throw new Error(
           data && typeof data.error === "string"
             ? data.error
-            : "타겟팅 분석에 실패했습니다.";
-        throw new Error(message);
+            : "타겟 추출에 실패했습니다.",
+        );
       }
-
       setTargeting(data as TargetingResult);
       setClarificationAnswers(answers);
-      setMessages([]);
-      setMessageError(null);
-      setExperimentResult(null);
-      setPredictionError(null);
       setStep(1);
     } catch (error) {
       setTargetingError(
-        error instanceof Error ? error.message : "타겟팅 분석에 실패했습니다.",
+        error instanceof Error ? error.message : "타겟 추출에 실패했습니다.",
       );
     } finally {
-      if (isFollowUp) {
-        setIsClarifying(false);
-      } else {
-        setIsAnalyzing(false);
-      }
+      isFollowUp ? setIsClarifying(false) : setIsExtracting(false);
     }
   };
 
-  const analyzeTargeting = () => runTargeting();
-
-  /**
-   * 보기 문장 하나를 골랐다.
-   *
-   * 되묻기 답변과 근본적으로 다르다. 답변은 프롬프트를 그대로 두고 의미 슬롯 하나만 고치지만,
-   * 보기는 **프롬프트 자체가 그 문장으로 바뀐다** — 값이 문장에 명시돼 있으므로 그 자리가
-   * 다시 비지 않고, 지금까지 쌓인 답을 함께 보낼 이유도 없다(그래서 답을 비운다).
-   * 입력란도 함께 갱신해, 사용자가 다음에 보는 문장과 방금 실행한 문장이 갈리지 않게 한다.
-   */
   const pickAlternative = (query: string) => {
     const trimmed = query.trim();
-    if (!trimmed || trimmed === prompt.trim()) {
-      return;
-    }
+    if (!trimmed || trimmed === prompt.trim()) return;
     updatePrompt(trimmed);
     return runTargeting([], trimmed);
-  };
-
-  const recommendMessages = async () => {
-    const trimmedPrompt = prompt.trim();
-    if (!trimmedPrompt || isGeneratingMessages) {
-      return;
-    }
-
-    setIsGeneratingMessages(true);
-    setMessageError(null);
-
-    try {
-      const response = await fetch("/api/channel-messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ prompt: trimmedPrompt, channel }),
-      });
-
-      const data = await response.json().catch(() => null);
-
-      if (!response.ok) {
-        const message =
-          data && typeof data.error === "string"
-            ? data.error
-            : "메시지 추천에 실패했습니다.";
-        throw new Error(message);
-      }
-
-      const nextMessages = Array.isArray(data?.messages) ? data.messages : [];
-      setMessages(nextMessages as CampaignMessage[]);
-      setExperimentResult(null);
-      setPredictionError(null);
-      setStep(2);
-    } catch (error) {
-      setMessageError(
-        error instanceof Error ? error.message : "메시지 추천에 실패했습니다.",
-      );
-    } finally {
-      setIsGeneratingMessages(false);
-    }
-  };
-
-  const predictClickRates = async () => {
-    if (isPredictingClicks) {
-      return;
-    }
-
-    if (messages.length === 0) {
-      setPredictionError("클릭률 예측에 사용할 메시지가 없습니다.");
-      return;
-    }
-
-    setIsPredictingClicks(true);
-    setPredictionError(null);
-
-    const trimmedPrompt = prompt.trim();
-    const campaignId = targeting?.campaignId?.trim() || "camp_001";
-
-    try {
-      const response = await fetch("/api/campaign-experiments/run", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json; charset=utf-8",
-        },
-        body: JSON.stringify({
-          campaignId,
-          experimentName: `${trimmedPrompt || "캠페인"} ${channel} 메시지 클릭률 예측`,
-          channel: channel.toLowerCase(),
-          primaryMetric: "ctr",
-          assignmentMethod: "model",
-          epsilon: 0.2,
-          providerMessageIdPrefix: `web-${channel.toLowerCase()}-campaign`,
-          userIds: ["user_001", "user_002"],
-          includeAnalysis: true,
-          variants: messages.map((message, index) => ({
-            code: getVariantCode(index),
-            name: message.title || message.tone || `시안 ${message.id}`,
-            messageBody: message.body,
-            isControl: index === 0,
-          })),
-        }),
-      });
-
-      const data = await response.json().catch(() => null);
-
-      if (!response.ok) {
-        const message =
-          data && typeof data.error === "string"
-            ? data.error
-            : "클릭률 예측에 실패했습니다.";
-        throw new Error(message);
-      }
-
-      const nextExperimentResult = data as CampaignExperimentResult;
-      const ctrScore = await getCtrScore({
-        campaignId,
-        experimentResult: nextExperimentResult,
-      }).catch(() => null);
-
-      setExperimentResult({
-        ...nextExperimentResult,
-        ...(ctrScore ? { ctrScore } : {}),
-      });
-      setStep(3);
-    } catch (error) {
-      setPredictionError(
-        error instanceof Error ? error.message : "클릭률 예측에 실패했습니다.",
-      );
-    } finally {
-      setIsPredictingClicks(false);
-    }
-  };
-
-  const restart = () => {
-    setStep(0);
-    setPrompt("");
-    setChannel("RCS");
-    setTargeting(null);
-    setMessages([]);
-    setExperimentResult(null);
-    setTargetingError(null);
-    setMessageError(null);
-    setPredictionError(null);
-    setClarificationAnswers([]);
   };
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-8 px-4 py-6">
       <div className="flex items-center justify-end gap-2">
-        <a
-          href="/reference-data-guide.html"
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-        >
-          <FileText className="h-4 w-4" aria-hidden />
-          참조문서 설명
+        <a href="/reference-data-guide.html" className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground">
+          <FileText className="h-4 w-4" aria-hidden /> 참조문서 설명
         </a>
-        <a
-          href="/db-swap-report.html"
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-        >
-          <Database className="h-4 w-4" aria-hidden />
-          DB 전환 가이드
+        <a href="/db-swap-report.html" className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground">
+          <Database className="h-4 w-4" aria-hidden /> DB 전환 가이드
         </a>
         <SettingsMenu />
-        <a
-          href="/targeting-report.html"
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-        >
-          <Target className="h-4 w-4" aria-hidden />
-          타겟팅 보고서
-        </a>
       </div>
 
       <header className="flex flex-col gap-2">
@@ -375,26 +109,20 @@ export function CampaignWizard() {
           <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <Sparkles className="h-5 w-5" aria-hidden />
           </span>
-          <h1 className="text-xl font-bold text-foreground">
-            캠페인 자동 생성 시스템
-          </h1>
+          <h1 className="text-xl font-bold text-foreground">캠페인 타겟팅 시스템</h1>
         </div>
         <p className="text-sm text-muted-foreground">
-          목표만 입력하면 타겟팅부터 메시지, 예상 클릭률까지 한 번에 추천해
-          드립니다.
+          자연어 조건을 검증 가능한 타겟 SQL과 오디언스 결과로 변환합니다.
         </p>
       </header>
 
       <Stepper current={step} />
-
       {step === 0 && (
         <StepPrompt
           prompt={prompt}
           setPrompt={updatePrompt}
-          channel={channel}
-          setChannel={updateChannel}
-          onAnalyze={analyzeTargeting}
-          isAnalyzing={isAnalyzing}
+          onExtract={() => runTargeting()}
+          isExtracting={isExtracting}
           error={targetingError}
         />
       )}
@@ -402,36 +130,11 @@ export function CampaignWizard() {
         <StepTargeting
           result={targeting}
           prompt={prompt}
-          channel={channel}
           onBack={() => setStep(0)}
-          onNext={recommendMessages}
-          isNextLoading={isGeneratingMessages}
-          nextError={messageError}
           onClarify={runTargeting}
           onPickAlternative={pickAlternative}
-          isClarifying={isClarifying || isAnalyzing}
+          isClarifying={isClarifying || isExtracting}
           clarificationAnswers={clarificationAnswers}
-        />
-      )}
-      {step === 2 && (
-        <StepMessages
-          messages={messages}
-          channel={channel}
-          onBack={() => setStep(1)}
-          onNext={predictClickRates}
-          isNextLoading={isPredictingClicks}
-          nextError={predictionError}
-          onRegenerate={recommendMessages}
-          isRegenerating={isGeneratingMessages}
-          regenerateError={messageError}
-        />
-      )}
-      {step === 3 && experimentResult && (
-        <StepResults
-          result={experimentResult}
-          channel={channel}
-          onBack={() => setStep(2)}
-          onRestart={restart}
         />
       )}
     </main>

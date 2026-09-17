@@ -5,17 +5,13 @@ import Link from "next/link";
 import {
   BookOpen,
   ChevronDown,
-  Cpu,
-  Gauge,
   Settings,
   SlidersHorizontal,
 } from "lucide-react";
 
 const SETTINGS_LINKS = [
-  { href: "/admin/policies", label: "모델 선택", icon: Cpu },
   { href: "/admin/prompts", label: "프롬프트 수정", icon: SlidersHorizontal },
   { href: "/admin/reference", label: "참조 파일", icon: BookOpen },
-  { href: "/admin/heuristic-ctr-rules", label: "휴리스틱 CTR", icon: Gauge },
 ] as const;
 
 export function SettingsMenu() {

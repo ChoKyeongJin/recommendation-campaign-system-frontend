@@ -762,7 +762,7 @@ function DetailView({
             </label>
             <input
               className={`${inputClass} font-mono`}
-              placeholder="예: message_generation_user.txt"
+              placeholder="예: query_plan_system.txt"
               value={nameInput}
               onChange={(event) => onNameInput(event.target.value)}
             />

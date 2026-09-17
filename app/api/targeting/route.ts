@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 
 import {
-  type Channel,
   type ClarificationAnswer,
   type ClarificationOption,
   type ClarificationQuestion,
@@ -16,30 +15,6 @@ import {
 
 const PYTHON_TARGET_SQL_URL =
   process.env.PYTHON_TARGET_SQL_URL ?? "http://127.0.0.1:8000/target-sql";
-
-const channelDescriptions: Record<Channel, string> = {
-  LMS: "장문 문자 메시지, 텍스트 중심",
-  RCS: "리치 메시지, 버튼 및 이미지 지원",
-};
-
-function isChannel(value: unknown): value is Channel {
-  return value === "LMS" || value === "RCS";
-}
-
-function getPromptForPython(prompt: string, channel: Channel) {
-  return `${prompt.trim()}\n발송 채널: ${channel} (${channelDescriptions[channel]})`;
-}
-
-/**
- * 파이썬이 돌려준 문장에서 **이 라우트가 붙인** 발송 채널 줄을 뗀다.
- *
- * 파이썬은 API 입력 문장(=채널 줄이 붙은 원문)을 기준으로 보기 문장을 만든다. 그것을 그대로
- * 프롬프트 입력란에 넣으면 다음 요청에서 채널 줄이 두 번 붙는다. 붙인 쪽이 떼는 것이 옳다 —
- * 무엇을 붙였는지 아는 계층이 여기뿐이기 때문이다.
- */
-function stripChannelSuffix(prompt: string) {
-  return prompt.replace(/\s*발송\s*채널\s*:[\s\S]*$/, "").trim();
-}
 
 function asRecord(value: unknown) {
   return value && typeof value === "object"
@@ -300,7 +275,7 @@ function getSegmentLabel(path: string, type: string, value: unknown) {
   }
 
   if (type === "campaign_channel" || path.includes("channels")) {
-    return `발송 채널: ${normalizedValue}`;
+    return `수신 채널 조건: ${normalizedValue}`;
   }
 
   if (type === "behavior" || path.includes("behaviors")) {
@@ -367,7 +342,7 @@ function getSegmentsFromQueryPlan(data: unknown, sql: string) {
     }
 
     for (const channel of getArrayValue(campaignConstraints, "channels")) {
-      segments.push({ label: `발송 채널: ${normalizeValue(channel)}` });
+      segments.push({ label: `수신 채널 조건: ${normalizeValue(channel)}` });
     }
 
     for (const behavior of getArrayValue(targetUser, "behaviors")) {
@@ -427,7 +402,7 @@ function getSegmentsFromQueryPlan(data: unknown, sql: string) {
 
   const sqlPatterns: Array<[RegExp, string]> = [
     [/upc\.preferred_channel\s*=\s*'([^']+)'/i, "선호 채널"],
-    [/cc\.channel\s*=\s*'([^']+)'/i, "발송 채널"],
+    [/cc\.channel\s*=\s*'([^']+)'/i, "수신 채널 조건"],
     [/urb\.behavior\s+(?:LIKE|=)\s*'([^']+)/i, "행동"],
     [/ts\.target_segment\s*=\s*'([^']+)'/i, "타겟 세그먼트"],
   ];
@@ -606,8 +581,7 @@ function getNormalizedPromptFromPythonResponse(data: unknown) {
     return "";
   }
 
-  // 프론트가 파이썬 호출용으로 덧붙인 "발송 채널: ..." 접미어는 표시에서 제외한다.
-  return normalized.replace(/\s*발송\s*채널\s*:[\s\S]*$/, "").trim();
+  return normalized.trim();
 }
 
 // 백엔드가 사용자 문장의 오타를 고친 경우 그 목록("팔란 -> 팔린"). 비어 있으면 교정이 없었다는 뜻이다.
@@ -803,7 +777,7 @@ function getResolutionFromPythonResponse(data: unknown): TargetingResolution | n
           const value = option?.value;
           const query =
             answerShape === "restatement" && typeof value === "string"
-              ? stripChannelSuffix(value)
+              ? value.trim()
               : "";
           return [{ id, label, ...(query ? { query } : {}) }];
         },
@@ -856,7 +830,7 @@ function getResolutionFromPythonResponse(data: unknown): TargetingResolution | n
           const option = asRecord(item);
           const optionId = getStringValue(option, ["option_id"]);
           const label = getStringValue(option, ["label"]);
-          const query = stripChannelSuffix(getStringValue(option, ["query"]));
+          const query = getStringValue(option, ["query"]).trim();
           if (!optionId || !label || !query) {
             return [];
           }
@@ -1022,7 +996,6 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
   const prompt =
     body && typeof body.prompt === "string" ? body.prompt.trim() : "";
-  const channel = body && isChannel(body.channel) ? body.channel : null;
   // 되묻기 답변. 프롬프트에 이어 붙이지 않고 issue_id 그대로 Python 에 넘긴다 —
   // 백엔드가 그 결핍이 가리키는 의미 슬롯 하나만 고친다.
   const clarificationAnswers: ClarificationAnswer[] = Array.isArray(
@@ -1046,14 +1019,12 @@ export async function POST(request: Request) {
       })
     : [];
 
-  if (!prompt || !channel) {
+  if (!prompt) {
     return NextResponse.json(
-      { error: "prompt와 channel이 필요합니다." },
+      { error: "prompt가 필요합니다." },
       { status: 400 },
     );
   }
-
-  const pythonPrompt = getPromptForPython(prompt, channel);
 
   try {
     const pythonResponse = await fetch(PYTHON_TARGET_SQL_URL, {
@@ -1062,7 +1033,7 @@ export async function POST(request: Request) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        prompt: pythonPrompt,
+        prompt,
         clarification_answers: clarificationAnswers.map((answer) => ({
           issue_id: answer.issueId,
           ...(answer.optionId ? { option_id: answer.optionId } : {}),
