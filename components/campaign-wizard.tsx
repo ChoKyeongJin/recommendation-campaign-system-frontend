@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Database, FileText, Sparkles } from "lucide-react";
 import { SettingsMenu } from "@/components/settings-menu";
 import { Stepper } from "@/components/stepper";
@@ -10,6 +10,14 @@ import type {
   ClarificationAnswer,
   TargetingResult,
 } from "@/lib/campaign-data";
+import {
+  getTargetingResponseTransport,
+  initialTargetingProgressState,
+  NdjsonParser,
+  reduceTargetingProgress,
+  TargetingStreamContract,
+  type TargetingProgressState,
+} from "@/lib/targeting-progress";
 
 function mergeClarificationAnswers(
   previous: ClarificationAnswer[],
@@ -28,10 +36,21 @@ export function CampaignWizard() {
   const [targeting, setTargeting] = useState<TargetingResult | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
   const [targetingError, setTargetingError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<TargetingProgressState>(
+    initialTargetingProgressState,
+  );
   const [isClarifying, setIsClarifying] = useState(false);
   const [clarificationAnswers, setClarificationAnswers] = useState<
     ClarificationAnswer[]
   >([]);
+  const activeRequestRef = useRef<AbortController | null>(null);
+
+  useEffect(
+    () => () => {
+      activeRequestRef.current?.abort();
+    },
+    [],
+  );
 
   const updatePrompt = (value: string) => {
     setPrompt(value);
@@ -48,23 +67,76 @@ export function CampaignWizard() {
     if (!trimmedPrompt) return;
 
     const isFollowUp = newAnswers.length > 0;
-    if (isFollowUp ? isClarifying : isExtracting) return;
+    if (isClarifying || isExtracting) return;
 
     const answers = isFollowUp
       ? mergeClarificationAnswers(clarificationAnswers, newAnswers)
       : [];
     isFollowUp ? setIsClarifying(true) : setIsExtracting(true);
     setTargetingError(null);
+    if (!isFollowUp) setProgress(initialTargetingProgressState);
+    activeRequestRef.current?.abort();
+    const requestController = new AbortController();
+    activeRequestRef.current = requestController;
 
     try {
       const response = await fetch("/api/targeting", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/x-ndjson",
+        },
         body: JSON.stringify({
           prompt: trimmedPrompt,
           clarificationAnswers: answers,
         }),
+        signal: requestController.signal,
       });
+      const contentType = response.headers.get("content-type") ?? "";
+      const responseTransport = getTargetingResponseTransport(contentType);
+      if (response.ok && responseTransport === "ndjson") {
+        if (!response.body) {
+          throw new Error("타겟 추출 진행 응답이 비어 있습니다.");
+        }
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        const parser = new NdjsonParser();
+        const streamContract = new TargetingStreamContract();
+        let result: TargetingResult | null = null;
+        let terminalError: string | null = null;
+        const consume = (values: unknown[]) => {
+          for (const value of values) {
+            const event = streamContract.accept(value);
+            if (event === null) {
+              throw new Error("타겟 추출 진행 응답을 확인하지 못했습니다.");
+            }
+            setProgress((current) => reduceTargetingProgress(current, event));
+            if (event.type === "result") result = event.data as TargetingResult;
+            if (event.type === "error") terminalError = event.error.message;
+          }
+        };
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            consume(parser.push(decoder.decode(value, { stream: true })));
+          }
+          consume(parser.push(decoder.decode()));
+          consume(parser.finish());
+        } catch (error) {
+          await reader.cancel().catch(() => undefined);
+          throw error;
+        }
+        if (terminalError) throw new Error(terminalError);
+        if (!result) throw new Error("타겟 추출 결과를 받지 못했습니다.");
+        setTargeting(result);
+        setClarificationAnswers(answers);
+        setStep(1);
+        return;
+      }
+      if (response.ok && responseTransport !== "json") {
+        throw new Error("타겟 추출 응답 형식을 확인하지 못했습니다.");
+      }
       const data = await response.json().catch(() => null);
       if (!response.ok) {
         throw new Error(
@@ -77,11 +149,17 @@ export function CampaignWizard() {
       setClarificationAnswers(answers);
       setStep(1);
     } catch (error) {
+      if (requestController.signal.aborted) return;
       setTargetingError(
         error instanceof Error ? error.message : "타겟 추출에 실패했습니다.",
       );
     } finally {
-      isFollowUp ? setIsClarifying(false) : setIsExtracting(false);
+      if (activeRequestRef.current === requestController) {
+        activeRequestRef.current = null;
+        if (!requestController.signal.aborted) {
+          isFollowUp ? setIsClarifying(false) : setIsExtracting(false);
+        }
+      }
     }
   };
 
@@ -123,6 +201,7 @@ export function CampaignWizard() {
           setPrompt={updatePrompt}
           onExtract={() => runTargeting()}
           isExtracting={isExtracting}
+          progress={progress}
           error={targetingError}
         />
       )}

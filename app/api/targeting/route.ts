@@ -12,9 +12,24 @@ import {
   type TargetSegmentGroup,
   type TargetingResolution,
 } from "@/lib/campaign-data";
+import {
+  getTargetingResponseTransport,
+  NdjsonParser,
+  TargetingStreamContract,
+  type TargetingStreamEvent,
+} from "@/lib/targeting-progress";
 
 const PYTHON_TARGET_SQL_URL =
   process.env.PYTHON_TARGET_SQL_URL ?? "http://127.0.0.1:8000/target-sql";
+
+function pythonTargetSqlStreamUrl() {
+  if (process.env.PYTHON_TARGET_SQL_STREAM_URL) {
+    return process.env.PYTHON_TARGET_SQL_STREAM_URL;
+  }
+  const url = new URL(PYTHON_TARGET_SQL_URL);
+  url.pathname = `${url.pathname.replace(/\/$/, "")}/stream`;
+  return url.toString();
+}
 
 function asRecord(value: unknown) {
   return value && typeof value === "object"
@@ -992,6 +1007,116 @@ function parsePythonResponse(rawText: string) {
   }
 }
 
+function mapTargetingResponse(data: unknown) {
+  const sql = getSqlFromPythonResponse(data);
+  const { segmentGroups, hiddenSegmentGroups } =
+    getSegmentGroupsFromPythonResponse(data);
+
+  return {
+    campaignId: getCampaignIdFromPythonResponse(data),
+    total: getTotalFromPythonResponse(data),
+    resultRowCount: getResultRowCountFromPythonResponse(data),
+    targetCampaignCount: getCampaignCountFromPythonResponse(data),
+    segments: getSegmentsFromPythonResponse(data, sql),
+    segmentGroups,
+    hiddenSegmentGroups,
+    normalizedPrompt: getNormalizedPromptFromPythonResponse(data),
+    targetingLabel: getTargetingLabelFromPythonResponse(data),
+    typoCorrections: getTypoCorrectionsFromPythonResponse(data),
+    sql,
+    message: getStringValue(getApiResponse(data), ["message"]),
+    sampleRows: getSampleRowsFromPythonResponse(data),
+    confidence: getConfidenceFromPythonResponse(data),
+    diagnostics: getDiagnosticsFromPythonResponse(data),
+    failureStage: getFailureStageFromPythonResponse(data),
+    failureExplanation: getFailureExplanationFromPythonResponse(data),
+    resolution: getResolutionFromPythonResponse(data),
+  };
+}
+
+function streamTargetingResponse(pythonResponse: Response): Response {
+  if (!pythonResponse.body) {
+    return NextResponse.json(
+      { error: "Python 타겟팅 스트림 응답이 비어 있습니다." },
+      { status: 502 },
+    );
+  }
+  const reader = pythonResponse.body.getReader();
+  const decoder = new TextDecoder();
+  const encoder = new TextEncoder();
+  const parser = new NdjsonParser();
+  const contract = new TargetingStreamContract();
+  let terminalEvent: TargetingStreamEvent | null = null;
+
+  const encodeEvent = (event: TargetingStreamEvent) =>
+    encoder.encode(`${JSON.stringify(event)}\n`);
+  const closeWithContractError = async (
+    controller: ReadableStreamDefaultController<Uint8Array>,
+  ) => {
+    await reader.cancel().catch(() => undefined);
+    controller.enqueue(
+      encodeEvent({
+        type: "error",
+        request_id:
+          contract.requestId ?? `targeting-proxy-${Date.now().toString(36)}`,
+        sequence: contract.nextSequence,
+        error: {
+          status: 502,
+          code: "upstream_stream_contract_invalid",
+          message: "타겟 추출 진행 응답을 확인하지 못했습니다.",
+        },
+      }),
+    );
+    controller.close();
+  };
+  const output = new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      try {
+        const { done, value } = await reader.read();
+        const events = parser.push(decoder.decode(value, { stream: !done }));
+        if (done) events.push(...parser.finish());
+        for (const parsed of events) {
+          const event = contract.accept(parsed);
+          if (event === null) {
+            await closeWithContractError(controller);
+            return;
+          }
+          if (event.type === "result") {
+            terminalEvent = {
+              ...event,
+              data: mapTargetingResponse(event.data),
+            };
+          } else if (event.type === "error") {
+            terminalEvent = event;
+          } else {
+            controller.enqueue(encodeEvent(event));
+          }
+        }
+        if (done && terminalEvent === null) {
+          await closeWithContractError(controller);
+          return;
+        }
+        if (done) {
+          controller.enqueue(encodeEvent(terminalEvent!));
+          controller.close();
+        }
+      } catch {
+        await closeWithContractError(controller);
+      }
+    },
+    cancel() {
+      return reader.cancel();
+    },
+  });
+  return new Response(output, {
+    headers: {
+      "Content-Type": "application/x-ndjson; charset=utf-8",
+      "Cache-Control": "no-store, no-transform",
+      "X-Accel-Buffering": "no",
+    },
+  });
+}
+
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
   const prompt =
@@ -1027,21 +1152,69 @@ export async function POST(request: Request) {
   }
 
   try {
-    const pythonResponse = await fetch(PYTHON_TARGET_SQL_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        prompt,
-        clarification_answers: clarificationAnswers.map((answer) => ({
-          issue_id: answer.issueId,
-          ...(answer.optionId ? { option_id: answer.optionId } : {}),
-          ...(answer.text ? { text: answer.text } : {}),
-        })),
-      }),
-      cache: "no-store",
+    const wantsStream =
+      request.headers
+        .get("accept")
+        ?.split(",")
+        .some(
+          (value) =>
+            value.trim().split(";")[0] === "application/x-ndjson",
+        ) ?? false;
+    const pythonRequestBody = JSON.stringify({
+      prompt,
+      clarification_answers: clarificationAnswers.map((answer) => ({
+        issue_id: answer.issueId,
+        ...(answer.optionId ? { option_id: answer.optionId } : {}),
+        ...(answer.text ? { text: answer.text } : {}),
+      })),
     });
+    let isStreamingResponse = wantsStream;
+    let pythonResponse = await fetch(
+      wantsStream ? pythonTargetSqlStreamUrl() : PYTHON_TARGET_SQL_URL,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: wantsStream ? "application/x-ndjson" : "application/json",
+        },
+        body: pythonRequestBody,
+        cache: "no-store",
+        signal: request.signal,
+      },
+    );
+
+    // 순차 배포 중 구버전 Python 서버가 스트림 경로만 모르는 경우에는, 아직 실행되지 않은
+    // 동일 JSON 경로로 한 번만 폴백한다. 처리 도중의 오류에는 재시도하지 않아 중복 실행을 막는다.
+    if (wantsStream && [404, 405].includes(pythonResponse.status)) {
+      isStreamingResponse = false;
+      pythonResponse = await fetch(PYTHON_TARGET_SQL_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: pythonRequestBody,
+        cache: "no-store",
+        signal: request.signal,
+      });
+    }
+
+    if (isStreamingResponse && pythonResponse.ok) {
+      const responseTransport = getTargetingResponseTransport(
+        pythonResponse.headers.get("content-type"),
+      );
+      if (responseTransport === "ndjson") {
+        return streamTargetingResponse(pythonResponse);
+      }
+      if (responseTransport === "json") {
+        isStreamingResponse = false;
+      } else {
+        return NextResponse.json(
+          { error: "Python 타겟팅 API가 지원하지 않는 응답 형식을 반환했습니다." },
+          { status: 502 },
+        );
+      }
+    }
 
     const rawText = await pythonResponse.text();
     const data = parsePythonResponse(rawText);
@@ -1056,30 +1229,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const sql = getSqlFromPythonResponse(data);
-    const { segmentGroups, hiddenSegmentGroups } =
-      getSegmentGroupsFromPythonResponse(data);
-
-    return NextResponse.json({
-      campaignId: getCampaignIdFromPythonResponse(data),
-      total: getTotalFromPythonResponse(data),
-      resultRowCount: getResultRowCountFromPythonResponse(data),
-      targetCampaignCount: getCampaignCountFromPythonResponse(data),
-      segments: getSegmentsFromPythonResponse(data, sql),
-      segmentGroups,
-      hiddenSegmentGroups,
-      normalizedPrompt: getNormalizedPromptFromPythonResponse(data),
-      targetingLabel: getTargetingLabelFromPythonResponse(data),
-      typoCorrections: getTypoCorrectionsFromPythonResponse(data),
-      sql,
-      message: getStringValue(getApiResponse(data), ["message"]),
-      sampleRows: getSampleRowsFromPythonResponse(data),
-      confidence: getConfidenceFromPythonResponse(data),
-      diagnostics: getDiagnosticsFromPythonResponse(data),
-      failureStage: getFailureStageFromPythonResponse(data),
-      failureExplanation: getFailureExplanationFromPythonResponse(data),
-      resolution: getResolutionFromPythonResponse(data),
-    });
+    return NextResponse.json(mapTargetingResponse(data));
   } catch (error) {
     const message = error instanceof Error ? error.message : "알 수 없는 오류";
     return NextResponse.json(
