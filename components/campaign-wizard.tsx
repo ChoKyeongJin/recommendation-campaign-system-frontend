@@ -181,6 +181,7 @@ export function CampaignWizard() {
   const pickAlternative = (query: string) => {
     const trimmed = query.trim();
     if (!trimmed || trimmed === prompt.trim()) return;
+    setStep(0);
     updatePrompt(trimmed);
     return runTargeting([], trimmed);
   };
