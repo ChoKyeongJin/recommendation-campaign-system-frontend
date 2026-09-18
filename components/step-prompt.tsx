@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckCircle2, Circle, LoaderCircle, XCircle } from "lucide-react";
+import {
+  CheckCircle2,
+  Circle,
+  LoaderCircle,
+  Sparkles,
+  XCircle,
+} from "lucide-react";
 
 import {
   Card,
@@ -13,7 +19,45 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import type { TargetingProgressState } from "@/lib/targeting-progress";
+import type {
+  TargetingLlmCallEvent,
+  TargetingProgressState,
+} from "@/lib/targeting-progress";
+
+function LlmCallList({ calls }: { calls: TargetingLlmCallEvent[] }) {
+  if (calls.length === 0) return null;
+  return (
+    <ul className="mt-1.5 flex flex-col gap-1" aria-label="LLM 호출">
+      {calls.map((call) => {
+        const waiting = call.status === "started";
+        const failed = call.status === "failed";
+        const Icon = waiting ? LoaderCircle : failed ? XCircle : Sparkles;
+        const seconds = (call.elapsed_ms / 1000).toFixed(1);
+        return (
+          <li
+            key={call.call_id}
+            className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground"
+          >
+            <Icon
+              className={`h-3 w-3 shrink-0 ${waiting ? "animate-spin text-primary" : failed ? "text-destructive" : "text-violet-500"}`}
+              aria-hidden
+            />
+            <span className="shrink-0 rounded bg-secondary px-1 font-mono text-[10px] text-secondary-foreground">
+              LLM
+            </span>
+            <span className="shrink-0 font-medium text-foreground">
+              {call.label}
+            </span>
+            <span className="truncate">{call.model}</span>
+            <span className="ml-auto shrink-0 tabular-nums">
+              {waiting ? "응답 대기 중" : failed ? `실패 · ${seconds}초` : `${seconds}초`}
+            </span>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
 
 const EXAMPLES = [
   "2026년 2월보다 3월 구매금액이 감소한 고객 리스트를 추출해줘",
@@ -121,6 +165,9 @@ export function StepPrompt({
                     {activeStage.order}/{activeStage.total} 단계
                   </span>
                 )}
+                {progress.llmCalls.length > 0 && (
+                  <span>LLM {progress.llmCalls.length}회</span>
+                )}
                 <span>{elapsedSeconds}초 경과</span>
               </div>
             </div>
@@ -147,7 +194,7 @@ export function StepPrompt({
                         className={`mt-0.5 h-4 w-4 shrink-0 ${stage.status === "started" ? "animate-spin text-primary" : stage.status === "failed" ? "text-destructive" : "text-emerald-600"}`}
                         aria-hidden
                       />
-                      <div>
+                      <div className="min-w-0 flex-1">
                         <p
                           className="text-sm font-medium"
                           {...(stage.status === "started"
@@ -166,10 +213,31 @@ export function StepPrompt({
                         <p className="text-xs text-muted-foreground">
                           {stage.description}
                         </p>
+                        <LlmCallList
+                          calls={progress.llmCalls.filter(
+                            (call) => call.stage === stage.stage,
+                          )}
+                        />
                       </div>
                     </li>
                   );
                 })}
+                {progress.llmCalls.some((call) => call.stage === null) && (
+                  <li className="flex items-start gap-2.5">
+                    <Sparkles
+                      className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
+                      aria-hidden
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium">단계 밖 LLM 호출</p>
+                      <LlmCallList
+                        calls={progress.llmCalls.filter(
+                          (call) => call.stage === null,
+                        )}
+                      />
+                    </div>
+                  </li>
+                )}
                 {isExtracting &&
                   progress.stages.length < (progress.stages[0]?.total ?? 0) && (
                     <li className="flex items-center gap-2.5 text-xs text-muted-foreground">

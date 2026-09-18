@@ -1,4 +1,5 @@
 import {
+  isTargetingTerminalEvent,
   NdjsonParser,
   TargetingStreamContract,
   type TargetingStreamEvent,
@@ -84,7 +85,7 @@ export function createTargetingProxyStream(
             controller.enqueue(encodeEvent(outgoingEvent));
             lastForwardedSequence = outgoingEvent.sequence;
 
-            if (event.type !== "progress") {
+            if (isTargetingTerminalEvent(event)) {
               closed = true;
               controller.close();
               cancelUpstream();

@@ -9,6 +9,7 @@ import {
   reduceTargetingProgress,
   TARGETING_PROGRESS_STAGES,
   TargetingStreamContract,
+  type TargetingLlmCallEvent,
   type TargetingProgressEvent,
 } from "./targeting-progress.ts";
 
@@ -186,4 +187,40 @@ test("stream contract fails closed on malformed or inconsistent events", () => {
   assert.equal(contract.accept(terminal), terminal);
   assert.equal(contract.hasTerminal, true);
   assert.equal(contract.accept(progress(3, "semantic_resolution")), null);
+});
+
+test("LLM call events are observations, not terminals", () => {
+  const llmCall = (
+    sequence: number,
+    status: TargetingLlmCallEvent["status"],
+  ): TargetingLlmCallEvent => ({
+    type: "llm_call",
+    request_id: "request-1",
+    sequence,
+    call_id: 1,
+    stage: "request_analysis",
+    purpose: "typo_correction",
+    label: "오타 교정",
+    model: "gpt-5-mini",
+    status,
+    elapsed_ms: status === "started" ? 0 : 1200,
+  });
+  const started = llmCall(2, "started");
+  assert.equal(isTargetingStreamEvent({ ...started, call_id: 0 }), false);
+  assert.equal(isTargetingStreamEvent({ ...started, stage: "invented" }), false);
+  assert.equal(isTargetingStreamEvent({ ...started, stage: null, purpose: null }), true);
+
+  const contract = new TargetingStreamContract();
+  let state = initialTargetingProgressState;
+  for (const event of [progress(1), started, llmCall(3, "completed")]) {
+    const accepted = contract.accept(event);
+    assert.notEqual(accepted, null);
+    state = reduceTargetingProgress(state, accepted!);
+  }
+  assert.equal(contract.hasTerminal, false);
+  assert.deepEqual(
+    state.llmCalls.map((call) => [call.call_id, call.status, call.elapsed_ms]),
+    [[1, "completed", 1200]],
+  );
+  assert.equal(state.stages.length, 1);
 });

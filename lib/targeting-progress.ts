@@ -29,6 +29,24 @@ export type TargetingProgressEvent = {
   elapsed_ms: number;
 };
 
+/**
+ * One provider round trip reported by the Python pipeline. `stage` is the
+ * progress stage that was running when the call started (null outside one).
+ * `purpose` is null only for a call site that did not name itself.
+ */
+export type TargetingLlmCallEvent = {
+  type: "llm_call";
+  request_id: string;
+  sequence: number;
+  call_id: number;
+  stage: TargetingProgressStage | null;
+  purpose: string | null;
+  label: string;
+  model: string;
+  status: TargetingProgressStatus;
+  elapsed_ms: number;
+};
+
 export type TargetingResultEvent = {
   type: "result";
   request_id: string;
@@ -43,22 +61,33 @@ export type TargetingErrorEvent = {
   error: { status: number; code: string; message: string };
 };
 
+export type TargetingTerminalEvent = TargetingResultEvent | TargetingErrorEvent;
+
 export type TargetingStreamEvent =
   | TargetingProgressEvent
-  | TargetingResultEvent
-  | TargetingErrorEvent;
+  | TargetingLlmCallEvent
+  | TargetingTerminalEvent;
+
+export function isTargetingTerminalEvent(
+  event: TargetingStreamEvent,
+): event is TargetingTerminalEvent {
+  return event.type === "result" || event.type === "error";
+}
 
 export type TargetingProgressState = {
   requestId: string | null;
   lastSequence: number;
   stages: TargetingProgressEvent[];
-  terminal: TargetingResultEvent | TargetingErrorEvent | null;
+  /** Latest event per LLM call, ordered by call_id. */
+  llmCalls: TargetingLlmCallEvent[];
+  terminal: TargetingTerminalEvent | null;
 };
 
 export const initialTargetingProgressState: TargetingProgressState = {
   requestId: null,
   lastSequence: -1,
   stages: [],
+  llmCalls: [],
   terminal: null,
 };
 
@@ -100,6 +129,25 @@ export function isTargetingStreamEvent(
       Number.isInteger(error.status) &&
       typeof error.code === "string" &&
       typeof error.message === "string"
+    );
+  }
+  if (event.type === "llm_call") {
+    return (
+      typeof event.call_id === "number" &&
+      Number.isInteger(event.call_id) &&
+      event.call_id >= 1 &&
+      (event.stage === null ||
+        (typeof event.stage === "string" &&
+          TARGETING_PROGRESS_STAGE_SET.has(event.stage))) &&
+      (event.purpose === null || typeof event.purpose === "string") &&
+      typeof event.label === "string" &&
+      typeof event.model === "string" &&
+      typeof event.elapsed_ms === "number" &&
+      Number.isFinite(event.elapsed_ms) &&
+      event.elapsed_ms >= 0 &&
+      (event.status === "started" ||
+        event.status === "completed" ||
+        event.status === "failed")
     );
   }
   const stageIndex =
@@ -158,7 +206,7 @@ export class TargetingStreamContract {
     }
     this.currentRequestId = value.request_id;
     this.currentSequence = value.sequence;
-    this.terminalSeen = value.type !== "progress";
+    this.terminalSeen = isTargetingTerminalEvent(value);
     return value;
   }
 }
@@ -176,7 +224,15 @@ export function reduceTargetingProgress(
     requestId: event.request_id,
     lastSequence: event.sequence,
   };
-  if (event.type !== "progress") return { ...base, terminal: event };
+  if (isTargetingTerminalEvent(event)) return { ...base, terminal: event };
+  if (event.type === "llm_call") {
+    const llmCalls = state.llmCalls.filter(
+      (item) => item.call_id !== event.call_id,
+    );
+    llmCalls.push(event);
+    llmCalls.sort((left, right) => left.call_id - right.call_id);
+    return { ...base, llmCalls };
+  }
   const stages = state.stages.filter((item) => item.stage !== event.stage);
   stages.push(event);
   stages.sort((left, right) => left.order - right.order);
