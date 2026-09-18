@@ -457,6 +457,13 @@ export function StepTargeting({
   );
   // 실패·부분추출 시 어디를 보강하면 좋을지 힌트(온전히 성공하면 빈 배열).
   const reinforcementHints = buildReinforcementHints(result);
+  // 되묻기가 떠 있으면 아직 조건이 확정되지 않았으므로, 답을 받기 전에는 SQL·지표·실패 안내·
+  // 세그먼트를 보여 주지 않는다(패널과 ClarificationPanel 의 "확인이 필요합니다" 조건이 같다).
+  const awaitingClarification = Boolean(
+    result.resolution &&
+      result.resolution.status !== "unsupported" &&
+      (result.resolution.questions?.length ?? 0) > 0,
+  );
   const metrics = [
     {
       label: "추출된 타겟 고객 수",
@@ -536,124 +543,130 @@ export function StepTargeting({
             />
           )}
 
-          {/* 실패(failureStage)면 실행되지 않았으므로 "생성된 SQL(미실행)"로, 성공이면 "실행된 SQL"로 라벨링한다. */}
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-medium text-foreground">
-                {result.failureStage
-                  ? "생성된 SQL (검증 실패 · 미실행)"
-                  : "실행된 SQL"}
-              </p>
-              <Badge variant="secondary">read-only</Badge>
-            </div>
-            {result.sql ? (
-              <div className="relative">
-                <CopyButton text={result.sql} />
-                <pre className="overflow-x-auto rounded-lg bg-foreground p-4 pr-20 text-xs leading-relaxed text-background">
-                  <code className="font-mono">{result.sql}</code>
-                </pre>
-              </div>
-            ) : (
-              <p className="rounded-lg border border-border bg-secondary p-3 text-sm text-muted-foreground">
-                SQL이 생성되지 않았습니다.
-              </p>
-            )}
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            {metrics.map((metric) => {
-              const Icon = metric.icon;
-              return (
-                <div
-                  key={metric.label}
-                  className="flex items-center gap-3 rounded-lg border border-border bg-accent p-4"
-                >
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                    <Icon className="h-5 w-5" aria-hidden />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-xs text-muted-foreground">
-                      {metric.label}
-                    </p>
-                    <p className="font-sans text-2xl font-bold text-foreground">
-                      {typeof metric.value === "number"
-                        ? metric.value.toLocaleString()
-                        : "-"}
-                      {typeof metric.value === "number" && (
-                        <span className="ml-1 text-sm font-medium text-muted-foreground">
-                          {metric.suffix}
-                        </span>
-                      )}
-                    </p>
+          {!awaitingClarification && (
+            <>
+              {/* 실패(failureStage)면 실행되지 않았으므로 "생성된 SQL(미실행)"로, 성공이면 "실행된 SQL"로 라벨링한다. */}
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-medium text-foreground">
+                    {result.failureStage
+                      ? "생성된 SQL (검증 실패 · 미실행)"
+                      : "실행된 SQL"}
+                  </p>
+                  <Badge variant="secondary">read-only</Badge>
+                </div>
+                {result.sql ? (
+                  <div className="relative">
+                    <CopyButton text={result.sql} />
+                    <pre className="overflow-x-auto rounded-lg bg-foreground p-4 pr-20 text-xs leading-relaxed text-background">
+                      <code className="font-mono">{result.sql}</code>
+                    </pre>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* 실패는 두 축으로 보여준다: 어디서 막혔나(failureStage) + 왜 막혔나(failureExplanation).
-              설명이 있으면 그것이 서사를 소유하므로, 아무것도 알려 주지 못하는 범용 message
-              ("현재 Query Plan 조건을 완전히 만족하는 검증된 SQL이 없습니다.")는 함께 띄우지 않는다. */}
-          {result.failureExplanation ? (
-            <div className="flex flex-col gap-3">
-              {result.failureStage && (
-                <FailureStageNotice stage={result.failureStage} />
-              )}
-              <FailureExplanationNotice explanation={result.failureExplanation} />
-            </div>
-          ) : result.failureStage ? (
-            <FailureStageNotice
-              stage={result.failureStage}
-              message={result.message}
-            />
-          ) : null}
-
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-col gap-0.5">
-              <p className="text-sm font-medium text-foreground">
-                세그먼트 구성
-              </p>
-              <p className="text-xs text-muted-foreground">
-                질문과 관련된 타겟 조건 위주로 보여줍니다.
-              </p>
-            </div>
-            {segmentGroups.some((group) => group.segments.length > 0) ? (
-              <div className="grid gap-3 sm:grid-cols-2">
-                {segmentGroups.map((group) => (
-                  <SegmentGroupCard key={group.title} group={group} />
-                ))}
+                ) : (
+                  <p className="rounded-lg border border-border bg-secondary p-3 text-sm text-muted-foreground">
+                    SQL이 생성되지 않았습니다.
+                  </p>
+                )}
               </div>
-            ) : (
-              <p className="rounded-lg border border-border bg-secondary p-3 text-sm text-muted-foreground">
-                Python 응답에 세그먼트 구성 정보가 없습니다.
-              </p>
-            )}
 
-            {hiddenSegmentGroups.length > 0 && (
-              <details className="group rounded-lg border border-border bg-card">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-2 p-4 text-sm font-medium text-foreground">
-                  <span>
-                    그 외 프로필 통계 {hiddenSegmentGroups.length}개 보기
-                    <span className="ml-1 font-normal text-muted-foreground">
-                      (성별·연령·지역·관심사 등)
-                    </span>
-                  </span>
-                  <span className="shrink-0 text-xs text-muted-foreground transition-transform group-open:rotate-180">
-                    ▼
-                  </span>
-                </summary>
-                <div className="grid gap-3 border-t border-border p-4 sm:grid-cols-2">
-                  {hiddenSegmentGroups.map((group) => (
-                    <SegmentGroupCard key={group.title} group={group} />
-                  ))}
+              <div className="grid gap-3 sm:grid-cols-2">
+                {metrics.map((metric) => {
+                  const Icon = metric.icon;
+                  return (
+                    <div
+                      key={metric.label}
+                      className="flex items-center gap-3 rounded-lg border border-border bg-accent p-4"
+                    >
+                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                        <Icon className="h-5 w-5" aria-hidden />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-xs text-muted-foreground">
+                          {metric.label}
+                        </p>
+                        <p className="font-sans text-2xl font-bold text-foreground">
+                          {typeof metric.value === "number"
+                            ? metric.value.toLocaleString()
+                            : "-"}
+                          {typeof metric.value === "number" && (
+                            <span className="ml-1 text-sm font-medium text-muted-foreground">
+                              {metric.suffix}
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* 실패는 두 축으로 보여준다: 어디서 막혔나(failureStage) + 왜 막혔나(failureExplanation).
+                  설명이 있으면 그것이 서사를 소유하므로, 아무것도 알려 주지 못하는 범용 message
+                  ("현재 Query Plan 조건을 완전히 만족하는 검증된 SQL이 없습니다.")는 함께 띄우지 않는다. */}
+              {result.failureExplanation ? (
+                <div className="flex flex-col gap-3">
+                  {result.failureStage && (
+                    <FailureStageNotice stage={result.failureStage} />
+                  )}
+                  <FailureExplanationNotice explanation={result.failureExplanation} />
                 </div>
-              </details>
-            )}
-          </div>
+              ) : result.failureStage ? (
+                <FailureStageNotice
+                  stage={result.failureStage}
+                  message={result.message}
+                />
+              ) : null}
+
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-0.5">
+                  <p className="text-sm font-medium text-foreground">
+                    세그먼트 구성
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    질문과 관련된 타겟 조건 위주로 보여줍니다.
+                  </p>
+                </div>
+                {segmentGroups.some((group) => group.segments.length > 0) ? (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {segmentGroups.map((group) => (
+                      <SegmentGroupCard key={group.title} group={group} />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="rounded-lg border border-border bg-secondary p-3 text-sm text-muted-foreground">
+                    Python 응답에 세그먼트 구성 정보가 없습니다.
+                  </p>
+                )}
+
+                {hiddenSegmentGroups.length > 0 && (
+                  <details className="group rounded-lg border border-border bg-card">
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-2 p-4 text-sm font-medium text-foreground">
+                      <span>
+                        그 외 프로필 통계 {hiddenSegmentGroups.length}개 보기
+                        <span className="ml-1 font-normal text-muted-foreground">
+                          (성별·연령·지역·관심사 등)
+                        </span>
+                      </span>
+                      <span className="shrink-0 text-xs text-muted-foreground transition-transform group-open:rotate-180">
+                        ▼
+                      </span>
+                    </summary>
+                    <div className="grid gap-3 border-t border-border p-4 sm:grid-cols-2">
+                      {hiddenSegmentGroups.map((group) => (
+                        <SegmentGroupCard key={group.title} group={group} />
+                      ))}
+                    </div>
+                  </details>
+                )}
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
-      <ReinforcementHintsCard hints={reinforcementHints} />
+      {!awaitingClarification && (
+        <ReinforcementHintsCard hints={reinforcementHints} />
+      )}
 
       <div className="flex justify-start">
         <Button variant="outline" onClick={onBack}>
