@@ -5,7 +5,6 @@ import {
   Check,
   Copy,
   Database,
-  HelpCircle,
   MessageSquareText,
   Users,
   Wrench,
@@ -27,8 +26,6 @@ import {
 import { copyTextToClipboard } from "@/lib/clipboard";
 import type {
   ClarificationAnswer,
-  TargetingFailureExplanation,
-  TargetingFailureStage,
   TargetSegment,
   TargetSegmentGroup,
   TargetingResult,
@@ -199,221 +196,6 @@ function ReinforcementHintsCard({ hints }: { hints: ReinforcementHint[] }) {
   );
 }
 
-/**
- * 타겟 SQL 생성이 실패했을 때 "어느 단계에서 막혔는지"를 한 눈에 보여준다.
- * 기존에는 실패 사유와 무관하게 회색 안내문만 떠서, 집합식(조건) 인식에서 막혔는지 SQL 안전
- * 검증에서 막혔는지 구분할 수 없었다. 단계 스텝퍼로 통과→실패→남은 단계를 시각화하고,
- * 세부 "왜"는 기존 message 로 아래에 이어 보여준다.
- */
-function FailureStageNotice({
-  stage,
-  message,
-}: {
-  stage: TargetingFailureStage;
-  message?: string;
-}) {
-  const pipeline = stage.pipeline?.length
-    ? stage.pipeline
-    : [{ order: stage.order, code: stage.code, label: stage.label }];
-
-  return (
-    <div className="flex flex-col gap-3 rounded-lg border border-destructive/40 bg-destructive/5 p-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge variant="destructive" className="text-[10px]">
-          실패 단계 {stage.order}/{stage.total}
-        </Badge>
-        <span className="text-sm font-semibold text-foreground">
-          {stage.label} 단계에서 막혔습니다
-        </span>
-      </div>
-
-      {/* 단계 스텝퍼: 통과(✓) → 실패(✕) → 아직 도달 못한 단계(번호) */}
-      <ol className="flex flex-wrap items-center gap-x-1.5 gap-y-2">
-        {pipeline.map((step, index) => {
-          const isFailed = step.order === stage.order;
-          const isPassed = step.order < stage.order;
-          return (
-            <li key={step.code} className="flex items-center gap-1.5">
-              <span
-                className={[
-                  "flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium",
-                  isFailed
-                    ? "bg-destructive text-destructive-foreground"
-                    : isPassed
-                      ? "bg-secondary text-muted-foreground"
-                      : "bg-muted text-muted-foreground/60",
-                ].join(" ")}
-              >
-                <span aria-hidden className="font-mono">
-                  {isFailed ? "✕" : isPassed ? "✓" : step.order}
-                </span>
-                {step.label}
-              </span>
-              {index < pipeline.length - 1 && (
-                <span className="text-muted-foreground/50" aria-hidden>
-                  →
-                </span>
-              )}
-            </li>
-          );
-        })}
-      </ol>
-
-      {message && (
-        <p className="text-sm leading-relaxed text-foreground">{message}</p>
-      )}
-    </div>
-  );
-}
-
-/** 실패 종류 → 배지 문구. 백엔드가 분류를 닫힌 집합으로 주므로 여기서 새로 판단하지 않는다. */
-const FAILURE_TYPE_LABELS: Record<string, string> = {
-  data_capability_failure: "데이터 부족",
-  semantic_parsing_failure: "의미 해석 실패",
-  input_clarification_required: "입력 확인 필요",
-  execution_asset_missing: "실행 설정 미비",
-  sql_generation_failure: "SQL 검증 실패",
-  execution_policy_rejected: "실행 정책 차단",
-  internal_failure: "내부 오류",
-  unclassified: "원인 미분류",
-};
-
-/** 데이터가 없어서 막힌 실패 — 사용자가 문장을 고쳐도 열리지 않는다. */
-function isDataLimit(failureType: string): boolean {
-  return failureType === "data_capability_failure";
-}
-
-/**
- * **왜** 계산할 수 없는지를 순서대로 보여준다.
- *
- * 예전 화면에는 "현재 Query Plan 조건을 완전히 만족하는 검증된 SQL이 없습니다." 한 줄만 떴다 —
- * 조건을 잘못 썼는지, 데이터가 없는지, 시스템이 고장인지 구분할 수 없는 문장이다. 백엔드가
- * 관측한 단계(요청 → 해석 → 데이터 연결 → 부족한 것 → 결론)를 그대로 흘려 보여주고,
- * 내부 심볼은 상세보기(개발자 진단)에만 남긴다.
- */
-function FailureExplanationNotice({
-  explanation,
-}: {
-  explanation: TargetingFailureExplanation;
-}) {
-  const dataLimit = isDataLimit(explanation.failureType);
-  const typeLabel =
-    FAILURE_TYPE_LABELS[explanation.failureType] ?? "확인 필요";
-  // 원문은 바로 위 "타겟팅 프롬프트" 박스가 이미 보여준다(그리고 그 값은 채널 지시가 빠진
-  // 오디언스 라벨이다). 같은 문장을 두 번 싣지 않되, 제목 문자열이 아니라 id 로 고른다.
-  const steps = explanation.steps.filter((step) => step.id !== "user_request");
-
-  return (
-    <div className="flex flex-col gap-4 rounded-lg border border-border bg-secondary/50 p-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge variant={dataLimit ? "secondary" : "destructive"} className="text-[10px]">
-          {typeLabel}
-        </Badge>
-        <span className="text-sm font-semibold text-foreground">
-          {explanation.summary || explanation.message}
-        </span>
-      </div>
-
-      {/* 관측된 단계만 온다 — 화면은 순서를 바꾸거나 칸을 채워 넣지 않는다. */}
-      <ol className="flex flex-col gap-0">
-        {steps.map((step, index) => (
-          <li
-            key={`${step.id || step.title}-${index}`}
-            className="flex flex-col gap-0"
-          >
-            <div className="rounded-md border border-border bg-card p-3">
-              <p className="text-xs font-medium text-muted-foreground">
-                {step.title}
-              </p>
-              <p className="mt-1 text-sm leading-relaxed whitespace-pre-line text-foreground">
-                {step.detail}
-              </p>
-            </div>
-            {index < steps.length - 1 && (
-              <span
-                aria-hidden
-                className="py-1 pl-3 text-xs text-muted-foreground/60"
-              >
-                ↓
-              </span>
-            )}
-          </li>
-        ))}
-      </ol>
-
-      {dataLimit && (
-        <p className="text-xs leading-relaxed text-muted-foreground">
-          이 조건은 문장을 다시 써도 열리지 않습니다
-          {explanation.suggestedData
-            ? ` — 담당자에게 '${explanation.suggestedData}' 적재를 요청해 주세요.`
-            : " — 담당자에게 해당 데이터 적재를 요청해 주세요."}
-        </p>
-      )}
-
-      {(explanation.trace.length > 0 || explanation.developerDiagnostic) && (
-        <details className="group rounded-md border border-border bg-card">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-2 p-3 text-xs font-medium text-muted-foreground">
-            <span>
-              개발자 진단 보기
-              <span className="ml-1 font-normal">
-                (단계 {explanation.trace.length}개 · 재시도{" "}
-                {explanation.retryCount}회)
-              </span>
-            </span>
-            <span className="shrink-0 transition-transform group-open:rotate-180">
-              ▼
-            </span>
-          </summary>
-          <div className="flex flex-col gap-3 border-t border-border p-3">
-            <ul className="flex flex-col gap-1.5">
-              {explanation.trace.map((entry) => (
-                <li
-                  key={`${entry.stage}-${entry.evidencePath ?? ""}`}
-                  className="flex flex-wrap items-baseline gap-x-2 text-xs"
-                >
-                  <span
-                    aria-hidden
-                    className={
-                      entry.status === "failed"
-                        ? "font-mono text-destructive"
-                        : "font-mono text-muted-foreground"
-                    }
-                  >
-                    {entry.status === "failed"
-                      ? "✕"
-                      : entry.status === "success"
-                        ? "✓"
-                        : "·"}
-                  </span>
-                  <span className="font-medium text-foreground">
-                    {entry.stageLabel}
-                  </span>
-                  <span className="text-muted-foreground">
-                    {entry.description}
-                  </span>
-                  {entry.evidencePath && (
-                    <code className="rounded bg-muted px-1 py-0.5 font-mono text-[10px] text-muted-foreground">
-                      {entry.evidencePath}
-                      {entry.evidenceCode ? ` · ${entry.evidenceCode}` : ""}
-                    </code>
-                  )}
-                </li>
-              ))}
-            </ul>
-            {explanation.developerDiagnostic && (
-              <pre className="overflow-x-auto rounded bg-foreground p-3 text-[10px] leading-relaxed text-background">
-                <code className="font-mono">
-                  {JSON.stringify(explanation.developerDiagnostic, null, 2)}
-                </code>
-              </pre>
-            )}
-          </div>
-        </details>
-      )}
-    </div>
-  );
-}
-
 /** props 기본값용 안정 참조. 리터럴을 기본값으로 쓰면 매 렌더마다 새 배열이 된다. */
 const NO_CLARIFICATION_ANSWERS: ClarificationAnswer[] = [];
 
@@ -464,6 +246,9 @@ export function StepTargeting({
       result.resolution.status !== "unsupported" &&
       (result.resolution.questions?.length ?? 0) > 0,
   );
+  // 실패하면 무엇으로 돌았는지(프롬프트)와 SQL 이 만들어졌는지만 남긴다. 지표·실패 단계·세그먼트는
+  // 실행되지 않은 결과라 읽을 거리가 없다.
+  const isFailed = Boolean(result.failureStage || result.failureExplanation);
   const metrics = [
     {
       label: "추출된 타겟 고객 수",
@@ -533,7 +318,7 @@ export function StepTargeting({
           {/* 확정 계층 패널 — 시스템이 채운 값과 그것을 다르게 둔 요청 문장 보기.
               프롬프트 바로 아래에 두는 이유는, 사용자가 SQL 을 읽기 전에 "무엇으로 돌았는지"를
               먼저 알아야 하기 때문이다. */}
-          {result.resolution && (
+          {result.resolution && (awaitingClarification || !isFailed) && (
             <ClarificationPanel
               resolution={result.resolution}
               onSubmit={onClarify}
@@ -569,102 +354,89 @@ export function StepTargeting({
                 )}
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                {metrics.map((metric) => {
-                  const Icon = metric.icon;
-                  return (
-                    <div
-                      key={metric.label}
-                      className="flex items-center gap-3 rounded-lg border border-border bg-accent p-4"
-                    >
-                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                        <Icon className="h-5 w-5" aria-hidden />
-                      </span>
-                      <div className="min-w-0">
-                        <p className="text-xs text-muted-foreground">
-                          {metric.label}
-                        </p>
-                        <p className="font-sans text-2xl font-bold text-foreground">
-                          {typeof metric.value === "number"
-                            ? metric.value.toLocaleString()
-                            : "-"}
-                          {typeof metric.value === "number" && (
-                            <span className="ml-1 text-sm font-medium text-muted-foreground">
-                              {metric.suffix}
-                            </span>
-                          )}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* 실패는 두 축으로 보여준다: 어디서 막혔나(failureStage) + 왜 막혔나(failureExplanation).
-                  설명이 있으면 그것이 서사를 소유하므로, 아무것도 알려 주지 못하는 범용 message
-                  ("현재 Query Plan 조건을 완전히 만족하는 검증된 SQL이 없습니다.")는 함께 띄우지 않는다. */}
-              {result.failureExplanation ? (
-                <div className="flex flex-col gap-3">
-                  {result.failureStage && (
-                    <FailureStageNotice stage={result.failureStage} />
-                  )}
-                  <FailureExplanationNotice explanation={result.failureExplanation} />
-                </div>
-              ) : result.failureStage ? (
-                <FailureStageNotice
-                  stage={result.failureStage}
-                  message={result.message}
-                />
-              ) : null}
-
-              <div className="flex flex-col gap-3">
-                <div className="flex flex-col gap-0.5">
-                  <p className="text-sm font-medium text-foreground">
-                    세그먼트 구성
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    질문과 관련된 타겟 조건 위주로 보여줍니다.
-                  </p>
-                </div>
-                {segmentGroups.some((group) => group.segments.length > 0) ? (
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {segmentGroups.map((group) => (
-                      <SegmentGroupCard key={group.title} group={group} />
-                    ))}
-                  </div>
-                ) : (
-                  <p className="rounded-lg border border-border bg-secondary p-3 text-sm text-muted-foreground">
-                    Python 응답에 세그먼트 구성 정보가 없습니다.
-                  </p>
-                )}
-
-                {hiddenSegmentGroups.length > 0 && (
-                  <details className="group rounded-lg border border-border bg-card">
-                    <summary className="flex cursor-pointer list-none items-center justify-between gap-2 p-4 text-sm font-medium text-foreground">
-                      <span>
-                        그 외 프로필 통계 {hiddenSegmentGroups.length}개 보기
-                        <span className="ml-1 font-normal text-muted-foreground">
-                          (성별·연령·지역·관심사 등)
+              {!isFailed && (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {metrics.map((metric) => {
+                    const Icon = metric.icon;
+                    return (
+                      <div
+                        key={metric.label}
+                        className="flex items-center gap-3 rounded-lg border border-border bg-accent p-4"
+                      >
+                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                          <Icon className="h-5 w-5" aria-hidden />
                         </span>
-                      </span>
-                      <span className="shrink-0 text-xs text-muted-foreground transition-transform group-open:rotate-180">
-                        ▼
-                      </span>
-                    </summary>
-                    <div className="grid gap-3 border-t border-border p-4 sm:grid-cols-2">
-                      {hiddenSegmentGroups.map((group) => (
+                        <div className="min-w-0">
+                          <p className="text-xs text-muted-foreground">
+                            {metric.label}
+                          </p>
+                          <p className="font-sans text-2xl font-bold text-foreground">
+                            {typeof metric.value === "number"
+                              ? metric.value.toLocaleString()
+                              : "-"}
+                            {typeof metric.value === "number" && (
+                              <span className="ml-1 text-sm font-medium text-muted-foreground">
+                                {metric.suffix}
+                              </span>
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {!isFailed && (
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-0.5">
+                    <p className="text-sm font-medium text-foreground">
+                      세그먼트 구성
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      질문과 관련된 타겟 조건 위주로 보여줍니다.
+                    </p>
+                  </div>
+                  {segmentGroups.some((group) => group.segments.length > 0) ? (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {segmentGroups.map((group) => (
                         <SegmentGroupCard key={group.title} group={group} />
                       ))}
                     </div>
-                  </details>
-                )}
-              </div>
+                  ) : (
+                    <p className="rounded-lg border border-border bg-secondary p-3 text-sm text-muted-foreground">
+                      Python 응답에 세그먼트 구성 정보가 없습니다.
+                    </p>
+                  )}
+
+                  {hiddenSegmentGroups.length > 0 && (
+                    <details className="group rounded-lg border border-border bg-card">
+                      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 p-4 text-sm font-medium text-foreground">
+                        <span>
+                          그 외 프로필 통계 {hiddenSegmentGroups.length}개 보기
+                          <span className="ml-1 font-normal text-muted-foreground">
+                            (성별·연령·지역·관심사 등)
+                          </span>
+                        </span>
+                        <span className="shrink-0 text-xs text-muted-foreground transition-transform group-open:rotate-180">
+                          ▼
+                        </span>
+                      </summary>
+                      <div className="grid gap-3 border-t border-border p-4 sm:grid-cols-2">
+                        {hiddenSegmentGroups.map((group) => (
+                          <SegmentGroupCard key={group.title} group={group} />
+                        ))}
+                      </div>
+                    </details>
+                  )}
+                </div>
+              )}
             </>
           )}
         </CardContent>
       </Card>
 
-      {!awaitingClarification && (
+      {!awaitingClarification && !isFailed && (
         <ReinforcementHintsCard hints={reinforcementHints} />
       )}
 
