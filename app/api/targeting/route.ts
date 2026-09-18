@@ -12,6 +12,10 @@ import {
   type TargetSegmentGroup,
   type TargetingResolution,
 } from "@/lib/campaign-data";
+import {
+  clarificationOptionQuery,
+  clarificationPresentation,
+} from "@/lib/clarification-choice";
 import { getTargetingResponseTransport } from "@/lib/targeting-progress";
 import { createTargetingProxyStream } from "@/lib/targeting-stream-proxy";
 
@@ -785,11 +789,10 @@ function getResolutionFromPythonResponse(data: unknown): TargetingResolution | n
           if (!id || !label) {
             return [];
           }
-          const value = option?.value;
-          const query =
-            answerShape === "restatement" && typeof value === "string"
-              ? value.trim()
-              : "";
+          const query = clarificationOptionQuery(answerShape, {
+            query: option?.query,
+            value: option?.value,
+          });
           return [{ id, label, ...(query ? { query } : {}) }];
         },
       );
@@ -806,6 +809,7 @@ function getResolutionFromPythonResponse(data: unknown): TargetingResolution | n
           entityType: getStringValue(question, ["entity_type"]) || null,
           evidenceText: getEvidenceText(question),
           answerShape,
+          presentation: clarificationPresentation(question?.presentation),
         },
       ];
     },

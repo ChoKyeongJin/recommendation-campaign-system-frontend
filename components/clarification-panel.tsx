@@ -26,6 +26,7 @@ import type {
   ResolutionAssumption,
   TargetingResolution,
 } from "@/lib/campaign-data";
+import { requestChoiceQuery } from "@/lib/clarification-choice";
 import { buildClarificationSubmission } from "@/lib/clarification-submission";
 
 /**
@@ -415,6 +416,123 @@ function QuestionCard({
   );
 }
 
+/**
+ * 보기 선택형 되묻기(`presentation === "request_choice"`).
+ *
+ * 보기 하나하나가 백엔드가 실행을 증명한 **완성 요청 문장**이다. 고르면 그 문장을 조립·추론 없이
+ * 그대로 새 요청으로 보낸다. 자유 입력을 받지 않는 이유는 입력한 조각이 요청 전체를 대신해
+ * 앞 조건을 지우기 때문이고, 고르기 전에는 실행하지 않는다.
+ */
+function RequestChoicePanel({
+  question,
+  pendingCount,
+  onPick,
+  isSubmitting,
+}: {
+  question: ClarificationQuestion;
+  /** 이 문장을 고른 뒤 이어서 물을 다른 항목 수. */
+  pendingCount: number;
+  onPick?: (query: string) => void | Promise<void>;
+  isSubmitting: boolean;
+}) {
+  const [selectedId, setSelectedId] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    setSelectedId(undefined);
+  }, [question.questionId]);
+
+  const selectedQuery = requestChoiceQuery(question, selectedId);
+  const name = `request-choice-${question.questionId}`;
+  const hasOptions = question.options.length > 0;
+
+  return (
+    <Card className="border-primary/40">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <HelpCircle className="h-4 w-4 text-primary" aria-hidden />
+          확인이 필요합니다
+        </CardTitle>
+        <CardDescription>
+          {hasOptions
+            ? "보기 하나를 선택하면 그 보기에 적힌 요청 문장 그대로 다시 추출합니다."
+            : "지금 바로 실행할 수 있는 해석이 없습니다. 범위를 밝혀 요청 문장을 다시 입력해 주세요."}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4">
+          <div>
+            <p className="text-sm font-medium text-foreground">{question.text}</p>
+            {question.evidenceText && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                원문: &lsquo;{question.evidenceText}&rsquo;
+              </p>
+            )}
+          </div>
+
+          {hasOptions && (
+            <div role="radiogroup" className="flex flex-col gap-2">
+              {question.options.map((option) => {
+                const checked = option.id === selectedId;
+                return (
+                  <label
+                    key={option.id}
+                    className={`flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors ${
+                      checked
+                        ? "border-primary bg-primary/5"
+                        : "border-border bg-background hover:bg-accent"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name={name}
+                      value={option.id}
+                      checked={checked}
+                      disabled={isSubmitting || !option.query}
+                      onChange={() => setSelectedId(option.id)}
+                      className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
+                    />
+                    <span className="flex min-w-0 flex-col gap-1">
+                      <span className="text-sm font-medium text-foreground">
+                        {option.label}
+                      </span>
+                      {option.query && (
+                        <span className="break-words text-xs text-muted-foreground">
+                          요청 문장: {option.query}
+                        </span>
+                      )}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {pendingCount > 0 && (
+          <p className="text-xs text-muted-foreground">
+            확인할 항목이 {pendingCount}개 더 있습니다. 문장을 고른 뒤 이어서 여쭤봅니다.
+          </p>
+        )}
+
+        {hasOptions && onPick && (
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              disabled={!selectedQuery || isSubmitting}
+              onClick={() => {
+                if (selectedQuery) {
+                  void onPick(selectedQuery);
+                }
+              }}
+            >
+              {isSubmitting ? "다시 추출하는 중..." : "선택한 문장으로 다시 추출"}
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export function ClarificationPanel({
   resolution,
   onSubmit,
@@ -613,6 +731,25 @@ export function ClarificationPanel({
           />
         </CardContent>
       </Card>
+    );
+  }
+
+  // 보기 선택형 질문은 요청 전체를 다른 문장으로 바꾼다. 같은 화면에서 슬롯 답을 함께 받으면
+  // 새 문장에 붙지 못하고 버려지므로(clarification-submission 의 rewrite 규칙) 그 질문만 보여
+  // 주고, 나머지는 문장을 고른 다음 라운드에서 다시 묻는다.
+  const requestChoice = questions.find(
+    (question) => question.presentation === "request_choice",
+  );
+  if (requestChoice) {
+    return (
+      <RequestChoicePanel
+        question={requestChoice}
+        pendingCount={
+          questions.length - 1 + (resolution.deferredQuestionCount ?? 0)
+        }
+        onPick={onPickAlternative}
+        isSubmitting={isSubmitting}
+      />
     );
   }
 

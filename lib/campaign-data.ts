@@ -166,7 +166,14 @@ export type ClarificationQuestion = {
   evidenceText?: string;
   /** 슬롯 값 응답인지, 완성 요청 문장으로 다시 실행해야 하는지 */
   answerShape: "slot_fill" | "restatement";
+  /**
+   * 보기를 고르게 하는 모양. `request_choice` 는 보기마다 실행이 증명된 완성 요청 문장(query)이
+   * 붙어 있고, 하나를 고르면 그 문장을 그대로 새 요청으로 보낸다(자유 입력 없음).
+   */
+  presentation?: ClarificationPresentation;
 };
+
+export type ClarificationPresentation = "default" | "request_choice";
 
 /** 사용자가 말하지 않았지만 운영 정책이 채운 의미 하나의 영수증. */
 export type ResolutionAssumption = {
