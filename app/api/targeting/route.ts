@@ -16,6 +16,7 @@ import {
   clarificationOptionQuery,
   clarificationPresentation,
 } from "@/lib/clarification-choice";
+import { mapSupportLimit } from "@/lib/support-limit";
 import { getTargetingResponseTransport } from "@/lib/targeting-progress";
 import { createTargetingProxyStream } from "@/lib/targeting-stream-proxy";
 
@@ -991,6 +992,8 @@ function getFailureExplanationFromPythonResponse(data: unknown) {
     suggestedData: getStringValue(explanation, ["suggested_data"]) || null,
     retryCount: getNumberValue(record, ["retry_count"]) ?? 0,
     trace,
+    // 고쳐도 열리지 않는 실패에만 실리는 안내(그 판단은 백엔드가 한다).
+    supportLimit: mapSupportLimit(userExplanation?.support_limit),
     developerDiagnostic: asRecord(record.developer_diagnostic),
   };
 }

@@ -111,6 +111,37 @@ export type TargetingFailureTraceEntry = {
   evidenceCode?: string;
 };
 
+/** 실행할 수 없는 구절 하나와 그 쉬운 이유. 내부 코드는 여기 오지 않는다. */
+export type TargetingSupportLimitCondition = {
+  /** 사용자가 자기 문장에서 찾을 수 있는 구절 */
+  text: string;
+  /** 왜 이 구절이 막혔는지 — 백엔드가 만든 완성 문장(화면이 다시 쓰지 않는다) */
+  reason: string;
+};
+
+/**
+ * user_explanation.support_limit — **사용자가 문장을 고쳐도 열리지 않는** 실패의 안내.
+ *
+ * 되묻기(값 미확정)·오타·DB 장애·내부 오류에는 백엔드가 이 블록을 만들지 않는다. 그래서
+ * 화면은 `failureType` 으로 다시 분기하지 않고 이 블록의 존재만 보고 카드를 켠다 — 같은
+ * 판단을 두 곳에 두면 한쪽만 바뀌었을 때 고칠 수 없는 요청에 "표현을 바꿔 보세요"가 다시
+ * 나간다.
+ *
+ * 모든 문구는 백엔드가 만든다. 화면은 이어 붙이거나 다시 쓰지 않는다 — 같은 사실이 화면마다
+ * 다르게 적히지 않게 하기 위해서다. 구버전 Python 응답에는 이 키가 없고 그때는 null 이다.
+ */
+export type TargetingSupportLimit = {
+  title: string;
+  /** 시스템이 이해한 요청(= 사용자가 보낸 문장). 화면에 이미 떠 있으면 생략한다. */
+  understood: string;
+  /** 요청 수준의 한 문장. 구절별 이유가 없을 때 이 문장만 남는다. */
+  reason: string;
+  blockedConditions: TargetingSupportLimitCondition[];
+  /** 항상 false — 이 카드의 존재 조건이 "사용자가 고칠 수 없다"이다. */
+  userCanFix: boolean;
+  nextAction: string;
+};
+
 /**
  * api_response.failure_explanation — **왜** 계산할 수 없는지의 결정론 설명.
  *
@@ -133,6 +164,10 @@ export type TargetingFailureExplanation = {
   /** 재시도 횟수(0이면 재시도 없이 종결) */
   retryCount: number;
   trace: TargetingFailureTraceEntry[];
+  /**
+   * 고쳐도 열리지 않는 실패일 때만 채워진다. 그 외에는 null 이고 카드는 렌더링되지 않는다.
+   */
+  supportLimit?: TargetingSupportLimit | null;
   /** 개발/디버깅용 원값. 화면 기본 노출 금지(상세보기에서만). */
   developerDiagnostic: Record<string, unknown> | null;
 };

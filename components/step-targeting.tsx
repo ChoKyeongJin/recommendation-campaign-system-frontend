@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import {
+  Ban,
   Check,
   Copy,
   Database,
@@ -29,6 +30,7 @@ import type {
   TargetSegment,
   TargetSegmentGroup,
   TargetingResult,
+  TargetingSupportLimit,
 } from "@/lib/campaign-data";
 
 // 롱테일(자유형 행동·관심사 등)로 그룹이 길어지는 것을 막기 위한 기본 표시 개수.
@@ -196,6 +198,127 @@ function ReinforcementHintsCard({ hints }: { hints: ReinforcementHint[] }) {
   );
 }
 
+/**
+ * 고쳐도 열리지 않는 실패의 안내 카드. **실패했을 때만, 백엔드가 이 블록을 만들었을 때만** 뜬다.
+ *
+ * 이 카드는 "다시 시도하는 방법"(ReinforcementHintsCard)과 정반대의 자리다. 저쪽은 사용자가
+ * 입력을 고쳐 열 수 있는 실패의 안내이고, 이쪽은 무엇을 어떻게 다시 써도 지금은 열리지 않는
+ * 실패의 안내다. 그래서 여기서는 문장 수정을 권하지 않는다 — 권하면 사용자는 같은 문장을
+ * 열 번 고쳐 쓰고 같은 자리에서 막힌다.
+ *
+ * 문구는 전부 백엔드가 만든 것을 그대로 쓴다. 내부 분류 이름(data_not_available 등)은 응답의
+ * 사용자 블록에 아예 실리지 않고, 접힌 "관리자용 정보"의 원값에만 남는다.
+ */
+function SupportLimitCard({
+  supportLimit,
+  displayedPrompt,
+  developerDiagnostic,
+}: {
+  supportLimit: TargetingSupportLimit;
+  /** 화면 위에 이미 떠 있는 프롬프트. 같으면 "이해한 요청"을 다시 적지 않는다. */
+  displayedPrompt?: string;
+  developerDiagnostic?: Record<string, unknown> | null;
+}) {
+  const understood = supportLimit.understood?.trim();
+  const showUnderstood = Boolean(
+    understood && understood !== displayedPrompt?.trim(),
+  );
+  // 구절을 짚지 못한 실패도 있다. 그때 "아래 구절"이라고 적으면 화면이 없는 목록을 가리킨다.
+  const hasConditions = supportLimit.blockedConditions.length > 0;
+
+  return (
+    <Card className="border-destructive/40">
+      <CardHeader className="flex-row items-start gap-3 space-y-0">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-destructive/10 text-destructive">
+          <Ban className="h-5 w-5" aria-hidden />
+        </span>
+        <div className="min-w-0">
+          <CardTitle className="text-base">{supportLimit.title}</CardTitle>
+          <CardDescription>
+            {hasConditions
+              ? "조건은 정상적으로 이해했습니다. 아래 구절을 실행할 준비가 아직 되지 않았습니다."
+              : "조건은 정상적으로 이해했습니다. 다만 이 요청을 실행할 준비가 아직 되지 않았습니다."}
+          </CardDescription>
+        </div>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        {showUnderstood && (
+          <div className="rounded-lg border border-border bg-accent p-3">
+            <p className="text-xs font-medium text-muted-foreground">
+              이해한 요청
+            </p>
+            <p className="mt-1 whitespace-pre-wrap break-words text-sm text-foreground">
+              {understood}
+            </p>
+          </div>
+        )}
+
+        {hasConditions ? (
+          <div className="flex flex-col gap-2">
+            <p className="text-sm font-medium text-foreground">
+              실행할 수 없는 조건
+            </p>
+            {supportLimit.blockedConditions.map((condition, index) => (
+              <div
+                key={`${condition.text}-${index}`}
+                className="rounded-lg border border-border bg-secondary p-3"
+              >
+                <p className="text-sm font-semibold text-foreground">
+                  {condition.text}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {condition.reason}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          // 막힌 구절을 구절 단위로 짚지 못한 실패도 있다. 그때 요청 수준의 한 문장까지
+          // 감추면 카드가 제목만 남는다.
+          supportLimit.reason && (
+            <p className="rounded-lg border border-border bg-secondary p-3 text-sm text-muted-foreground">
+              {supportLimit.reason}
+            </p>
+          )
+        )}
+
+        <div className="flex flex-col gap-2 rounded-lg border border-border bg-accent p-3">
+          <div className="flex items-center gap-2">
+            {!supportLimit.userCanFix && (
+              <Badge variant="secondary" className="shrink-0 text-[10px]">
+                문장을 바꿀 필요 없음
+              </Badge>
+            )}
+            <p className="text-xs font-medium text-muted-foreground">
+              다음 행동
+            </p>
+          </div>
+          <p className="text-sm text-foreground">{supportLimit.nextAction}</p>
+          <p className="text-xs text-muted-foreground">
+            이 조건이 꼭 필요하면 담당자에게 기능 지원을 요청해 주세요.
+          </p>
+        </div>
+
+        {developerDiagnostic && (
+          <details className="group rounded-lg border border-border bg-card">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-2 p-3 text-xs font-medium text-muted-foreground">
+              <span>관리자용 정보</span>
+              <span className="shrink-0 text-xs transition-transform group-open:rotate-180">
+                ▼
+              </span>
+            </summary>
+            <pre className="overflow-x-auto border-t border-border p-3 text-[11px] leading-relaxed text-muted-foreground">
+              <code className="font-mono">
+                {JSON.stringify(developerDiagnostic, null, 2)}
+              </code>
+            </pre>
+          </details>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 /** props 기본값용 안정 참조. 리터럴을 기본값으로 쓰면 매 렌더마다 새 배열이 된다. */
 const NO_CLARIFICATION_ANSWERS: ClarificationAnswer[] = [];
 
@@ -249,6 +372,9 @@ export function StepTargeting({
   // 실패하면 무엇으로 돌았는지(프롬프트)와 SQL 이 만들어졌는지만 남긴다. 지표·실패 단계·세그먼트는
   // 실행되지 않은 결과라 읽을 거리가 없다.
   const isFailed = Boolean(result.failureStage || result.failureExplanation);
+  // 고쳐도 열리지 않는 실패의 안내. 백엔드가 그 판정을 이미 했으므로 여기서 실패 종류를 다시
+  // 분기하지 않는다 — 되묻기 중에는(아직 조건이 확정되지 않았다) 다른 패널이 자리를 갖는다.
+  const supportLimit = result.failureExplanation?.supportLimit ?? null;
   const metrics = [
     {
       label: "추출된 타겟 고객 수",
@@ -435,6 +561,14 @@ export function StepTargeting({
           )}
         </CardContent>
       </Card>
+
+      {!awaitingClarification && isFailed && supportLimit && (
+        <SupportLimitCard
+          supportLimit={supportLimit}
+          displayedPrompt={targetingPrompt}
+          developerDiagnostic={result.failureExplanation?.developerDiagnostic}
+        />
+      )}
 
       {!awaitingClarification && !isFailed && (
         <ReinforcementHintsCard hints={reinforcementHints} />
