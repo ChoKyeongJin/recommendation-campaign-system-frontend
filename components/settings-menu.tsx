@@ -2,22 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import {
-  Blocks,
-  BookOpen,
-  ChevronDown,
-  Settings,
-  SlidersHorizontal,
-  Workflow,
-  Wrench,
-} from "lucide-react";
+import { Blocks, ChevronDown, Settings, Workflow, Wrench } from "lucide-react";
 
+// 메뉴에 세우는 것만 적는다. `/admin/prompts` 와 `/admin/reference` 는 화면도 API 도 그대로
+// 살아 있고 주소로 열리지만, 일상적으로 쓰는 자리가 아니라 목록에서 내렸다.
 const SETTINGS_LINKS = [
   { href: "/admin/how-it-works", label: "어떻게 동작하나", icon: Workflow },
   { href: "/admin/building-blocks", label: "조건은 어떻게 조립되나", icon: Blocks },
   { href: "/admin/setup", label: "처음 세팅하는 법", icon: Wrench },
-  { href: "/admin/prompts", label: "프롬프트 수정", icon: SlidersHorizontal },
-  { href: "/admin/reference", label: "참조 파일", icon: BookOpen },
 ] as const;
 
 export function SettingsMenu() {
@@ -69,7 +61,7 @@ export function SettingsMenu() {
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-full z-40 mt-1.5 flex w-48 flex-col rounded-lg border border-border bg-card p-1 shadow-lg ring-1 ring-foreground/5"
+          className="absolute right-0 top-full z-40 mt-1.5 flex w-max min-w-52 flex-col rounded-lg border border-border bg-card p-1 shadow-lg ring-1 ring-foreground/5"
         >
           {SETTINGS_LINKS.map(({ href, label, icon: Icon }) => (
             <Link
@@ -77,7 +69,7 @@ export function SettingsMenu() {
               href={href}
               role="menuitem"
               onClick={() => setOpen(false)}
-              className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="inline-flex items-center gap-2 whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
               <Icon className="h-4 w-4" aria-hidden />
               {label}
