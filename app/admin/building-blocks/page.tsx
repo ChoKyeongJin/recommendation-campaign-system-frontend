@@ -6,7 +6,7 @@ import { BuildingBlocks } from "@/components/building-blocks";
 export const metadata = {
   title: "조건은 어떻게 조립되나",
   description:
-    "문장 하나가 정해진 블록 몇 개로 조립되어 조회문이 되기까지를 단계로 보여 줍니다",
+    "문장 하나가 정해진 블록 몇 개로 조립되어 조회문이 되기까지를, AI가 무엇을 고르고 무엇을 고르지 않는지와 함께 단계로 보여 줍니다",
 };
 
 export default function BuildingBlocksAdminPage() {
@@ -38,7 +38,11 @@ export default function BuildingBlocksAdminPage() {
             문장 종류마다 기능을 새로 만들지 않습니다
           </strong>
           . 정해진 블록 몇 개를 레고처럼 새로 조립할 뿐입니다. 문장 하나가 실제로 어떻게
-          조립되는지 한 단계씩 따라가 보세요.
+          조립되는지, 그중 무엇을 AI가 고르고{" "}
+          <strong className="font-semibold text-foreground">
+            무엇은 AI가 고를 수 없는지
+          </strong>
+          를 한 단계씩 따라가 보세요.
         </p>
       </header>
 
