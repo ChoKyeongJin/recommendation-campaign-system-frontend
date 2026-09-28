@@ -5,8 +5,7 @@ import { HowItWorks } from "@/components/how-it-works";
 
 export const metadata = {
   title: "어떻게 동작하나",
-  description:
-    "자연어 요청이 검증된 타겟 SQL이 되기까지의 단계와, 모델이 정하는 것과 프로그램이 정하는 것의 경계",
+  description: "요청 한 줄이 고객 명단이 되기까지의 여섯 단계를 예시로 따라가며 설명합니다",
 };
 
 export default function HowItWorksAdminPage() {
@@ -33,10 +32,10 @@ export default function HowItWorksAdminPage() {
           </div>
         </div>
         <p className="text-sm text-muted-foreground">
-          한 줄로 말하면 이렇습니다 — 모델은 <strong className="font-semibold text-foreground">무엇을
-          의미했는지</strong>만 제안하고, 실제 표 · 컬럼 · SQL 은 프로그램이 카탈로그 선언으로
-          정합니다. 의미를 증명하지 못하면 비슷하게 맞는 SQL 을 만들지 않고 멈춥니다. 아래 그림은
-          의미 해석을 llm_primary 모드로만 도는 배포를 그린 것입니다.
+          요청 한 줄이 고객 명단이 되기까지 여섯 단계를 지납니다. AI 는{" "}
+          <strong className="font-semibold text-foreground">무슨 말인지 알아듣는 일</strong>만
+          맡고, 실제로 어느 데이터를 어떻게 꺼낼지는 프로그램이 미리 정해 둔 규칙대로 합니다.
+          확실하지 않으면 대충 비슷한 명단을 만들지 않고 멈춥니다.
         </p>
       </header>
 

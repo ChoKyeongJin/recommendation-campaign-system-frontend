@@ -4,12 +4,14 @@ import test from "node:test";
 import {
   AUTHORITY_BOUNDARY,
   CALL_BUDGET,
+  EXAMPLE_REQUEST,
   FAIL_CLOSE,
   failCloseIndex,
   LLM_EXCHANGE,
   llmStageIndex,
   PIPELINE_STAGES,
   stageAtProgress,
+  TECHNICAL_NOTE,
 } from "./how-it-works.ts";
 
 test("진행도 0 은 첫 단계 위에 머문다", () => {
@@ -77,16 +79,22 @@ test("모델을 부르는 단계와 막히는 단계가 실재한다", () => {
   assert.ok(failCloseIndex() >= 0, "막히는 단계를 못 찾았다");
 });
 
-test("여섯 단계가 저마다 라벨·설명·원리를 들고 있고 id 가 겹치지 않는다", () => {
+test("여섯 단계가 저마다 라벨·쉬운 설명·예시를 들고 있고 id 가 겹치지 않는다", () => {
   assert.equal(PIPELINE_STAGES.length, 6);
   const ids = new Set<string>();
   for (const stage of PIPELINE_STAGES) {
     assert.ok(stage.label.trim(), `라벨이 빈 단계: ${stage.id}`);
-    assert.ok(stage.description.trim(), `설명이 빈 단계: ${stage.id}`);
-    assert.ok(stage.principle.trim(), `원리가 빈 단계: ${stage.id}`);
+    assert.ok(stage.plain.trim(), `쉬운 설명이 빈 단계: ${stage.id}`);
+    // 예시가 빠진 단계는 그 자리에서 이야기가 끊긴다.
+    assert.ok(stage.example.trim(), `예시가 빈 단계: ${stage.id}`);
     assert.equal(ids.has(stage.id), false, `중복된 단계 id: ${stage.id}`);
     ids.add(stage.id);
   }
+});
+
+test("예시 요청과 기술 메모가 비어 있지 않다", () => {
+  assert.ok(EXAMPLE_REQUEST.trim());
+  assert.ok(TECHNICAL_NOTE.trim());
 });
 
 test("설명 문단이 비어 있지 않다", () => {
