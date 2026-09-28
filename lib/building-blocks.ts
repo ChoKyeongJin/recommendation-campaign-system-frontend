@@ -5,33 +5,57 @@
  * 정해진 연산자 몇 개를 **조합**하고, 업무 개념(구매·로그인·환불)은 새 타입이 아니라 자료 블록의
  * **이름**이다. 이 화면은 그 규칙을 문장 하나가 블록으로 조립되는 과정으로 보여 준다.
  *
+ * **읽는 사람은 개발자가 아니다.** 그래서 세 가지를 지킨다.
+ *
+ * 1. 블록 칸의 큰 글씨는 **이 자리에서 무슨 뜻인지**(`meaning`)이고, 블록 이름은 그 아래 작게
+ *    붙는다. 블록 이름만 크게 적으면 읽는 사람이 그것을 매번 원래 문장으로 되돌려야 한다.
+ * 2. 트리의 색은 블록 갈래가 아니라 **원래 문장의 어느 말에서 나왔는가**(`branch`)로 가른다.
+ *    위에 띄운 문장의 색과 같으므로, 어느 말이 어느 가지가 됐는지 눈으로 이어진다.
+ * 3. `event_ir` 의 실제 이름(`technical`)은 기본으로 숨긴다. 모든 칸에 영어가 붙어 있으면
+ *    글자 수가 두 배가 되고 정작 뜻이 묻힌다. 찾는 사람은 토글로 켠다.
+ *
  * **트리는 실제 모양이다.** 아래 노드는 예시 문장을 실제로 조립해 얻은 것이다 —
  * `event_ir.conjunction([Comparison(...), existence("purchase", negated=True, window=...)])` 가
  * 내는 `and / comparison / not / exists / filter / source / time_filter` 그대로다. 보기 좋으라고
  * 없는 노드를 넣거나 있는 노드를 지우지 않았다. 자리(x·y)만 읽기 좋게 손으로 잡았다.
  *
  * **줄인 것 한 가지.** 실제 `time_filter` 는 대상 필드(`purchase.occurred_at`)를 자식으로 들고
- * 있는데, 화면에서는 그 블록의 설명 줄로 적었다. 깊이가 한 단 더 내려가면 글자가 읽기 어려워지고,
+ * 있는데, 화면에서는 그 블록의 뜻 안에 적었다. 깊이가 한 단 더 내려가면 글자가 읽기 어려워지고,
  * 이 화면이 말하려는 것은 깊이가 아니라 **조합**이기 때문이다.
  */
 
 /** 그림이 따라가는 예시 요청. 「어떻게 동작하나」 화면과 같은 문장을 쓴다. */
 export const EXAMPLE_REQUEST = "최근 3개월 동안 구매하지 않은 여성 고객을 찾아줘";
 
-/** 블록의 갈래 — 색을 가르는 데 쓴다. */
+/** 트리의 가지 — 원래 문장의 어느 말에서 나왔는가. 색을 가르는 기준이다. */
+export type Branch = "root" | "left" | "right";
+
+/** 예시 문장을 가지별로 쪼갠 것. 이어 붙이면 `EXAMPLE_REQUEST` 와 같아야 한다. */
+export const SENTENCE_PARTS: readonly {
+  readonly text: string;
+  /** `null` 은 조건이 아닌 부분(말투·군더더기). */
+  readonly branch: Branch | null;
+}[] = [
+  { text: "최근 3개월 동안 구매하지 않은", branch: "right" },
+  { text: " ", branch: null },
+  { text: "여성", branch: "left" },
+  { text: " 고객을 찾아줘", branch: null },
+];
+
+/** 블록의 갈래 — 블록 목록에서 색을 가르는 데 쓴다. */
 export type BlockKind = "logic" | "value" | "relation" | "condition";
 
 export type TreeNode = {
   readonly id: string;
   /** 부모 노드 id. 뿌리는 `null`. */
   readonly parent: string | null;
-  /** 블록 이름을 쉬운 말로. */
-  readonly label: string;
-  /** 이 자리에서 무엇을 뜻하는지 한 줄. */
-  readonly detail: string;
-  /** `event_ir` 의 실제 노드 이름. 기술 이름을 찾는 사람을 위해 작게 적는다. */
+  /** 이 자리에서 무슨 뜻인지 — 칸의 큰 글씨. */
+  readonly meaning: string;
+  /** 블록 이름. 블록 목록의 이름과 같아야 한다. */
+  readonly blockName: string;
+  /** `event_ir` 의 실제 노드 이름. 토글을 켰을 때만 보인다. */
   readonly technical: string;
-  readonly kind: BlockKind;
+  readonly branch: Branch;
   /** 몇 번째 단계에서 나타나는가(1부터). */
   readonly step: number;
   readonly x: number;
@@ -42,10 +66,10 @@ export const TREE_NODES: readonly TreeNode[] = [
   {
     id: "and",
     parent: null,
-    label: "그리고",
-    detail: "두 조건을 모두 만족하는 사람만",
+    meaning: "둘 다 맞아야 함",
+    blockName: "그리고",
     technical: "and",
-    kind: "logic",
+    branch: "root",
     step: 4,
     x: 500,
     y: 44,
@@ -53,123 +77,141 @@ export const TREE_NODES: readonly TreeNode[] = [
   {
     id: "comparison",
     parent: "and",
-    label: "비교",
-    detail: "왼쪽이 오른쪽과 같은가",
+    meaning: "성별이 여성과 같은가",
+    blockName: "비교",
     technical: "comparison (=)",
-    kind: "condition",
+    branch: "left",
     step: 2,
     x: 250,
-    y: 148,
+    y: 150,
   },
   {
     id: "field",
     parent: "comparison",
-    label: "항목",
-    detail: "고객의 성별 칸",
+    meaning: "고객의 성별",
+    blockName: "항목",
     technical: "field · customer.gender",
-    kind: "value",
+    branch: "left",
     step: 2,
     x: 140,
-    y: 252,
+    y: 256,
   },
   {
     id: "literal",
     parent: "comparison",
-    label: "값",
-    detail: "여성",
-    technical: "literal · \"F\"",
-    kind: "value",
+    meaning: "여성",
+    blockName: "값",
+    technical: 'literal · "F"',
+    branch: "left",
     step: 2,
     x: 350,
-    y: 252,
+    y: 256,
   },
   {
     id: "not",
     parent: "and",
-    label: "아님",
-    detail: "아래가 사실이 아닌 사람만",
+    meaning: "그렇지 않은 사람만",
+    blockName: "아님",
     technical: "not",
-    kind: "logic",
+    branch: "right",
     step: 3,
     x: 720,
-    y: 148,
+    y: 150,
   },
   {
     id: "exists",
     parent: "not",
-    label: "있나?",
-    detail: "해당하는 기록이 하나라도 있는가",
+    meaning: "하나라도 있는가",
+    blockName: "있나?",
     technical: "exists",
-    kind: "condition",
+    branch: "right",
     step: 3,
     x: 720,
-    y: 252,
+    y: 256,
   },
   {
     id: "filter",
     parent: "exists",
-    label: "고르기",
-    detail: "그중 조건에 맞는 것만 남긴다",
+    meaning: "조건에 맞는 것만 남기기",
+    blockName: "고르기",
     technical: "filter",
-    kind: "relation",
+    branch: "right",
     step: 3,
     x: 720,
-    y: 340,
+    y: 348,
   },
   {
     id: "source",
     parent: "filter",
-    label: "자료",
-    detail: "구매 기록",
+    meaning: "구매 기록",
+    blockName: "자료",
     technical: "source · purchase",
-    kind: "relation",
+    branch: "right",
     step: 3,
-    x: 605,
-    y: 428,
+    x: 600,
+    y: 440,
   },
   {
     id: "time_filter",
     parent: "filter",
-    label: "기간",
-    detail: "구매 일시가 최근 3개월 안",
+    meaning: "구매한 때가 최근 3개월 안",
+    blockName: "기간",
     technical: "time_filter · rolling 3 month",
-    kind: "condition",
+    branch: "right",
     step: 3,
-    x: 845,
-    y: 428,
+    x: 848,
+    y: 440,
   },
 ];
 
-/** 조립 단계. 1부터 시작하고, 마지막 단계에서 조회문이 나온다. */
+/** 둘째 조각을 만드는 순서 — 3단계에서 번호로 보여 준다. */
+export const ABSENCE_SEQUENCE: readonly {
+  readonly text: string;
+  readonly blockName: string;
+}[] = [
+  { text: "구매 기록을 가져옵니다", blockName: "자료" },
+  { text: "그중 최근 3개월 것만 남깁니다", blockName: "기간 + 고르기" },
+  { text: "하나라도 남았는지 봅니다", blockName: "있나?" },
+  { text: "그 답을 뒤집습니다 — 하나도 없는 사람이 됩니다", blockName: "아님" },
+];
+
 export type AssemblyStep = {
   readonly title: string;
   readonly plain: string;
+  /** 그 단계까지 조립한 것을 말로 읽으면. 없으면 읽을 것이 아직 없다. */
+  readonly readback?: string;
 };
 
 export const ASSEMBLY_STEPS: readonly AssemblyStep[] = [
   {
     title: "문장을 조각으로 나눕니다",
     plain:
-      "「여성 고객」과 「최근 3개월 동안 구매하지 않은」. 조각 하나가 조건 하나가 됩니다.",
+      "조건이 되는 말만 골라냅니다. 「찾아줘」 같은 말투는 조건이 아니라서 빠집니다.",
   },
   {
-    title: "첫 조각을 블록으로 바꿉니다",
+    title: "「여성」을 블록 세 개로 만듭니다",
     plain:
-      "「여성」은 값 블록, 「성별」은 항목 블록, 둘을 비교 블록이 잇습니다. 세 블록이면 끝입니다.",
+      "무엇을 볼지(고객의 성별), 무엇과 견줄지(여성), 어떻게 견줄지(같은가). 세 블록이면 끝입니다.",
+    readback: "성별이 여성인 사람",
   },
   {
-    title: "둘째 조각도 있는 블록으로 만듭니다",
+    title: "「구매하지 않은」도 있는 블록으로 만듭니다",
     plain:
-      "「구매하지 않았다」를 위한 전용 기능은 없습니다. 구매 기록을 골라(고르기) 최근 3개월로 좁히고(기간) 하나라도 있는지 묻고(있나?) 그 답을 뒤집습니다(아님).",
+      "「구매하지 않았다」를 위한 전용 기능은 없습니다. 아래 네 단계를 순서대로 쌓으면 같은 뜻이 됩니다.",
+    readback: "구매 기록 중에 최근 3개월 안의 것이 하나도 없는 사람",
   },
   {
-    title: "두 덩어리를 묶습니다",
+    title: "두 덩어리를 하나로 묶습니다",
     plain: "「그리고」 블록이 둘을 묶습니다. 이제 조건 하나가 됐습니다.",
+    readback:
+      "성별이 여성이면서, 구매 기록 중에 최근 3개월 안의 것이 하나도 없는 사람",
   },
   {
-    title: "이 조립을 조회문으로 옮깁니다",
+    title: "이 조립을 그대로 조회문으로 옮깁니다",
     plain:
-      "블록마다 어떤 표·칸을 쓸지는 배포 설정이 정합니다. 여기서 처음으로 실제 데이터 이름이 등장합니다.",
+      "블록마다 어떤 표·칸을 쓸지는 배포 설정이 정합니다. 여기서 처음으로 실제 데이터 이름이 나옵니다.",
+    readback:
+      "성별이 여성이면서, 구매 기록 중에 최근 3개월 안의 것이 하나도 없는 사람",
   },
 ];
 
@@ -191,7 +233,12 @@ export const EXAMPLE_SQL_NOTE =
 export type BlockGroup = {
   readonly kind: BlockKind;
   readonly title: string;
-  readonly blocks: readonly { readonly label: string; readonly technical: string }[];
+  readonly blocks: readonly {
+    readonly label: string;
+    /** 이 블록이 무슨 일을 하는지 한마디로. */
+    readonly does: string;
+    readonly technical: string;
+  }[];
 };
 
 export const BLOCK_GROUPS: readonly BlockGroup[] = [
@@ -199,49 +246,49 @@ export const BLOCK_GROUPS: readonly BlockGroup[] = [
     kind: "logic",
     title: "묶는 블록",
     blocks: [
-      { label: "그리고", technical: "and" },
-      { label: "또는", technical: "or" },
-      { label: "아님", technical: "not" },
+      { label: "그리고", does: "둘 다 맞아야 함", technical: "and" },
+      { label: "또는", does: "둘 중 하나만 맞아도 됨", technical: "or" },
+      { label: "아님", does: "답을 뒤집음", technical: "not" },
     ],
   },
   {
     kind: "value",
     title: "값을 다루는 블록",
     blocks: [
-      { label: "값", technical: "literal" },
-      { label: "항목", technical: "field" },
-      { label: "계산", technical: "arithmetic" },
-      { label: "묶음", technical: "tuple" },
-      { label: "빈 값 처리", technical: "nullIf" },
-      { label: "합계·개수", technical: "aggregate" },
+      { label: "값", does: "여성, 30, VIP 같은 값 하나", technical: "literal" },
+      { label: "항목", does: "성별 칸, 구매금액 칸 같은 자리", technical: "field" },
+      { label: "계산", does: "더하기·나누기 같은 셈", technical: "arithmetic" },
+      { label: "묶음", does: "값 여러 개를 한 덩어리로", technical: "tuple" },
+      { label: "빈 값 처리", does: "빈 칸을 어떻게 볼지", technical: "nullIf" },
+      { label: "합계·개수", does: "여러 줄을 하나로 요약", technical: "aggregate" },
     ],
   },
   {
     kind: "relation",
     title: "자료를 다루는 블록",
     blocks: [
-      { label: "자료", technical: "source" },
-      { label: "고르기", technical: "filter" },
-      { label: "잇기", technical: "join" },
-      { label: "묶기", technical: "group" },
-      { label: "뽑기", technical: "project" },
-      { label: "요약", technical: "summarize" },
-      { label: "정렬", technical: "order" },
-      { label: "잘라내기", technical: "limit" },
+      { label: "자료", does: "구매 기록·로그인 기록 같은 자료", technical: "source" },
+      { label: "고르기", does: "조건에 맞는 것만 남김", technical: "filter" },
+      { label: "잇기", does: "두 자료를 이어 붙임", technical: "join" },
+      { label: "묶기", does: "같은 것끼리 모음", technical: "group" },
+      { label: "뽑기", does: "필요한 칸만 꺼냄", technical: "project" },
+      { label: "요약", does: "묶은 것을 한 줄로", technical: "summarize" },
+      { label: "정렬", does: "순서대로 세움", technical: "order" },
+      { label: "잘라내기", does: "앞에서 몇 개만", technical: "limit" },
     ],
   },
   {
     kind: "condition",
     title: "따지는 블록과 기간",
     blocks: [
-      { label: "비교", technical: "comparison" },
-      { label: "있나?", technical: "exists" },
-      { label: "기간", technical: "timeFilter" },
-      { label: "두 사건 사이", technical: "temporalRelation" },
-      { label: "정해진 기간", technical: "absoluteInterval" },
-      { label: "최근 얼마", technical: "rollingWindow" },
-      { label: "지난달 같은 말", technical: "relativeWindow" },
-      { label: "얼마 동안", technical: "duration" },
+      { label: "비교", does: "같은가·큰가·작은가", technical: "comparison" },
+      { label: "있나?", does: "하나라도 있는지", technical: "exists" },
+      { label: "기간", does: "그 기간 안의 것만", technical: "timeFilter" },
+      { label: "두 사건 사이", does: "이것 뒤 며칠 안에 저것", technical: "temporalRelation" },
+      { label: "정해진 기간", does: "1월 1일부터 3월 31일까지", technical: "absoluteInterval" },
+      { label: "최근 얼마", does: "최근 3개월, 지난 30일", technical: "rollingWindow" },
+      { label: "지난달 같은 말", does: "지난달·지지난달·올해", technical: "relativeWindow" },
+      { label: "얼마 동안", does: "7일, 3개월 같은 길이", technical: "duration" },
     ],
   },
 ];
@@ -269,11 +316,20 @@ export const OTHER_EXAMPLES: readonly {
   },
 ];
 
+/** 만약 문장마다 기능을 만든다면 생겼을 것들 — 대조로 보여 준다. */
+export const IF_WE_DID_IT_THE_OTHER_WAY: readonly string[] = [
+  "「최근 3개월 구매 안 한 고객」 기능",
+  "「최근 6개월 구매 안 한 고객」 기능",
+  "「1월에 사고 2월에 안 산 고객」 기능",
+  "「가입 7일 안에 재구매한 고객」 기능",
+  "…끝이 없습니다",
+];
+
 /** 이 화면이 말하려는 것. */
 export const WHY_IT_MATTERS: readonly string[] = [
-  "문장 종류마다 기능을 새로 만들지 않습니다. 「구매하지 않았다」를 위한 전용 기능이 없는 것이 그 예입니다 — 있는 블록 네 개를 조합했을 뿐입니다.",
-  "그래서 처음 보는 문장도 블록 조합으로 답할 수 있고, 새 문장 때문에 이미 되던 것이 망가지지 않습니다.",
-  "구매 · 로그인 · 환불 같은 업무 개념은 새 블록이 아니라 자료 블록의 이름입니다. 다룰 자료가 늘면 목록에 한 줄 더할 뿐, 블록은 그대로입니다.",
+  "블록을 조합하면 위 문장들이 전부 이미 있는 블록으로 만들어집니다. 새로 만들 것이 없습니다.",
+  "그래서 처음 보는 문장도 답할 수 있고, 새 문장 때문에 이미 되던 것이 망가지지 않습니다.",
+  "구매 · 로그인 · 환불 같은 업무 개념도 새 블록이 아니라 자료 블록의 이름입니다. 다룰 자료가 늘면 목록에 한 줄 더할 뿐입니다.",
   "있는 블록으로 표현할 수 없는 요청은 억지로 비슷하게 만들지 않고 「지금은 표현할 수 없다」고 답합니다.",
 ];
 
@@ -300,6 +356,11 @@ export function edgesUpTo(step: number): readonly { from: TreeNode; to: TreeNode
     if (parent) edges.push({ from: parent, to: node });
   }
   return edges;
+}
+
+/** 이 단계에서 문장의 어느 조각이 이미 블록이 됐는가. */
+export function assembledBranches(step: number): ReadonlySet<Branch> {
+  return new Set(nodesUpTo(step).map((node) => node.branch));
 }
 
 /** 마지막 단계 번호. 이 단계에서 조회문이 나온다. */
