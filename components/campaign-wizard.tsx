@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Sparkles } from "lucide-react";
 import { SettingsMenu } from "@/components/settings-menu";
+import { SetupGuide } from "@/components/setup-guide";
 import { Stepper } from "@/components/stepper";
 import { StepPrompt } from "@/components/step-prompt";
 import { StepTargeting } from "@/components/step-targeting";
@@ -203,6 +204,8 @@ export function CampaignWizard() {
           자연어 조건을 검증 가능한 타겟 SQL과 오디언스 결과로 변환합니다.
         </p>
       </header>
+
+      <SetupGuide />
 
       <Stepper current={step} />
       {step === 0 && (
