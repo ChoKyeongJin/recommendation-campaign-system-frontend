@@ -367,6 +367,15 @@ export function StepTargeting({
   const hiddenSegmentGroups = (result.hiddenSegmentGroups ?? []).filter(
     (group) => group.segments.length > 0,
   );
+  // 질문이 지목한 축을 앞에, 그 밖의 프로필 통계를 뒤에 두고 **접지 않고** 한 번에 보여 준다.
+  // 내용이 없는 묶음은 빼므로, 볼 것이 하나도 없으면 이 자리 자체가 나타나지 않는다 —
+  // 아래에 통계가 뻔히 있는데 "정보가 없습니다" 라고 적혀 있던 자리를 그렇게 없앴다.
+  // 같은 제목이 양쪽에 들어오면 같은 카드가 두 번 뜬다. 앞쪽(질문이 지목한 것)을 남긴다.
+  const visibleSegmentGroups = [...segmentGroups, ...hiddenSegmentGroups].filter(
+    (group, index, groups) =>
+      group.segments.length > 0 &&
+      groups.findIndex((other) => other.title === group.title) === index,
+  );
   // 실패·부분추출 시 어디를 보강하면 좋을지 힌트(온전히 성공하면 빈 배열).
   const reinforcementHints = buildReinforcementHints(result);
   // 되묻기가 떠 있으면 아직 조건이 확정되지 않았으므로, 답을 받기 전에는 SQL·지표·실패 안내·
@@ -463,30 +472,8 @@ export function StepTargeting({
 
           {!awaitingClarification && (
             <>
-              {/* 실패(failureStage)면 실행되지 않았으므로 "생성된 SQL(미실행)"로, 성공이면 "실행된 SQL"로 라벨링한다. */}
-              <div className="flex flex-col gap-3">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-medium text-foreground">
-                    {result.failureStage
-                      ? "생성된 SQL (검증 실패 · 미실행)"
-                      : "실행된 SQL"}
-                  </p>
-                  <Badge variant="secondary">read-only</Badge>
-                </div>
-                {formattedSql ? (
-                  <div className="relative">
-                    <CopyButton text={formattedSql} />
-                    <pre className="overflow-x-auto rounded-lg bg-foreground p-4 pr-20 text-xs leading-relaxed text-background">
-                      <code className="font-mono">{formattedSql}</code>
-                    </pre>
-                  </div>
-                ) : (
-                  <p className="rounded-lg border border-border bg-secondary p-3 text-sm text-muted-foreground">
-                    SQL이 생성되지 않았습니다.
-                  </p>
-                )}
-              </div>
-
+              {/* 건수를 먼저 보여 준다 — 사람이 먼저 확인하는 것은 몇 명이 뽑혔는가이고,
+                  SQL 은 그 수가 어떻게 나왔는지 확인할 때 읽는다. */}
               {!isFailed && (
                 <div className="grid gap-3 sm:grid-cols-2">
                   {metrics.map((metric) => {
@@ -520,48 +507,35 @@ export function StepTargeting({
                 </div>
               )}
 
-              {!isFailed && (
-                <div className="flex flex-col gap-3">
-                  <div className="flex flex-col gap-0.5">
-                    <p className="text-sm font-medium text-foreground">
-                      세그먼트 구성
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      질문과 관련된 타겟 조건 위주로 보여줍니다.
-                    </p>
+              {/* 실패(failureStage)면 실행되지 않았으므로 "생성된 SQL(미실행)"로, 성공이면 "실행된 SQL"로 라벨링한다. */}
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-medium text-foreground">
+                    {result.failureStage
+                      ? "생성된 SQL (검증 실패 · 미실행)"
+                      : "실행된 SQL"}
+                  </p>
+                  <Badge variant="secondary">read-only</Badge>
+                </div>
+                {formattedSql ? (
+                  <div className="relative">
+                    <CopyButton text={formattedSql} />
+                    <pre className="overflow-x-auto rounded-lg bg-foreground p-4 pr-20 text-xs leading-relaxed text-background">
+                      <code className="font-mono">{formattedSql}</code>
+                    </pre>
                   </div>
-                  {segmentGroups.some((group) => group.segments.length > 0) ? (
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {segmentGroups.map((group) => (
-                        <SegmentGroupCard key={group.title} group={group} />
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="rounded-lg border border-border bg-secondary p-3 text-sm text-muted-foreground">
-                      Python 응답에 세그먼트 구성 정보가 없습니다.
-                    </p>
-                  )}
+                ) : (
+                  <p className="rounded-lg border border-border bg-secondary p-3 text-sm text-muted-foreground">
+                    SQL이 생성되지 않았습니다.
+                  </p>
+                )}
+              </div>
 
-                  {hiddenSegmentGroups.length > 0 && (
-                    <details className="group rounded-lg border border-border bg-card">
-                      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 p-4 text-sm font-medium text-foreground">
-                        <span>
-                          그 외 프로필 통계 {hiddenSegmentGroups.length}개 보기
-                          <span className="ml-1 font-normal text-muted-foreground">
-                            (성별·연령·지역·관심사 등)
-                          </span>
-                        </span>
-                        <span className="shrink-0 text-xs text-muted-foreground transition-transform group-open:rotate-180">
-                          ▼
-                        </span>
-                      </summary>
-                      <div className="grid gap-3 border-t border-border p-4 sm:grid-cols-2">
-                        {hiddenSegmentGroups.map((group) => (
-                          <SegmentGroupCard key={group.title} group={group} />
-                        ))}
-                      </div>
-                    </details>
-                  )}
+              {!isFailed && visibleSegmentGroups.length > 0 && (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {visibleSegmentGroups.map((group) => (
+                    <SegmentGroupCard key={group.title} group={group} />
+                  ))}
                 </div>
               )}
             </>
