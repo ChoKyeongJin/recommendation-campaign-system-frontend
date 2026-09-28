@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
+  Blocks,
   BookOpen,
   ChevronDown,
   Settings,
@@ -13,6 +14,7 @@ import {
 
 const SETTINGS_LINKS = [
   { href: "/admin/how-it-works", label: "어떻게 동작하나", icon: Workflow },
+  { href: "/admin/building-blocks", label: "조건은 어떻게 조립되나", icon: Blocks },
   { href: "/admin/setup", label: "처음 세팅하는 법", icon: Wrench },
   { href: "/admin/prompts", label: "프롬프트 수정", icon: SlidersHorizontal },
   { href: "/admin/reference", label: "참조 파일", icon: BookOpen },
