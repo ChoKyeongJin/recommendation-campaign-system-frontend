@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Ban,
   Check,
@@ -25,6 +25,7 @@ import {
   type ReinforcementHint,
 } from "@/lib/targeting-hints";
 import { copyTextToClipboard } from "@/lib/clipboard";
+import { formatSql } from "@/lib/sql-format";
 import type {
   ClarificationAnswer,
   TargetSegment,
@@ -341,6 +342,12 @@ export function StepTargeting({
   isClarifying?: boolean;
   clarificationAnswers?: ClarificationAnswer[];
 }) {
+  // 출고된 SQL 은 WHERE 본문이 한 줄로 나와 가로로 밀려 나간다. 보이는 것만 줄바꿈한다 —
+  // `formatSql` 은 토큰을 더하거나 빼지 않고 사이의 공백만 다시 쓴다.
+  const formattedSql = useMemo(
+    () => (result.sql ? formatSql(result.sql) : null),
+    [result.sql],
+  );
   const trimmedPrompt = prompt?.trim();
   const normalizedPrompt = result.normalizedPrompt?.trim();
   const targetingLabel = result.targetingLabel?.trim();
@@ -466,11 +473,11 @@ export function StepTargeting({
                   </p>
                   <Badge variant="secondary">read-only</Badge>
                 </div>
-                {result.sql ? (
+                {formattedSql ? (
                   <div className="relative">
-                    <CopyButton text={result.sql} />
+                    <CopyButton text={formattedSql} />
                     <pre className="overflow-x-auto rounded-lg bg-foreground p-4 pr-20 text-xs leading-relaxed text-background">
-                      <code className="font-mono">{result.sql}</code>
+                      <code className="font-mono">{formattedSql}</code>
                     </pre>
                   </div>
                 ) : (
