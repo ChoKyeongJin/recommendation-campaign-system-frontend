@@ -3,6 +3,7 @@
 import { useId, useState } from "react";
 import { Check, Copy } from "lucide-react";
 
+import { JsonFileDialog } from "@/components/json-file-dialog";
 import { copyTextToClipboard } from "@/lib/clipboard";
 import {
   applyProfileName,
@@ -65,10 +66,12 @@ function StepCard({
   step,
   index,
   profileName,
+  onOpenFile,
 }: {
   step: SetupStep;
   index: number;
   profileName: string;
+  onOpenFile: (file: string) => void;
 }) {
   const automatic = step.kind === "machine";
   return (
@@ -115,11 +118,20 @@ function StepCard({
           <ol className="flex flex-col gap-2">
             {step.fillIns.map((fillIn, position) => (
               <li
-                key={fillIn.where}
+                key={`${fillIn.file}:${fillIn.where}`}
                 className="rounded-md border border-border bg-background/60 px-3 py-2"
               >
                 <p className="text-xs font-semibold text-foreground">
-                  {position + 1}. {fillIn.where}
+                  {position + 1}.{" "}
+                  <button
+                    type="button"
+                    onClick={() => onOpenFile(fillIn.file)}
+                    title={`${fillIn.file} 열어 보기`}
+                    className="cursor-pointer rounded font-mono text-primary underline decoration-dotted underline-offset-2 transition-colors hover:bg-primary/10 hover:decoration-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                  >
+                    {fillIn.file}
+                  </button>{" "}
+                  — {fillIn.where}
                 </p>
                 <p className="mt-1 text-xs text-foreground">{fillIn.what}</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
@@ -150,6 +162,8 @@ function StepCard({
 
 export function SetupGuide() {
   const [profileName, setProfileName] = useState("");
+  // 눌러서 열어 본 선언 파일. 팝업은 읽기 전용이다.
+  const [openFile, setOpenFile] = useState<string | null>(null);
   const inputId = useId();
 
   const nameIsUsable = isUsableProfileName(profileName);
@@ -186,6 +200,7 @@ export function SetupGuide() {
             step={step}
             index={index}
             profileName={profileName}
+            onOpenFile={setOpenFile}
           />
         ))}
       </ol>
@@ -204,6 +219,8 @@ export function SetupGuide() {
           ))}
         </ul>
       </div>
+
+      <JsonFileDialog name={openFile} onClose={() => setOpenFile(null)} />
     </div>
   );
 }

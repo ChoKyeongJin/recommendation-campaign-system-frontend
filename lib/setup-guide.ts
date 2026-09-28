@@ -28,7 +28,12 @@ export type SetupStepKind = "machine" | "human";
 
 /** 사람이 직접 적어야 하는 한 자리. */
 export type SetupFillIn = {
-  /** 어느 파일의 어느 자리인가. */
+  /**
+   * 눌러서 열어 보는 선언 파일. 참조 API 의 `profile` 범주 이름이고, 그 범주는 **지금 배포가
+   * 실제로 읽는** 파일을 돌려준다 — 같은 이름의 은퇴한 사본이 아니다.
+   */
+  readonly file: string;
+  /** 그 파일 안의 어느 자리인가. */
   readonly where: string;
   /** 무엇을 적는가. */
   readonly what: string;
@@ -96,31 +101,36 @@ export const SETUP_STEPS: readonly SetupStep[] = [
   {
     id: "declare",
     title: "사람이 채우는 네 자리",
-    lead: "손으로 적는 곳은 여기뿐입니다. 축 하나(예: 성별)를 여는 데 대략 26항목이 듭니다.",
+    lead:
+      "손으로 적는 곳은 여기뿐입니다. 축 하나(예: 성별)를 여는 데 대략 26항목이 듭니다. 파일 이름을 누르면 지금 배포가 읽고 있는 내용을 그대로 볼 수 있습니다.",
     kind: "human",
     commands: [],
     notes: [],
     fillIns: [
       {
-        where: "member_target_filters.json — UNDECLARED__ 표지 두 개",
+        file: "member_target_filters.json",
+        where: "UNDECLARED__ 표지 두 개",
         what: "나이 컬럼(base_entity.age_column)과 활성 회원 조건(active_state)",
         detail:
           "실제 컬럼·값으로 바꿉니다. 그 축을 안 쓸 거면 _supported: false 로 닫습니다.",
       },
       {
-        where: "audience_catalog.json — 필드의 뜻",
+        file: "audience_catalog.json",
+        where: "필드의 뜻",
         what: "라벨 · 별칭 · 허용 연산자 · 값 도메인",
         detail:
           "쓸 필드만 채우면 됩니다. 안 채운 필드는 실행에서 자동으로 빠지므로 그대로 둬도 안전합니다.",
       },
       {
-        where: "member_target_filters.json — eq_filters 값 사전",
+        file: "member_target_filters.json",
+        where: "eq_filters 값 사전",
         what: "값마다 canonical · category · column · value · synonyms",
         detail:
           "DB 에 실제로 들어 있는 값을 빠짐없이 적습니다(UNKNOWN 같은 것도). 하나만 빠져도 점검에서 막힙니다.",
       },
       {
-        where: "audience_catalog.json — signal_coverage.<축>",
+        file: "audience_catalog.json",
+        where: "signal_coverage.<축>",
         what: "성별 · 장바구니 · 최근 접속 · 구매 부재 · 수신동의 · 캠페인 반응 4종",
         detail:
           "이 시스템이 알아듣는 9개 축 중 쓸 것을 선언합니다. 안 쓰는 축은 expressible: false 로 닫습니다. 비워 두면 그 축의 요청이 '아직 선언되지 않았습니다'로 닫힙니다.",

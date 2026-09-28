@@ -14,8 +14,10 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { JsonTree, computeJsonSearch } from "@/components/json-tree";
-import { SqlHighlight } from "@/components/sql-highlight";
+import {
+  inputClass,
+  ReferenceContentBody,
+} from "@/components/json-content";
 import { copyTextToClipboard } from "@/lib/clipboard";
 
 // 백엔드 /reference-files 응답 형태.
@@ -32,12 +34,11 @@ type ReferenceFileDetail = ReferenceFile & { content: string };
 const CATEGORY_LABEL: Record<string, string> = {
   data: "데이터 · 사전 (docs/data)",
   prompts: "프롬프트 (docs/prompts)",
+  profile: "이 배포가 읽는 선언 (활성 프로필)",
 };
 
-const CATEGORY_ORDER = ["data", "prompts"] as const;
-
-const inputClass =
-  "flex h-9 w-full rounded-lg border border-input bg-transparent px-3 py-1 text-sm transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
+// 활성 배포의 선언을 먼저 보여 준다 — 나머지 둘은 공유 선언과 프롬프트다.
+const CATEGORY_ORDER = ["profile", "data", "prompts"] as const;
 
 function formatSize(bytes: number) {
   if (bytes < 1024) {
@@ -378,107 +379,8 @@ function DetailView({
           </Button>
         </div>
       ) : detail ? (
-        <ContentBody format={detail.format} content={detail.content} />
+        <ReferenceContentBody format={detail.format} content={detail.content} />
       ) : null}
-    </div>
-  );
-}
-
-// 본문 렌더. JSON 은 접이식 트리(기본, 키/값 검색·하이라이트)와 원본 텍스트를 토글할 수 있게
-// 하고, SQL 은 구문 강조, 그 외 포맷은 단순 monospace 로 보여준다. JSON 파싱 실패 시 원본 폴백.
-function ContentBody({ format, content }: { format: string; content: string }) {
-  const [jsonMode, setJsonMode] = useState<"tree" | "raw">("tree");
-  const [rawQuery, setRawQuery] = useState("");
-  // 큰 트리에서 매 타건마다 순회하지 않도록 입력을 디바운스한다.
-  const [query, setQuery] = useState("");
-  useEffect(() => {
-    const timer = setTimeout(() => setQuery(rawQuery), 200);
-    return () => clearTimeout(timer);
-  }, [rawQuery]);
-
-  const parsed = useMemo(() => {
-    if (format !== "json") {
-      return { ok: false as const, value: null };
-    }
-    try {
-      return { ok: true as const, value: JSON.parse(content) };
-    } catch {
-      return { ok: false as const, value: null };
-    }
-  }, [format, content]);
-
-  const search = useMemo(
-    () =>
-      parsed.ok && jsonMode === "tree"
-        ? computeJsonSearch(parsed.value, query)
-        : null,
-    [parsed, jsonMode, query],
-  );
-
-  const rawBlock = (
-    <pre className="max-h-[70vh] overflow-auto rounded-lg border border-border bg-card p-4 font-mono text-xs leading-relaxed text-foreground">
-      {content}
-    </pre>
-  );
-
-  if (format === "sql") {
-    return <SqlHighlight content={content} />;
-  }
-
-  if (!parsed.ok) {
-    return rawBlock;
-  }
-
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-1 self-start rounded-lg border border-border p-0.5 text-xs">
-          {(["tree", "raw"] as const).map((mode) => (
-            <button
-              key={mode}
-              type="button"
-              onClick={() => setJsonMode(mode)}
-              className={`rounded-md px-2.5 py-1 transition-colors ${
-                jsonMode === mode
-                  ? "bg-muted font-medium text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {mode === "tree" ? "트리" : "원본"}
-            </button>
-          ))}
-        </div>
-        {jsonMode === "tree" && (
-          <div className="relative flex items-center">
-            <Search
-              className="pointer-events-none absolute left-2.5 h-3.5 w-3.5 text-muted-foreground"
-              aria-hidden
-            />
-            <input
-              className={`${inputClass} h-8 w-56 pl-8 text-xs`}
-              placeholder="키·값 검색"
-              value={rawQuery}
-              onChange={(event) => setRawQuery(event.target.value)}
-            />
-            {query.trim() && search && (
-              <span className="ml-2 shrink-0 text-xs text-muted-foreground">
-                {search.count}건
-              </span>
-            )}
-          </div>
-        )}
-      </div>
-      {jsonMode === "tree" ? (
-        <div className="max-h-[70vh] overflow-auto rounded-lg border border-border bg-card p-4">
-          <JsonTree
-            value={parsed.value}
-            query={query}
-            search={search ?? undefined}
-          />
-        </div>
-      ) : (
-        rawBlock
-      )}
     </div>
   );
 }

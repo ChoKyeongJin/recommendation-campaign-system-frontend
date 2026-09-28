@@ -86,10 +86,13 @@ test("기계가 하는 단계에는 실행할 명령이 있다", () => {
   }
 });
 
-test("사람이 채우는 자리는 어디에·무엇을·왜를 모두 말한다", () => {
+test("사람이 채우는 자리는 어느 파일의 어디에·무엇을·왜를 모두 말한다", () => {
   const fillIns = SETUP_STEPS.flatMap((step) => step.fillIns);
   assert.ok(fillIns.length > 0);
   for (const fillIn of fillIns) {
+    // 파일 이름은 눌러서 여는 자리다. 비면 팝업이 아무것도 못 연다.
+    assert.ok(fillIn.file.trim(), "열 파일 이름이 비었다");
+    assert.ok(fillIn.file.endsWith(".json"), `json 이 아니다: ${fillIn.file}`);
     assert.ok(fillIn.where.trim(), "자리 이름이 비었다");
     assert.ok(fillIn.what.trim(), `무엇을 적는지가 비었다: ${fillIn.where}`);
     assert.ok(fillIn.detail.trim(), `안 적으면 어떻게 되는지가 비었다: ${fillIn.where}`);
