@@ -7,9 +7,11 @@ import {
   ChevronDown,
   Settings,
   SlidersHorizontal,
+  Wrench,
 } from "lucide-react";
 
 const SETTINGS_LINKS = [
+  { href: "/admin/setup", label: "처음 세팅하는 법", icon: Wrench },
   { href: "/admin/prompts", label: "프롬프트 수정", icon: SlidersHorizontal },
   { href: "/admin/reference", label: "참조 파일", icon: BookOpen },
 ] as const;
