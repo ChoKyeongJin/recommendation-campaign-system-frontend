@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import {
   CheckCircle2,
   Circle,
@@ -19,6 +19,12 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import {
+  DEFAULT_MODEL_OPTION,
+  describeChoice,
+  shouldOfferChoice,
+  type StructuringModelChoices,
+} from "@/lib/structuring-model";
 import type {
   TargetingLlmCallEvent,
   TargetingProgressState,
@@ -76,6 +82,9 @@ export function StepPrompt({
   isExtracting,
   progress,
   error,
+  modelChoices,
+  structuringModel,
+  setStructuringModel,
 }: {
   prompt: string;
   setPrompt: (v: string) => void;
@@ -83,7 +92,11 @@ export function StepPrompt({
   isExtracting: boolean;
   progress: TargetingProgressState;
   error: string | null;
+  modelChoices: StructuringModelChoices;
+  structuringModel: string;
+  setStructuringModel: (v: string) => void;
 }) {
+  const modelSelectId = useId();
   const [clientElapsedMs, setClientElapsedMs] = useState(0);
   useEffect(() => {
     if (!isExtracting) return;
@@ -249,8 +262,39 @@ export function StepPrompt({
           </section>
         )}
 
-        <div className="flex justify-end">
+        <div className="flex flex-wrap items-center justify-end gap-3">
           {error && <p className="mr-auto text-sm text-destructive">{error}</p>}
+          {shouldOfferChoice(modelChoices) && (
+            <div className="mr-auto flex flex-col gap-1">
+              <label
+                htmlFor={modelSelectId}
+                className="text-xs font-medium text-muted-foreground"
+              >
+                해석 모델
+              </label>
+              <select
+                id={modelSelectId}
+                value={structuringModel}
+                onChange={(event) => setStructuringModel(event.target.value)}
+                disabled={isExtracting}
+                className="rounded-md border border-border bg-background px-2.5 py-1.5 font-mono text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+              >
+                <option value={DEFAULT_MODEL_OPTION}>
+                  {modelChoices.fallback
+                    ? `배포 기본값 (${modelChoices.fallback})`
+                    : "배포 기본값"}
+                </option>
+                {modelChoices.choices.map((model) => (
+                  <option key={model} value={model}>
+                    {model}
+                  </option>
+                ))}
+              </select>
+              <span className="text-[11px] text-muted-foreground">
+                {describeChoice(structuringModel, modelChoices)}
+              </span>
+            </div>
+          )}
           <Button
             onClick={onExtract}
             disabled={!prompt.trim() || isExtracting}

@@ -1061,6 +1061,13 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
   const prompt =
     body && typeof body.prompt === "string" ? body.prompt.trim() : "";
+  // 이 요청만의 구조화 모델. 여기서 이름을 검사하지 않는다 — 무엇이 허용되는지는 배포
+  // 선언이 소유하고 Python 이 판정한다(선언 밖이면 400). BFF 가 같은 목록을 한 벌 더 들면
+  // 한쪽만 바뀌는 날 화면과 실행이 갈린다.
+  const structuringModel =
+    body && typeof body.structuringModel === "string" && body.structuringModel.trim()
+      ? body.structuringModel.trim()
+      : null;
   // 되묻기 답변. 프롬프트에 이어 붙이지 않고 issue_id 그대로 Python 에 넘긴다 —
   // 백엔드가 그 결핍이 가리키는 의미 슬롯 하나만 고친다.
   const clarificationAnswers: ClarificationAnswer[] = Array.isArray(
@@ -1107,6 +1114,9 @@ export async function POST(request: Request) {
         ...(answer.optionId ? { option_id: answer.optionId } : {}),
         ...(answer.text ? { text: answer.text } : {}),
       })),
+      // 안 고른 요청은 이 칸 자체를 안 보낸다 — `null` 을 보내는 것과 "배포 기본값을 쓴다" 는
+      // 같은 뜻이지만, 안 보내는 쪽이 고르지 않았다는 사실을 그대로 남긴다.
+      ...(structuringModel ? { structuring_model: structuringModel } : {}),
     });
     let isStreamingResponse = wantsStream;
     let pythonResponse = await fetch(

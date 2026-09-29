@@ -5,6 +5,13 @@ import { Sparkles } from "lucide-react";
 import { SettingsMenu } from "@/components/settings-menu";
 import { Stepper } from "@/components/stepper";
 import { StepPrompt } from "@/components/step-prompt";
+import {
+  chosenStructuringModel,
+  DEFAULT_MODEL_OPTION,
+  NO_STRUCTURING_MODEL_CHOICES,
+  readStructuringModelChoices,
+  type StructuringModelChoices,
+} from "@/lib/structuring-model";
 import { StepTargeting } from "@/components/step-targeting";
 import type {
   ClarificationAnswer,
@@ -59,6 +66,28 @@ export function CampaignWizard() {
     setClarificationAnswers([]);
   };
 
+  // 이 배포가 고르게 해 둔 구조화 모델. 목록은 Python 이 소유하므로 화면은 읽기만 한다.
+  const [modelChoices, setModelChoices] = useState<StructuringModelChoices>(
+    NO_STRUCTURING_MODEL_CHOICES,
+  );
+  const [structuringModel, setStructuringModel] = useState(DEFAULT_MODEL_OPTION);
+
+  useEffect(() => {
+    let cancelled = false;
+    // 못 읽어도 화면은 그대로 돈다 — 고르는 칸만 안 뜨고 요청은 배포 기본값으로 나간다.
+    fetch("/api/structuring-models", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((payload) => {
+        if (!cancelled) setModelChoices(readStructuringModelChoices(payload));
+      })
+      .catch(() => {
+        if (!cancelled) setModelChoices(NO_STRUCTURING_MODEL_CHOICES);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const runTargeting = async (
     newAnswers: ClarificationAnswer[] = [],
     overridePrompt?: string,
@@ -89,6 +118,15 @@ export function CampaignWizard() {
         body: JSON.stringify({
           prompt: trimmedPrompt,
           clarificationAnswers: answers,
+          // 안 골랐거나 목록 밖이면 `null` 이고, 그때는 칸 자체를 안 싣는다.
+          ...(chosenStructuringModel(structuringModel, modelChoices)
+            ? {
+                structuringModel: chosenStructuringModel(
+                  structuringModel,
+                  modelChoices,
+                ),
+              }
+            : {}),
         }),
         signal: requestController.signal,
       });
@@ -207,6 +245,9 @@ export function CampaignWizard() {
       <Stepper current={step} />
       {step === 0 && (
         <StepPrompt
+          modelChoices={modelChoices}
+          structuringModel={structuringModel}
+          setStructuringModel={setStructuringModel}
           prompt={prompt}
           setPrompt={updatePrompt}
           onExtract={() => runTargeting()}
