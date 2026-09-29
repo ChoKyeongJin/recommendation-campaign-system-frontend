@@ -1,8 +1,9 @@
 import {
+  isTargetingResultEvent,
   isTargetingTerminalEvent,
   NdjsonParser,
   TargetingStreamContract,
-  type TargetingStreamEvent,
+  type TargetingForwardableEvent,
 } from "./targeting-progress.ts";
 
 type ResultMapper = (data: unknown) => unknown;
@@ -27,7 +28,7 @@ export function createTargetingProxyStream(
   let closed = false;
   let lastForwardedSequence = 0;
 
-  const encodeEvent = (event: TargetingStreamEvent) =>
+  const encodeEvent = (event: TargetingForwardableEvent) =>
     encoder.encode(`${JSON.stringify(event)}\n`);
 
   const cancelUpstream = (reason?: unknown) => {
@@ -78,8 +79,8 @@ export function createTargetingProxyStream(
               return;
             }
 
-            const outgoingEvent: TargetingStreamEvent =
-              event.type === "result"
+            const outgoingEvent: TargetingForwardableEvent =
+              isTargetingResultEvent(event)
                 ? { ...event, data: mapResult(event.data) }
                 : event;
             controller.enqueue(encodeEvent(outgoingEvent));

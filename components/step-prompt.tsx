@@ -4,6 +4,7 @@ import { useEffect, useId, useState } from "react";
 import {
   CheckCircle2,
   Circle,
+  Coins,
   LoaderCircle,
   Sparkles,
   XCircle,
@@ -25,10 +26,57 @@ import {
   shouldOfferChoice,
   type StructuringModelChoices,
 } from "@/lib/structuring-model";
-import type {
-  TargetingLlmCallEvent,
-  TargetingProgressState,
+import {
+  describeTargetingAccounting,
+  type TargetingLlmAccountingEvent,
+  type TargetingLlmCallEvent,
+  type TargetingProgressState,
 } from "@/lib/targeting-progress";
+
+export function AccountingRow({
+  accounting,
+}: {
+  accounting: TargetingLlmAccountingEvent | null;
+}) {
+  if (!accounting) return null;
+  const summary = describeTargetingAccounting(accounting);
+  // 적중도 요금도 못 적을 회계는 줄을 만들지 않는다 — 빈 줄은 「0」으로 읽힌다.
+  if (!summary.cache && !summary.cost) return null;
+  return (
+    <div
+      className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground"
+      aria-label="LLM 요금과 캐시"
+    >
+      <Coins className="h-3 w-3 shrink-0" aria-hidden />
+      <span className="shrink-0">LLM {accounting.calls}회</span>
+      {summary.cache && (
+        <>
+          <span aria-hidden>·</span>
+          <span className="tabular-nums">{summary.cache}</span>
+        </>
+      )}
+      {summary.cost && (
+        <>
+          <span aria-hidden>·</span>
+          <span className="tabular-nums font-medium text-foreground">
+            {summary.cost}
+          </span>
+        </>
+      )}
+      {summary.saved && (
+        <>
+          <span aria-hidden>·</span>
+          <span className="tabular-nums text-emerald-600">{summary.saved}</span>
+        </>
+      )}
+      {summary.caveat && (
+        <span className="basis-full text-[11px] text-muted-foreground/80">
+          {summary.caveat}
+        </span>
+      )}
+    </div>
+  );
+}
 
 function LlmCallList({ calls }: { calls: TargetingLlmCallEvent[] }) {
   if (calls.length === 0) return null;
@@ -192,6 +240,11 @@ export function StepPrompt({
                 <span>{elapsedSeconds}초 경과</span>
               </div>
             </div>
+            {progress.accounting && (
+              <div className="mb-3 border-t border-border/60 pt-2">
+                <AccountingRow accounting={progress.accounting} />
+              </div>
+            )}
             {progress.stages.length === 0 ? (
               <div
                 className="flex items-center gap-2 text-sm text-muted-foreground"

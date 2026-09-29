@@ -20,12 +20,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ClarificationPanel } from "@/components/clarification-panel";
+import { AccountingRow } from "@/components/step-prompt";
 import {
   buildReinforcementHints,
   type ReinforcementHint,
 } from "@/lib/targeting-hints";
 import { copyTextToClipboard } from "@/lib/clipboard";
 import { formatSql } from "@/lib/sql-format";
+import type { TargetingLlmAccountingEvent } from "@/lib/targeting-progress";
 import type {
   ClarificationAnswer,
   TargetSegment,
@@ -324,6 +326,7 @@ function SupportLimitCard({
 const NO_CLARIFICATION_ANSWERS: ClarificationAnswer[] = [];
 
 export function StepTargeting({
+  accounting,
   result,
   prompt,
   onBack,
@@ -335,6 +338,8 @@ export function StepTargeting({
   result: TargetingResult;
   prompt?: string;
   onBack: () => void;
+  /** 이 요청이 provider 에 낸 요금과 캐시 회계. 없으면 줄을 만들지 않는다. */
+  accounting: TargetingLlmAccountingEvent | null;
   /** 되묻기 답을 모아 다시 추출한다(프롬프트는 그대로). */
   onClarify?: (answers: ClarificationAnswer[]) => void | Promise<void>;
   /** 보기 문장을 골랐다 — 프롬프트를 그 문장으로 바꿔 다시 추출한다. */
@@ -416,6 +421,7 @@ export function StepTargeting({
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
+          <AccountingRow accounting={accounting} />
           {targetingPrompt && (
             <div className="flex gap-3 rounded-lg border border-border bg-accent p-4">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">

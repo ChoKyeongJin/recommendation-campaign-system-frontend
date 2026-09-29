@@ -20,6 +20,8 @@ import type {
 import {
   getTargetingResponseTransport,
   initialTargetingProgressState,
+  isTargetingErrorEvent,
+  isTargetingResultEvent,
   NdjsonParser,
   reduceTargetingProgress,
   TargetingStreamContract,
@@ -149,11 +151,11 @@ export function CampaignWizard() {
               throw new Error("타겟 추출 진행 응답을 확인하지 못했습니다.");
             }
             setProgress((current) => reduceTargetingProgress(current, event));
-            if (event.type === "result") {
+            if (isTargetingResultEvent(event)) {
               result = event.data as TargetingResult;
               return true;
             }
-            if (event.type === "error") {
+            if (isTargetingErrorEvent(event)) {
               terminalError = event.error.message;
               return true;
             }
@@ -258,6 +260,7 @@ export function CampaignWizard() {
       )}
       {step === 1 && targeting && (
         <StepTargeting
+          accounting={progress.accounting}
           result={targeting}
           prompt={prompt}
           onBack={() => setStep(0)}
