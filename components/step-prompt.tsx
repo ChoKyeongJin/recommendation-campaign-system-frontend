@@ -55,6 +55,14 @@ function LlmCallList({ calls }: { calls: TargetingLlmCallEvent[] }) {
               {call.label}
             </span>
             <span className="truncate">{call.model}</span>
+            {call.reasoning_effort && (
+              <span
+                className="shrink-0 rounded bg-muted px-1 font-mono text-[10px] text-muted-foreground"
+                title="추론 수준"
+              >
+                {call.reasoning_effort}
+              </span>
+            )}
             <span className="ml-auto shrink-0 tabular-nums">
               {waiting ? "응답 대기 중" : failed ? `실패 · ${seconds}초` : `${seconds}초`}
             </span>

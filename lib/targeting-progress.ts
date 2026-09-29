@@ -43,6 +43,14 @@ export type TargetingLlmCallEvent = {
   purpose: string | null;
   label: string;
   model: string;
+  /**
+   * 이 호출에 **실제로 실린** 추론 깊이.
+   *
+   * `null` 은 모르는 값이 아니라 **깊이가 없는 호출**이다 — 추론 파라미터를 받지 않는
+   * 모델에는 이 인자가 아예 가지 않는다. 옛 백엔드는 이 칸을 안 싣는데, 그때도 `null` 로
+   * 읽는다(화면이 깊이를 안 보여 줄 뿐 줄 자체는 그대로 뜬다).
+   */
+  reasoning_effort: string | null;
   status: TargetingProgressStatus;
   elapsed_ms: number;
 };
@@ -142,6 +150,11 @@ export function isTargetingStreamEvent(
       (event.purpose === null || typeof event.purpose === "string") &&
       typeof event.label === "string" &&
       typeof event.model === "string" &&
+      // 옛 백엔드는 이 칸을 안 싣는다. 있으면 문자열이어야 하고, 없으면 그냥 없는 것이다 —
+      // 여기서 막으면 깊이 하나 때문에 진행 줄이 통째로 사라진다.
+      (event.reasoning_effort === null ||
+        event.reasoning_effort === undefined ||
+        typeof event.reasoning_effort === "string") &&
       typeof event.elapsed_ms === "number" &&
       Number.isFinite(event.elapsed_ms) &&
       event.elapsed_ms >= 0 &&

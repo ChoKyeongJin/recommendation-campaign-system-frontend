@@ -202,6 +202,7 @@ test("LLM call events are observations, not terminals", () => {
     purpose: "typo_correction",
     label: "오타 교정",
     model: "gpt-5-mini",
+    reasoning_effort: "low",
     status,
     elapsed_ms: status === "started" ? 0 : 1200,
   });
@@ -223,4 +224,31 @@ test("LLM call events are observations, not terminals", () => {
     [[1, "completed", 1200]],
   );
   assert.equal(state.stages.length, 1);
+});
+
+test("깊이는 있으면 문자열, 없으면 없음이다 — 그 때문에 줄이 사라지지 않는다", () => {
+  // 옛 백엔드는 이 칸을 안 싣는다. 여기서 막으면 배포가 엇갈린 동안 진행 줄이 통째로
+  // 안 뜨고, 사용자는 요청이 멈춘 것처럼 본다.
+  const base: TargetingLlmCallEvent = {
+    type: "llm_call",
+    request_id: "request-1",
+    sequence: 2,
+    call_id: 1,
+    stage: "semantic_resolution",
+    purpose: "semantic_candidate",
+    label: "의미 후보 구조화",
+    model: "gpt-5.5",
+    reasoning_effort: "high",
+    status: "completed",
+    elapsed_ms: 15000,
+  };
+  assert.equal(isTargetingStreamEvent(base), true);
+  assert.equal(isTargetingStreamEvent({ ...base, reasoning_effort: null }), true);
+
+  const { reasoning_effort: _omitted, ...withoutDepth } = base;
+  assert.equal(isTargetingStreamEvent(withoutDepth), true, "옛 백엔드의 줄이 막혔다");
+
+  // 모양이 아닌 값은 받지 않는다 — 화면이 그대로 찍는 자리다.
+  assert.equal(isTargetingStreamEvent({ ...base, reasoning_effort: 3 }), false);
+  assert.equal(isTargetingStreamEvent({ ...base, reasoning_effort: {} }), false);
 });
