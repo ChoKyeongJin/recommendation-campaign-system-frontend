@@ -415,9 +415,11 @@ export function StepTargeting({
     <div className="flex flex-col gap-6">
       <Card>
         <CardHeader>
-          <CardTitle>타겟팅 결과</CardTitle>
+          <CardTitle>{awaitingClarification ? "타겟 조건 확인" : "타겟팅 결과"}</CardTitle>
           <CardDescription>
-            타겟팅 프롬프트를 기준으로 SQL을 실행한 결과입니다.
+            {awaitingClarification
+              ? "아직 고객을 추출하지 않았습니다. 아래 조건을 확인해 주세요."
+              : "타겟팅 프롬프트를 기준으로 SQL을 실행한 결과입니다."}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">

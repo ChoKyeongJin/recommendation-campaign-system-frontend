@@ -397,7 +397,9 @@ function QuestionCard({
           value={answer?.text ?? ""}
           disabled={disabled}
           placeholder={
-            question.entityType
+            question.answerShape === "restatement"
+              ? "유지할 조건을 포함한 전체 요청 문장을 입력하세요"
+              : question.entityType
               ? `${entityTypeLabel(question.entityType)} 이름을 정확히 입력하세요`
               : "값을 입력하세요"
           }
@@ -435,13 +437,6 @@ function RequestChoicePanel({
   onPick?: (query: string) => void | Promise<void>;
   isSubmitting: boolean;
 }) {
-  const [selectedId, setSelectedId] = useState<string | undefined>(undefined);
-  useEffect(() => {
-    setSelectedId(undefined);
-  }, [question.questionId]);
-
-  const selectedQuery = requestChoiceQuery(question, selectedId);
-  const name = `request-choice-${question.questionId}`;
   const hasOptions = question.options.length > 0;
 
   return (
@@ -469,27 +464,20 @@ function RequestChoicePanel({
           </div>
 
           {hasOptions && (
-            <div role="radiogroup" className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2">
               {question.options.map((option) => {
-                const checked = option.id === selectedId;
+                const query = requestChoiceQuery(question, option.id);
                 return (
-                  <label
+                  <Button
                     key={option.id}
-                    className={`flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors ${
-                      checked
-                        ? "border-primary bg-primary/5"
-                        : "border-border bg-background hover:bg-accent"
-                    }`}
+                    type="button"
+                    variant="outline"
+                    className="h-auto justify-start whitespace-normal p-3 text-left"
+                    disabled={isSubmitting || !query || !onPick}
+                    onClick={() => {
+                      if (query && onPick) void onPick(query);
+                    }}
                   >
-                    <input
-                      type="radio"
-                      name={name}
-                      value={option.id}
-                      checked={checked}
-                      disabled={isSubmitting || !option.query}
-                      onChange={() => setSelectedId(option.id)}
-                      className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
-                    />
                     <span className="flex min-w-0 flex-col gap-1">
                       <span className="text-sm font-medium text-foreground">
                         {option.label}
@@ -500,7 +488,7 @@ function RequestChoicePanel({
                         </span>
                       )}
                     </span>
-                  </label>
+                  </Button>
                 );
               })}
             </div>
@@ -513,21 +501,6 @@ function RequestChoicePanel({
           </p>
         )}
 
-        {hasOptions && onPick && (
-          <div className="flex justify-end">
-            <Button
-              type="button"
-              disabled={!selectedQuery || isSubmitting}
-              onClick={() => {
-                if (selectedQuery) {
-                  void onPick(selectedQuery);
-                }
-              }}
-            >
-              {isSubmitting ? "다시 추출하는 중..." : "선택한 문장으로 다시 추출"}
-            </Button>
-          </div>
-        )}
       </CardContent>
     </Card>
   );
@@ -753,6 +726,9 @@ export function ClarificationPanel({
     );
   }
 
+  const hasRestatement = questions.some(
+    (question) => question.answerShape === "restatement",
+  );
   const canSubmit = answered > 0 && !isSubmitting;
 
   return (
@@ -763,7 +739,9 @@ export function ClarificationPanel({
           확인이 필요합니다
         </CardTitle>
         <CardDescription>
-          {previousByIssueId.size > 0
+          {hasRestatement
+            ? "아래 기준을 반영한 전체 요청 문장으로 다시 추출합니다. 기존 요청을 대신하므로 유지할 조건을 모두 포함해 주세요."
+            : previousByIssueId.size > 0
             ? "답해 주신 값으로는 아직 조건을 확정하지 못했습니다. 아래 항목만 다시 확인해 주시면 그 조건만 고쳐 다시 추출합니다 — 나머지 조건은 그대로 유지됩니다."
             : "아래 항목은 어떻게 읽느냐에 따라 추출되는 고객이 크게 달라집니다. 선택해 주시면 그 조건만 확정해 다시 추출합니다 — 나머지 조건은 그대로 유지됩니다."}
         </CardDescription>
@@ -845,7 +823,11 @@ export function ClarificationPanel({
                   void onSubmit(submission.answers);
                 }}
               >
-                {isSubmitting ? "다시 추출하는 중..." : "이 조건으로 다시 추출"}
+                {isSubmitting
+                  ? "다시 추출하는 중..."
+                  : hasRestatement
+                    ? "요청 문장으로 다시 추출"
+                    : "이 조건으로 다시 추출"}
               </Button>
             </div>
           </div>
