@@ -421,7 +421,7 @@ function QuestionCard({
 /**
  * 보기 선택형 되묻기(`presentation === "request_choice"`).
  *
- * 보기 하나하나가 백엔드가 실행을 증명한 **완성 요청 문장**이다. 고르면 그 문장을 조립·추론 없이
+ * request_choice는 검증된 요청, criterion_choice는 기준을 추가한 요청이다. 고르면 조립·추론 없이
  * 그대로 새 요청으로 보낸다. 자유 입력을 받지 않는 이유는 입력한 조각이 요청 전체를 대신해
  * 앞 조건을 지우기 때문이고, 고르기 전에는 실행하지 않는다.
  */
@@ -438,6 +438,8 @@ function RequestChoicePanel({
   isSubmitting: boolean;
 }) {
   const hasOptions = question.options.length > 0;
+  const [customCriterion, setCustomCriterion] = useState("");
+  useEffect(() => setCustomCriterion(""), [question.questionId]);
 
   return (
     <Card className="border-primary/40">
@@ -448,8 +450,12 @@ function RequestChoicePanel({
         </CardTitle>
         <CardDescription>
           {hasOptions
-            ? "보기 하나를 선택하면 그 보기에 적힌 요청 문장 그대로 다시 추출합니다."
-            : "지금 바로 실행할 수 있는 해석이 없습니다. 범위를 밝혀 요청 문장을 다시 입력해 주세요."}
+            ? question.presentation === "criterion_choice"
+              ? "기준을 선택하면 원래 조건에 반영합니다. 필요한 확인을 마치면 추출합니다."
+              : "보기 하나를 선택하면 그 보기에 적힌 요청 문장 그대로 다시 추출합니다."
+            : question.criterionInput
+              ? "확인할 기준만 입력해 주세요. 나머지 조건은 유지됩니다."
+              : "지금 바로 실행할 수 있는 해석이 없습니다. 범위를 밝혀 요청 문장을 다시 입력해 주세요."}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
@@ -494,6 +500,27 @@ function RequestChoicePanel({
             </div>
           )}
         </div>
+
+        {question.criterionInput && (
+          <div className="flex gap-2">
+            <input
+              className="min-w-0 flex-1 rounded-md border border-border px-3 py-2 text-sm"
+              aria-label="다른 기준 직접 입력"
+              placeholder="다른 기준 직접 입력"
+              value={customCriterion}
+              disabled={isSubmitting}
+              onChange={(event) => setCustomCriterion(event.target.value)}
+            />
+            <Button type="button" disabled={isSubmitting || !customCriterion.trim() || !onPick}
+              onClick={() => {
+                if (onPick && question.criterionInput && customCriterion.trim()) {
+                  void onPick(question.criterionInput.prefix + customCriterion.trim() + question.criterionInput.suffix);
+                }
+              }}>
+              기준 적용
+            </Button>
+          </div>
+        )}
 
         {pendingCount > 0 && (
           <p className="text-xs text-muted-foreground">
@@ -711,7 +738,7 @@ export function ClarificationPanel({
   // 새 문장에 붙지 못하고 버려지므로(clarification-submission 의 rewrite 규칙) 그 질문만 보여
   // 주고, 나머지는 문장을 고른 다음 라운드에서 다시 묻는다.
   const requestChoice = questions.find(
-    (question) => question.presentation === "request_choice",
+    (question) => question.presentation === "request_choice" || question.presentation === "criterion_choice",
   );
   if (requestChoice) {
     return (

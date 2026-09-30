@@ -44,6 +44,7 @@ test("query 가 없던 재서술 응답은 value 가 완성 문장이고 슬롯 
 
 test("알 수 없는 presentation 은 기존 화면으로 읽는다", () => {
   assert.equal(clarificationPresentation("request_choice"), "request_choice");
+  assert.equal(clarificationPresentation("criterion_choice"), "criterion_choice");
   assert.equal(clarificationPresentation(undefined), "default");
   assert.equal(clarificationPresentation("free_text"), "default");
 });

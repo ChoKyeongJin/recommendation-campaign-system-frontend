@@ -25,7 +25,7 @@ export function clarificationOptionQuery(
 
 /** 알 수 없는 값은 기존 화면(`default`)으로 읽는다. */
 export function clarificationPresentation(raw: unknown): ClarificationPresentation {
-  return raw === "request_choice" ? "request_choice" : "default";
+  return raw === "request_choice" || raw === "criterion_choice" ? raw : "default";
 }
 
 /**

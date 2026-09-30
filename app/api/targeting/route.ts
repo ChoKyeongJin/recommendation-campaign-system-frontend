@@ -781,6 +781,7 @@ function getResolutionFromPythonResponse(data: unknown): TargetingResolution | n
         getStringValue(question, ["answer_shape"]) === "restatement"
           ? "restatement"
           : "slot_fill";
+      const criterionInput = asRecord(question?.criterion_input);
 
       const options: ClarificationOption[] = getArrayValue(question, "options").flatMap(
         (item) => {
@@ -811,6 +812,11 @@ function getResolutionFromPythonResponse(data: unknown): TargetingResolution | n
           evidenceText: getEvidenceText(question),
           answerShape,
           presentation: clarificationPresentation(question?.presentation),
+          criterionInput: question?.presentation === "criterion_choice"
+            && typeof criterionInput?.prefix === "string"
+            && typeof criterionInput?.suffix === "string"
+              ? { prefix: criterionInput.prefix, suffix: criterionInput.suffix }
+              : undefined,
         },
       ];
     },

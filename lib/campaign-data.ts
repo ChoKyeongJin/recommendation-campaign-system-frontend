@@ -204,11 +204,13 @@ export type ClarificationQuestion = {
   /**
    * 보기를 고르게 하는 모양. `request_choice` 는 보기마다 실행이 증명된 완성 요청 문장(query)이
    * 붙어 있고, 하나를 고르면 그 문장을 그대로 새 요청으로 보낸다(자유 입력 없음).
+   * `criterion_choice`는 기준 하나를 추가한 요청이며 남은 기준을 이어서 물을 수 있다.
    */
   presentation?: ClarificationPresentation;
+  criterionInput?: { prefix: string; suffix: string };
 };
 
-export type ClarificationPresentation = "default" | "request_choice";
+export type ClarificationPresentation = "default" | "request_choice" | "criterion_choice";
 
 /** 사용자가 말하지 않았지만 운영 정책이 채운 의미 하나의 영수증. */
 export type ResolutionAssumption = {
