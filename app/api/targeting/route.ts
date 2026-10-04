@@ -815,7 +815,15 @@ function getResolutionFromPythonResponse(data: unknown): TargetingResolution | n
           criterionInput: question?.presentation === "criterion_choice"
             && typeof criterionInput?.prefix === "string"
             && typeof criterionInput?.suffix === "string"
-              ? { prefix: criterionInput.prefix, suffix: criterionInput.suffix }
+              ? {
+                  prefix: criterionInput.prefix,
+                  suffix: criterionInput.suffix,
+                  ...(typeof criterionInput.source_query === "string"
+                    && typeof criterionInput.insertion_offset === "number"
+                    && Number.isInteger(criterionInput.insertion_offset)
+                    ? { sourceQuery: criterionInput.source_query, insertionOffset: criterionInput.insertion_offset }
+                    : {}),
+                }
               : undefined,
         },
       ];

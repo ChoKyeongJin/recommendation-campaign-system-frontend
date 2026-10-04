@@ -28,6 +28,8 @@ import type {
 } from "@/lib/campaign-data";
 import { requestChoiceQuery } from "@/lib/clarification-choice";
 import { buildClarificationSubmission } from "@/lib/clarification-submission";
+import { canBatchCriteria } from "@/lib/criterion-batch";
+import { CriterionBatchPanel } from "@/components/criterion-batch-panel";
 
 /**
  * 확정 계층(Resolution) 패널.
@@ -39,8 +41,8 @@ import { buildClarificationSubmission } from "@/lib/clarification-submission";
  *   보기   그 가정을 다르게 둔 **요청 문장들** — 묻지 않고 고르게 한다.
  *   미지원 사용자가 답해도 열리지 않는 조건 — 입력을 요구하지 않는다.
  *
- * 답은 원문에 이어 붙이지 않는다. issueId 를 그대로 백엔드에 돌려주면 백엔드가 그 결핍이
- * 가리키는 의미 슬롯 하나만 고친다 — 나머지 조건(기간·금액·사건)은 그대로 유지된다.
+ * 슬롯 답은 issueId로 백엔드의 해당 결핍에 결속한다. 기준 선택은 서버가 발급한 원문 삽입
+ * 좌표로 함께 적용한 전체 요청을 제출하며, 기간·금액·사건의 의미를 화면에서 추측하지 않는다.
  *
  * 답했는데도 같은 결핍을 또 물어 오는 경우(백엔드가 그 값으로 대상을 특정하지 못함)가 있다.
  * 이때 화면에 답한 흔적이 없으면 "내 답이 사라졌다"로 읽힌다. 그래서 직전 라운드의 답을
@@ -732,6 +734,10 @@ export function ClarificationPanel({
         </CardContent>
       </Card>
     );
+  }
+
+  if (questions.length > 1 && canBatchCriteria(questions)) {
+    return <CriterionBatchPanel questions={questions} onPick={onPickAlternative} isSubmitting={isSubmitting} />;
   }
 
   // 보기 선택형 질문은 요청 전체를 다른 문장으로 바꾼다. 같은 화면에서 슬롯 답을 함께 받으면

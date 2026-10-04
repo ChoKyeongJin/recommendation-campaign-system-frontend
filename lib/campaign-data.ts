@@ -204,10 +204,17 @@ export type ClarificationQuestion = {
   /**
    * 보기를 고르게 하는 모양. `request_choice` 는 보기마다 실행이 증명된 완성 요청 문장(query)이
    * 붙어 있고, 하나를 고르면 그 문장을 그대로 새 요청으로 보낸다(자유 입력 없음).
-   * `criterion_choice`는 기준 하나를 추가한 요청이며 남은 기준을 이어서 물을 수 있다.
+   * `criterion_choice`는 명시적으로 고른 기준을 원문에 추가한다. 같은 원문의 기준은 함께 제출한다.
    */
   presentation?: ClarificationPresentation;
-  criterionInput?: { prefix: string; suffix: string };
+  criterionInput?: {
+    prefix: string;
+    suffix: string;
+    /** 백엔드가 발급한 원문. 여러 보기를 합칠 때 이 문장만 기준으로 삼는다. */
+    sourceQuery?: string;
+    /** Python과 같은 Unicode code point 좌표이며 UTF-16 offset이 아니다. */
+    insertionOffset?: number;
+  };
 };
 
 export type ClarificationPresentation = "default" | "request_choice" | "criterion_choice";

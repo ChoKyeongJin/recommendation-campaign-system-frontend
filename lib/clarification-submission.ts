@@ -2,6 +2,7 @@ import type {
   ClarificationAnswer,
   ClarificationQuestion,
 } from "./campaign-data.ts";
+import { buildCriterionBatch, canBatchCriteria } from "./criterion-batch.ts";
 
 export type ClarificationSubmission =
   | { kind: "answers"; answers: ClarificationAnswer[] }
@@ -14,12 +15,14 @@ export type ClarificationSubmission =
  * `slot_fill`은 기존처럼 issue_id에 답을 결속한다. `restatement`는 슬롯 적용기가 없는 질문이므로
  * clarification_answers로 보내지 않고, 백엔드가 제공했거나 사용자가 다시 쓴 완성 문장을
  * 새 프롬프트로 실행한다.
- * 재작성 문장이 없거나 재작성 선택이 둘 이상이면 추측하지 않고 즉시 실패한다.
+ * 같은 원문의 criterion_choice는 서버가 발급한 삽입 좌표로 함께 적용한다.
+ * 그 밖의 재작성 문장이 없거나 재작성 선택이 둘 이상이면 추측하지 않고 즉시 실패한다.
  */
 export function buildClarificationSubmission(
   questions: ClarificationQuestion[],
   answers: ClarificationAnswer[],
 ): ClarificationSubmission {
+  if (canBatchCriteria(questions)) return buildCriterionBatch(questions, answers);
   const questionByIssueId = new Map(
     questions.map((question) => [question.issueId, question]),
   );
