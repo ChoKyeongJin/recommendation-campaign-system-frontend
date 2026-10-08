@@ -1,6 +1,22 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { coverageChange, emptyChanges, fieldChange, replaceChange, switchCoverageMode, errorMessage } from "./profile-setup.ts";
+import { applyMessage, applyingSettings, coverageChange, emptyChanges, fieldChange, replaceChange, switchCoverageMode, errorMessage, type ApplyJob } from "./profile-setup.ts";
+
+test("인덱스 생성이나 재시작 요청만으로 적용 성공을 표시하지 않는다", () => {
+  for (const status of ["queued", "indexing", "restarting"] as const) {
+    const job: ApplyJob = { id: "job", revision: "revision", status, code: "" };
+    assert.equal(applyingSettings(job), true);
+    assert.equal(applyMessage(job).includes("완료했습니다"), false);
+  }
+  assert.equal(applyingSettings({ id: "job", revision: "revision", status: "ready", code: "" }), false);
+});
+
+test("인덱스 실패와 재시작 실패를 구분하고 다시 적용할 수 있다", () => {
+  const job: ApplyJob = { id: "job", revision: "revision", status: "failed", code: "index_failed" };
+  assert.equal(applyingSettings(job), false);
+  assert.match(applyMessage(job), /재시작하지 않았습니다/);
+  assert.match(applyMessage({ ...job, code: "restart_failed" }), /정상 동작을 확인하지 못/);
+});
 
 test("수정하지 않은 항목은 저장 요청에 넣지 않는다", () => {
   assert.deepEqual(emptyChanges(), { fields: [], domains: [], coverage: [] });

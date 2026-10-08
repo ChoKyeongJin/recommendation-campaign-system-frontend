@@ -6,6 +6,7 @@ export type ProfileField = {
 };
 export type Coverage = { expressible?: boolean; reason?: string; fields?: string[]; sources?: string[]; negated_sources?: string[] };
 export type SetupSnapshot = {
+  apply?: { available: boolean; job: ApplyJob | null };
   profile: string; revision: string; restart_required: boolean;
   subject: { name?: string; table: string; key: string; label?: string };
   fields: Record<string, ProfileField>;
@@ -15,6 +16,28 @@ export type SetupSnapshot = {
   basics: { base_entity: { age_column: string }; active_state: { column?: string; value?: ValueRow["physical"]; _supported?: boolean } };
   files: string[];
 };
+
+export type ApplyJob = {
+  id: string; revision: string;
+  status: "queued" | "indexing" | "restarting" | "ready" | "failed";
+  code: string;
+};
+export const applyingSettings = (job: ApplyJob | null | undefined) =>
+  !!job && ["queued", "indexing", "restarting"].includes(job.status);
+export function applyMessage(job: ApplyJob): string {
+  if (job.status === "queued") return "설정 적용을 준비하고 있습니다.";
+  if (job.status === "indexing") return "검색 인덱스를 갱신하고 있습니다. 잠시 기다려 주세요.";
+  if (job.status === "restarting") return "API를 재시작하고 정상 동작을 확인하고 있습니다.";
+  if (job.status === "ready") return "인덱스 갱신과 API 재시작을 완료했습니다. 저장한 설정이 적용되었습니다.";
+  const failures: Record<string, string> = {
+    index_failed: "검색 인덱스 갱신에 실패했습니다. API를 재시작하지 않았습니다. 다시 적용해 주세요.",
+    index_timeout: "검색 인덱스 갱신 시간이 초과되었습니다. 다시 적용해 주세요.",
+    revision_conflict: "적용 중 설정이 변경되었습니다. 새로 불러온 뒤 다시 적용해 주세요.",
+    restart_failed: "API의 정상 동작을 확인하지 못했습니다. 서버 상태를 확인해 주세요.",
+    apply_interrupted: "설정 적용 도중 서버가 종료되었습니다. 다시 적용해 주세요.",
+  };
+  return failures[job.code] ?? "설정 적용에 실패했습니다. 서버 상태를 확인한 뒤 다시 시도해 주세요.";
+}
 export type FieldChange = {
   id: string; label: string; allowed_operators: string[];
   unit: string | null; value_domain: string | null; enable_draft: boolean;

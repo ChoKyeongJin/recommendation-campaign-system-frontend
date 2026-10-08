@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { CheckCircle2, Loader2, RefreshCw, Save, Search } from "lucide-react";
 import {
-  coverageChange, editCount, emptyChanges, errorMessage, fieldChange, replaceChange, switchCoverageMode,
-  type CoverageChange, type SetupChanges, type SetupSnapshot, type ValueRow,
+  applyMessage, applyingSettings, coverageChange, editCount, emptyChanges, errorMessage, fieldChange, replaceChange, switchCoverageMode,
+  type ApplyJob, type CoverageChange, type SetupChanges, type SetupSnapshot, type ValueRow,
 } from "@/lib/profile-setup";
 
 const input = "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm disabled:opacity-60";
@@ -13,7 +13,7 @@ const labels: Record<string, string> = {
   gender: "성별", cart: "장바구니", login: "접속", purchase_absence: "구매 이력 없음", consent: "수신 동의",
   campaign_contact: "캠페인 접촉", offer_response: "캠페인 반응", buy_response: "구매 전환", coupon_used: "쿠폰 사용",
 };
-const operators: Record<string, string> = { "=": "같음", "!=": "다름", "<": "미만", "<=": "이하", ">": "초과", ">=": "이상", in: "목록에 포함", not_in: "목록에서 제외" };
+const operators: Record<string, string> = { "=": "같음", "!=": "다름", "<": "미만", "<=": "이하", ">": "초과", ">=": "이상", in: "목록에 포함", not_in: "목록에서 제외", starts_with: "문자로 시작", ends_with: "문자로 끝남", contains: "문자 포함" };
 
 function TextField({ label, value, onChange, hint, disabled }: { label: string; value: string; onChange: (value: string) => void; hint?: string; disabled?: boolean }) {
   return <label className="flex flex-col gap-1.5 text-sm font-medium">{label}
@@ -66,6 +66,8 @@ export function ProfileSetupEditor() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [validated, setValidated] = useState(false);
+  const [applyJob, setApplyJob] = useState<ApplyJob | null>(null);
+  const applying = applyingSettings(applyJob);
   const count = editCount(changes);
 
   async function load(preserveMessage = false) {
@@ -75,6 +77,7 @@ export function ProfileSetupEditor() {
       const payload = await response.json();
       if (!response.ok) throw new Error(errorMessage(payload));
       setSnapshot(payload); setChanges(emptyChanges()); setValidated(false);
+      setApplyJob(payload.apply?.job ?? null);
       const nextSelected = selected && payload.fields[selected] ? selected : Object.keys(payload.fields).find((id) => payload.fields[id].label && !payload.fields[id].expression) ?? "";
       setSourceFilter(payload.fields[nextSelected]?.source ?? payload.subject.name ?? "");
       if (!preserveMessage) setMessage("");
@@ -84,6 +87,39 @@ export function ProfileSetupEditor() {
   }
 
   useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    if (!applying || !applyJob) return;
+    const controller = new AbortController();
+    const jobId = applyJob.id;
+    const deadline = Date.now() + 12 * 60 * 1000;
+    let timer: ReturnType<typeof setTimeout>;
+    const poll = async () => {
+      if (controller.signal.aborted) return;
+      if (Date.now() > deadline) {
+        setError("적용 상태 확인 시간이 초과되었습니다. 새로 불러오기로 서버의 진행 상태를 확인해 주세요.");
+        return;
+      }
+      try {
+        const response = await fetch("/api/profile-setup/apply", { cache: "no-store", signal: controller.signal });
+        if (response.ok) {
+          const payload = await response.json();
+          const job: ApplyJob | null = payload.job;
+          if (!job || job.id !== jobId) {
+            setError("다른 적용 작업이 감지되었습니다. 설정을 새로 불러와 확인하세요.");
+            return;
+          }
+          setApplyJob(job);
+          if (job.status === "ready") { await load(true); return; }
+          if (job.status === "failed") return;
+        }
+      } catch {
+        // The connection briefly drops during restart. Only a ready job proves success.
+      }
+      if (!controller.signal.aborted) timer = setTimeout(poll, 1500);
+    };
+    void poll();
+    return () => { controller.abort(); clearTimeout(timer); };
+  }, [applying, applyJob?.id]);
   useEffect(() => {
     if (!count) return;
     const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); };
@@ -104,13 +140,28 @@ export function ProfileSetupEditor() {
       const payload = await response.json();
       if (!response.ok) throw new Error(errorMessage(payload));
       if (save) {
-        setMessage(payload.restart_required ? "관련 설정을 저장했습니다. API를 재시작하면 적용됩니다." : "변경할 내용이 없습니다.");
+        setMessage(payload.restart_required ? "관련 설정을 저장했습니다. ‘설정 갱신·적용’을 누르면 조회에 반영됩니다." : "변경할 내용이 없습니다.");
         await load(true);
       } else {
         setValidated(true);
         setMessage(payload.changed_files.length ? `검사를 통과했습니다. 관련 설정 ${payload.changed_files.length}개 파일을 함께 저장할 수 있습니다.` : "현재 설정과 같습니다.");
       }
     } catch (error) { setError(error instanceof Error ? error.message : "요청을 처리하지 못했습니다."); setValidated(false); }
+    finally { setBusy(null); }
+  }
+
+  async function applySettings() {
+    if (!snapshot || count || applying) return;
+    setBusy("apply"); setError(""); setMessage("");
+    try {
+      const response = await fetch("/api/profile-setup/apply", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ revision: snapshot.revision }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(errorMessage(payload));
+      setApplyJob(payload);
+    } catch (error) { setError(error instanceof Error ? error.message : "설정을 적용하지 못했습니다."); }
     finally { setBusy(null); }
   }
 
@@ -129,22 +180,26 @@ export function ProfileSetupEditor() {
       <div><p className="text-xs text-muted-foreground">현재 배포</p><p className="font-semibold">{snapshot?.profile ?? "불러오는 중"}</p>
         {snapshot && <p className="mt-1 text-xs text-muted-foreground">고객 테이블 {snapshot.subject.table} · 고객 구분 {snapshot.subject.key}</p>}
       </div>
+      <div className="flex flex-wrap gap-2"><button className={button} type="button" disabled={!!busy || applying || !!count || !snapshot?.apply?.available}
+        title={count ? "편집한 내용을 먼저 저장하세요." : !snapshot?.apply?.available ? "API의 자동 적용 기능을 활성화해야 합니다." : "검색 인덱스를 갱신하고 API를 재시작합니다."}
+        onClick={() => void applySettings()}>{applying ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}설정 갱신·적용</button>
       <button className={button} type="button" disabled={!!busy} onClick={() => {
         if (!count || window.confirm("저장하지 않은 변경을 버리고 다시 불러올까요?")) void load();
-      }}><RefreshCw className="h-4 w-4" />새로 불러오기</button>
+      }}><RefreshCw className="h-4 w-4" />새로 불러오기</button></div>
     </div>
 
     {snapshot?.restart_required && <div role="status" className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
-      <p className="font-semibold">저장한 설정이 재시작을 기다리고 있습니다.</p>
-      <p className="mt-1">서로 다른 설정으로 실행되지 않도록 타겟 조회를 잠시 막았습니다. API를 재시작한 뒤 이 화면을 새로 불러오세요.</p>
-      <p className="mt-1">벡터 검색을 사용하는 배포는 초기 연결 안내에 따라 카탈로그 인덱스를 갱신한 뒤 재시작하세요.</p>
-      <code className="mt-2 block select-all text-xs">docker compose restart api</code>
+      <p className="font-semibold">저장한 설정의 적용이 필요합니다.</p>
+      <p className="mt-1">‘설정 갱신·적용’을 누르면 검색 준비와 서버 재시작을 진행합니다. 완료할 때까지 타겟 조회가 잠시 중단됩니다.</p>
     </div>}
+    {applyJob && (applyJob.status !== "ready" || applyJob.revision === snapshot?.revision) && <p role={applyJob.status === "failed" ? "alert" : "status"} className="flex gap-2 rounded-xl border border-border bg-muted p-4 text-sm">
+      {applying && <Loader2 className="h-4 w-4 shrink-0 animate-spin" />}{applyMessage(applyJob)}
+    </p>}
     {error && <p role="alert" className="whitespace-pre-wrap rounded-xl border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">{error}</p>}
     {message && <p role="status" className="flex gap-2 rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-950"><CheckCircle2 className="h-4 w-4 shrink-0" />{message}</p>}
     {busy === "load" && !snapshot && <p className="flex items-center gap-2 text-sm"><Loader2 className="h-4 w-4 animate-spin" />현재 설정을 불러오고 있습니다.</p>}
 
-    {snapshot && <fieldset disabled={!!busy} className="min-w-0 space-y-4 disabled:opacity-70">
+    {snapshot && <fieldset disabled={!!busy || applying} className="min-w-0 space-y-4 disabled:opacity-70">
       <nav aria-label="설정 종류" className="flex gap-1 rounded-xl bg-muted p-1">
         {([ ["fields", "필드와 값"], ["coverage", "지원하는 조건"], ["basics", "고객 기본 조건"] ] as const).map(([id, label]) =>
           <button key={id} type="button" aria-pressed={tab === id} onClick={() => setTab(id)} className={`flex-1 whitespace-nowrap rounded-lg px-2 py-2 text-xs font-medium sm:px-3 sm:text-sm ${tab === id ? "bg-background shadow-sm" : "text-muted-foreground"}`}>{label}</button>)}
@@ -176,7 +231,7 @@ export function ProfileSetupEditor() {
           {field && current ? <div className="space-y-5">
             <div><h2 className="font-semibold">{field.label || field.column}</h2><p className="mt-1 text-xs text-muted-foreground">{field.source} · {field.column} · {field.data_type}</p></div>
             <TextField label="이 필드를 부르는 이름" value={current.label} onChange={(label) => update({ ...changes, fields: replaceChange(changes.fields, { ...current, label }, (item) => item.id === selected) })} />
-            <fieldset><legend className="mb-2 text-sm font-medium">허용할 비교</legend><div className="flex flex-wrap gap-x-4 gap-y-2">{Object.entries(operators).map(([op, label]) => <label key={op} className="flex items-center gap-1.5 text-sm"><input type="checkbox" checked={current.allowed_operators.includes(op)} onChange={(event) => update({ ...changes, fields: replaceChange(changes.fields, { ...current, allowed_operators: event.target.checked ? [...current.allowed_operators, op] : current.allowed_operators.filter((value) => value !== op) }, (item) => item.id === selected) })} />{label}</label>)}</div></fieldset>
+            <fieldset><legend className="mb-2 text-sm font-medium">허용할 비교</legend><div className="flex flex-wrap gap-x-4 gap-y-2">{Object.entries(operators).filter(([op]) => !["starts_with", "ends_with", "contains"].includes(op) || (field.data_type === "string" && !current.value_domain)).map(([op, label]) => <label key={op} className="flex items-center gap-1.5 text-sm"><input type="checkbox" checked={current.allowed_operators.includes(op)} onChange={(event) => update({ ...changes, fields: replaceChange(changes.fields, { ...current, allowed_operators: event.target.checked ? [...current.allowed_operators, op] : current.allowed_operators.filter((value) => value !== op) }, (item) => item.id === selected) })} />{label}</label>)}</div></fieldset>
             {(field.data_type === "number" || current.unit) && <TextField label="단위" hint="숫자만으로 단위를 추측하지 않습니다. 이미 사용 중인 단위는 보호됩니다." disabled={!!field.unit} value={current.unit ?? ""} onChange={(unit) => update({ ...changes, fields: replaceChange(changes.fields, { ...current, unit: unit || null }, (item) => item.id === selected) })} />}
             {field._onboarding_gaps && <label className="flex gap-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-950"><input type="checkbox" checked={current.enable_draft} onChange={(event) => update({ ...changes, fields: replaceChange(changes.fields, { ...current, enable_draft: event.target.checked }, (item) => item.id === selected) })} />필수 항목을 확인했습니다. 이 필드를 사용하도록 설정합니다.</label>}
             {domain && domainId && <div className="space-y-3 border-t border-border pt-5">
@@ -239,8 +294,8 @@ export function ProfileSetupEditor() {
 
     {snapshot && <div className="sticky bottom-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-background/95 p-4 shadow-lg backdrop-blur">
       <div><p className="text-sm font-medium">{count ? `${count}개 항목 변경 중` : "저장하지 않은 변경 없음"}</p><p className="text-xs text-muted-foreground">검사 후 관련 설정을 함께 저장합니다.</p></div>
-      <div className="flex gap-2"><button type="button" className={button} disabled={!!busy || count === 0} onClick={() => void submit(false)}>{busy === "validate" && <Loader2 className="h-4 w-4 animate-spin" />}변경 검사</button>
-        <button type="button" className={`${button} bg-primary text-primary-foreground hover:bg-primary/90`} disabled={!!busy || !validated || count === 0} onClick={() => void submit(true)}>{busy === "save" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}설정 저장</button></div>
+      <div className="flex gap-2"><button type="button" className={button} disabled={!!busy || applying || count === 0} onClick={() => void submit(false)}>{busy === "validate" && <Loader2 className="h-4 w-4 animate-spin" />}변경 검사</button>
+        <button type="button" className={`${button} bg-primary text-primary-foreground hover:bg-primary/90`} disabled={!!busy || applying || !validated || count === 0} onClick={() => void submit(true)}>{busy === "save" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}설정 저장</button></div>
     </div>}
   </section>;
 }
