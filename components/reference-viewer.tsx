@@ -22,7 +22,8 @@ import { copyTextToClipboard } from "@/lib/clipboard";
 
 // 백엔드 /reference-files 응답 형태.
 type ReferenceFile = {
-  category: "data" | "prompts";
+  category: "data" | "prompts" | "profile";
+  relative_path?: string;
   name: string;
   size: number;
   format: string;
@@ -62,6 +63,7 @@ export function ReferenceViewer() {
   const [isLoadingList, setIsLoadingList] = useState(true);
   const [listError, setListError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [showAll, setShowAll] = useState(false);
 
   const [selected, setSelected] = useState<ReferenceFile | null>(null);
   const [detail, setDetail] = useState<ReferenceFileDetail | null>(null);
@@ -141,15 +143,16 @@ export function ReferenceViewer() {
 
   const filtered = useMemo(() => {
     const keyword = search.trim().toLowerCase();
+    const visible = showAll ? files : files.filter((file) => file.category === "profile");
     if (!keyword) {
-      return files;
+      return visible;
     }
-    return files.filter(
+    return visible.filter(
       (file) =>
         file.name.toLowerCase().includes(keyword) ||
         file.description.toLowerCase().includes(keyword),
     );
-  }, [files, search]);
+  }, [files, search, showAll]);
 
   const grouped = useMemo(() => {
     const byCategory = new Map<string, ReferenceFile[]>();
@@ -205,6 +208,10 @@ export function ReferenceViewer() {
         </Button>
       </div>
 
+      <label className="flex items-center gap-2 text-sm text-muted-foreground">
+        <input type="checkbox" checked={showAll} onChange={(event) => setShowAll(event.target.checked)} />
+        공유 선언·테스트 자료·프롬프트도 보기
+      </label>
       <div className="relative">
         <Search
           className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground"
@@ -276,6 +283,7 @@ export function ReferenceViewer() {
                         <span className="line-clamp-2 text-xs text-muted-foreground">
                           {file.description || "(설명 없음)"}
                         </span>
+                        {file.relative_path && <span className="truncate font-mono text-[10px] text-muted-foreground">{file.relative_path}</span>}
                       </div>
                       <span className="shrink-0 text-xs text-muted-foreground">
                         {formatSize(file.size)}
@@ -293,7 +301,7 @@ export function ReferenceViewer() {
         </div>
       )}
 
-      <span className="text-sm text-muted-foreground">총 {files.length}개</span>
+      <span className="text-sm text-muted-foreground">표시 {filtered.length}개</span>
     </div>
   );
 }

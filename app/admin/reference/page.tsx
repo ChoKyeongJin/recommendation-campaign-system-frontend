@@ -30,8 +30,8 @@ export default function ReferenceAdminPage() {
           </div>
         </div>
         <p className="text-sm text-muted-foreground">
-          타겟팅 엔진이 실제로 읽는 데이터·사전·프롬프트 파일(docs/data, docs/prompts)을
-          열람합니다. 각 파일의 용도 설명과 본문을 볼 수 있으며, 편집은 되지 않습니다(읽기 전용).
+          현재 배포가 읽는 설정을 먼저 보여 줍니다. 공유 선언과 과거 테스트 자료는
+          별도로 펼쳐 볼 수 있습니다. 설정 변경은 <Link href="/admin/setup" className="text-primary underline">배포 설정</Link>에서 진행하세요.
         </p>
       </header>
 

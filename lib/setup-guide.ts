@@ -201,7 +201,7 @@ export const SETUP_STEPS: readonly SetupStep[] = [
       `python tools/audience_catalog_draft.py --profile ${PROFILE_PLACEHOLDER} --report`,
     ],
     notes: [
-      "라벨·별칭 같은 '뜻'은 비워 둡니다 — 컬럼 이름으로 의미를 추측하지 않습니다. 그 자리가 다음 단계입니다.",
+      "필드의 뜻을 나타내는 이름은 비워 둡니다 — 컬럼 이름으로 의미를 추측하지 않습니다. 그 자리가 다음 단계입니다.",
       "--report 가 아직 비어 있는 자리를 한 화면에 열거합니다.",
     ],
     fillIns: [],
@@ -209,9 +209,9 @@ export const SETUP_STEPS: readonly SetupStep[] = [
   },
   {
     id: "declare",
-    title: "사람이 채우는 네 자리",
+    title: "배포 설정 화면에서 의미를 입력합니다",
     lead:
-      "손으로 적는 곳은 여기뿐입니다. 축 하나(예: 성별)를 여는 데 대략 26항목이 듭니다. 파일 이름을 누르면 지금 배포가 읽고 있는 내용을 그대로 볼 수 있습니다.",
+      "위 설정 화면에서 필드와 값, 지원하는 조건, 고객 기본 조건을 입력합니다. 검사 후 저장하면 관련 파일에 함께 반영됩니다. 아래 파일 링크는 저장 위치를 확인하는 참고 자료입니다.",
     kind: "human",
     commands: [],
     notes: [],
@@ -221,28 +221,28 @@ export const SETUP_STEPS: readonly SetupStep[] = [
         where: "UNDECLARED__ 표지 두 개",
         what: "나이 컬럼(base_entity.age_column)과 활성 회원 조건(active_state)",
         detail:
-          "실제 컬럼·값으로 바꿉니다. 그 축을 안 쓸 거면 _supported: false 로 닫습니다.",
+          "고객 기본 조건 탭에서 실제 컬럼과 값을 입력합니다. 나이 컬럼과 기본 상태 조건은 전체 실행에 영향을 주므로 스키마 검사를 통과해야 합니다.",
       },
       {
         file: "audience_catalog.json",
         where: "필드의 뜻",
-        what: "라벨 · 별칭 · 허용 연산자 · 값 도메인",
+        what: "필드 이름 · 허용 연산자 · 값 도메인",
         detail:
-          "쓸 필드만 채우면 됩니다. 안 채운 필드는 실행에서 자동으로 빠지므로 그대로 둬도 안전합니다.",
+          "필드를 선택해 이름과 비교 방법을 입력합니다. 동의어를 따로 나열할 필요는 없습니다. 초안 표지가 있는 필드는 필수 항목을 확인한 뒤 사용 설정을 해야 실행에 포함됩니다.",
       },
       {
         file: "member_target_filters.json",
         where: "eq_filters 값 사전",
         what: "값마다 canonical · category · column · value · synonyms",
         detail:
-          "DB 에 실제로 들어 있는 값을 빠짐없이 적습니다(UNKNOWN 같은 것도). 하나만 빠져도 점검에서 막힙니다.",
+          "필드 아래 값 목록을 한 번 편집합니다. 기존 연결에 따라 원본 값 사전에 저장하며, 관측된 DB 값의 누락은 검사에서 알려 줍니다.",
       },
       {
         file: "audience_catalog.json",
         where: "signal_coverage.<축>",
         what: "성별 · 장바구니 · 최근 접속 · 구매 부재 · 수신동의 · 캠페인 반응 4종",
         detail:
-          "이 시스템이 알아듣는 9개 축 중 쓸 것을 선언합니다. 안 쓰는 축은 expressible: false 로 닫습니다. 비워 두면 그 축의 요청이 '아직 선언되지 않았습니다'로 닫힙니다.",
+          "지원하는 조건 탭에서 근거 필드·사건을 선택하거나 지원하지 않는 이유를 입력합니다. 미설정 상태와 명시적인 미지원을 구분합니다.",
       },
     ],
     decisions: [],
@@ -260,6 +260,7 @@ export const SETUP_STEPS: readonly SetupStep[] = [
     ],
     notes: [
       "❌ 는 반드시 고쳐야 하는 것이고, ℹ️ [onboarding] 줄은 아직 안 채운 자리 목록입니다(실패가 아닙니다).",
+      "ID 후보 검색을 사용하는 배포는 tools/identifier_retrieval_index.py --profile <프로필 이름> --semantic 으로 변경된 카탈로그를 색인한 뒤 API를 재시작합니다. API와 같은 환경에서 실행하세요.",
       "초록이 되면 이 화면에 요청을 하나 넣어 결과까지 확인합니다.",
     ],
     fillIns: [],

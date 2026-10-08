@@ -2,10 +2,11 @@ import Link from "next/link";
 import { ArrowLeft, Wrench } from "lucide-react";
 
 import { SetupGuide } from "@/components/setup-guide";
+import { ProfileSetupEditor } from "@/components/profile-setup-editor";
 
 export const metadata = {
-  title: "처음 세팅하는 법",
-  description: "새 DB 를 이 시스템에 붙일 때의 순서와 사람이 채워야 하는 자리",
+  title: "배포 설정",
+  description: "현재 배포의 필드, 값 목록, 지원 조건을 한 화면에서 설정합니다.",
 };
 
 export default function SetupAdminPage() {
@@ -18,7 +19,7 @@ export default function SetupAdminPage() {
               <Wrench className="h-5 w-5" aria-hidden />
             </span>
             <h1 className="text-xl font-bold text-foreground">
-              처음 세팅하는 법
+              배포 설정
             </h1>
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -32,14 +33,16 @@ export default function SetupAdminPage() {
           </div>
         </div>
         <p className="text-sm text-muted-foreground">
-          새 DB 를 붙이는 다섯 단계입니다. 1 · 3 · 5단계는 적어 둔 명령을 그대로
-          실행하면 되고, 손으로 적는 곳은 4단계 하나입니다. 지금 배포가 어디까지
-          채워졌는지는 이 화면이 아니라 db_swap_preflight.py 의 점검 결과와 막힌
-          요청의 응답이 알려 줍니다.
+          필드를 선택하고 이름과 값을 입력하세요. 현재 배포가 읽는 관련 설정에
+          함께 반영되며, 저장 전에 누락과 충돌을 검사합니다.
         </p>
       </header>
 
-      <SetupGuide />
+      <ProfileSetupEditor />
+      <details className="rounded-xl border border-border p-5">
+        <summary className="cursor-pointer text-sm font-semibold">새 DB 연결과 초기 프로필 생성 안내</summary>
+        <div className="mt-5"><SetupGuide /></div>
+      </details>
     </main>
   );
 }
