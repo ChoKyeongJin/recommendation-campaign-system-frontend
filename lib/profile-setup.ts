@@ -1,4 +1,4 @@
-export type ValueRow = { canonical: string; physical: string | number | boolean | null; label: string; aliases: string[] };
+export type ValueRow = { canonical: string; physical: string | number | boolean | null; label: string; description: string };
 export type ProfileField = {
   source: string; column: string; data_type: string; label?: string;
   allowed_operators?: string[]; unit?: string; value_domain?: string;
@@ -31,7 +31,6 @@ export type SetupChanges = {
 };
 
 export const emptyChanges = (): SetupChanges => ({ fields: [], domains: [], coverage: [] });
-export const splitTerms = (text: string) => text.split(/[,\n]/).map((part) => part.trim()).filter(Boolean);
 export function replaceChange<T>(items: T[], updated: T, same: (item: T) => boolean): T[] {
   return [...items.filter((item) => !same(item)), updated];
 }

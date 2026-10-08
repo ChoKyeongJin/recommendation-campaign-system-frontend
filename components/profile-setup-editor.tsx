@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { CheckCircle2, Loader2, RefreshCw, Save, Search } from "lucide-react";
 import {
-  coverageChange, editCount, emptyChanges, errorMessage, fieldChange, replaceChange, splitTerms, switchCoverageMode,
+  coverageChange, editCount, emptyChanges, errorMessage, fieldChange, replaceChange, switchCoverageMode,
   type CoverageChange, type SetupChanges, type SetupSnapshot, type ValueRow,
 } from "@/lib/profile-setup";
 
@@ -41,11 +41,6 @@ function ValueInput({ value, onChange }: { value: ValueRow["physical"]; onChange
         } else onChange(event.target.value);
       }} />}
   </div>;
-}
-
-function TermsInput({ label, values, onChange }: { label: string; values: string[]; onChange: (values: string[]) => void }) {
-  const [text, setText] = useState(values.join(", "));
-  return <TextField label={label} hint="같은 뜻의 낱말을 쉼표로 구분하세요." value={text} onChange={(next) => { setText(next); onChange(splitTerms(next)); }} />;
 }
 
 function MultiSelect({ label, options, selected, onChange }: { label: string; options: [string, string][]; selected: string[]; onChange: (ids: string[]) => void }) {
@@ -192,13 +187,13 @@ export function ProfileSetupEditor() {
                 return <fieldset key={index} disabled={!domain.editable} className="space-y-2 rounded-lg border border-border p-3">
                   <legend className="px-1 text-xs text-muted-foreground">{value.canonical}</legend>
                   {index >= (snapshot.domains[domainId]?.values.length ?? 0) && <TextField label="값 식별자" hint="이 값을 구분하는 고유한 이름입니다. 저장 후에는 유지됩니다." value={value.canonical} onChange={(canonical) => changeValue({ ...value, canonical })} />}
-                  <div className="grid gap-3 lg:grid-cols-2"><TextField label="표시 이름" value={value.label} onChange={(label) => changeValue({ ...value, label })} />
+                  <div className="grid gap-3 lg:grid-cols-2"><TextField label="값의 이름" hint="이 값의 뜻을 나타내는 대표 이름 하나를 입력하세요." value={value.label} onChange={(label) => changeValue({ ...value, label })} />
                     <div className="space-y-1.5"><p className="text-sm font-medium">DB 저장값</p><ValueInput value={value.physical} onChange={(physical) => changeValue({ ...value, physical })} /></div></div>
-                  <TermsInput key={`${snapshot.revision}:${domainId}:${index}`} label="같은 뜻의 낱말" values={value.aliases} onChange={(aliases) => changeValue({ ...value, aliases })} />
+                  <TextField label="의미 설명 (선택)" hint="이름만으로 모호할 때 업무상 의미를 설명하세요. 동의어는 나열하지 않아도 됩니다." value={value.description} onChange={(description) => changeValue({ ...value, description })} />
                   {index >= (snapshot.domains[domainId]?.values.length ?? 0) && <button type="button" className="text-xs text-destructive underline" onClick={() => update({ ...changes, domains: replaceChange(changes.domains, { ...pendingDomain, id: domainId, values: domainValues.filter((_, position) => position !== index) }, (item) => item.id === domainId) })}>추가한 값 취소</button>}
                 </fieldset>;
               })}
-              {domain.editable && <button type="button" className={button} onClick={() => update({ ...changes, domains: replaceChange(changes.domains, { ...pendingDomain, id: domainId, values: [...domainValues, { canonical: "", physical: "", label: "", aliases: [] }] }, (item) => item.id === domainId) })}>값 추가</button>}
+              {domain.editable && <button type="button" className={button} onClick={() => update({ ...changes, domains: replaceChange(changes.domains, { ...pendingDomain, id: domainId, values: [...domainValues, { canonical: "", physical: "", label: "", description: "" }] }, (item) => item.id === domainId) })}>값 추가</button>}
             </div>}
             {!domain && <div className="space-y-2 rounded-lg bg-muted p-3"><p className="text-xs text-muted-foreground">정해진 코드나 등급을 사용하는 필드라면 값 목록을 연결하세요. 연결하면 목록에 등록한 값만 허용합니다.</p>
               <select aria-label="기존 값 목록 연결" className={input} value="" onChange={(event) => update({ ...changes, fields: replaceChange(changes.fields, { ...current, value_domain: event.target.value || null }, (item) => item.id === selected) })}>
@@ -207,7 +202,7 @@ export function ProfileSetupEditor() {
               <button type="button" className={button} onClick={() => {
                 const id = `setup.${selected}`;
                 update({ ...changes, fields: replaceChange(changes.fields, { ...current, value_domain: id }, (item) => item.id === selected),
-                  domains: [...changes.domains, { id, field_id: selected, values: [{ canonical: "", physical: "", label: "", aliases: [] }] }] });
+                  domains: [...changes.domains, { id, field_id: selected, values: [{ canonical: "", physical: "", label: "", description: "" }] }] });
               }}>새 값 목록 만들기</button>
             </div>}
           </div> : <p className="text-sm text-muted-foreground">설정할 필드를 선택하세요.</p>}

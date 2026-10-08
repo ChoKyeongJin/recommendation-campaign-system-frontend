@@ -233,9 +233,9 @@ export const SETUP_STEPS: readonly SetupStep[] = [
       {
         file: "member_target_filters.json",
         where: "eq_filters 값 사전",
-        what: "값마다 canonical · category · column · value · synonyms",
+        what: "값의 이름 · 의미 설명 · DB 저장값",
         detail:
-          "필드 아래 값 목록을 한 번 편집합니다. 기존 연결에 따라 원본 값 사전에 저장하며, 관측된 DB 값의 누락은 검사에서 알려 줍니다.",
+          "대표 이름 하나로 값의 뜻을 정합니다. 동의어는 입력하지 않습니다. 기존 연결에 따라 원본 값 사전에 저장하며, 관측된 DB 값의 누락은 검사에서 알려 줍니다.",
       },
       {
         file: "audience_catalog.json",
