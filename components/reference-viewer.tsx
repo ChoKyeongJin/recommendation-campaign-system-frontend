@@ -220,6 +220,7 @@ export function ReferenceViewer() {
         <input
           className={`${inputClass} pl-9`}
           placeholder="검색 (파일명 / 설명)"
+          aria-label="참조 파일 검색"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import {
   CheckCircle2,
   Circle,
@@ -8,15 +8,16 @@ import {
   LoaderCircle,
   Sparkles,
   XCircle,
+  ArrowRight,
+  Brain,
+  CalendarDays,
+  ChevronDown,
+  ChevronRight,
+  Info,
+  ShoppingCart,
+  Users,
 } from "lucide-react";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -131,6 +132,16 @@ const EXAMPLES = [
   "2026년 2월 또는 3월에 진행된 캠페인에 참여했지만 구매까지 전환되지 않은 고객 리스트를 추출해줘",
 ];
 
+const EXAMPLE_CARDS = [
+  { index: 0, category: "구매 감소", tone: "blue", title: "이전 달보다 구매금액이 줄어든 고객", description: "두 달의 구매금액을 비교해 감소한 고객을 찾습니다." },
+  { index: 1, category: "충성 고객", tone: "teal", title: "3개월 연속 구매한 고객", description: "지정한 3개월 동안 연속으로 구매한 고객을 찾습니다." },
+  { index: 2, category: "인기 상품", tone: "orange", title: "판매 상위 상품을 구매한 고객", description: "특정 기간 동안 판매량 상위 상품을 구매한 고객을 찾습니다." },
+  { index: 3, category: "재활성화", tone: "purple", title: "90일간 구매하지 않은 고객", description: "최근 90일간 구매 이력이 없는 캠페인 참여 고객을 찾습니다." },
+  { index: 5, category: "고객 케어", tone: "pink", title: "부정적인 피드백이 많은 VIP 고객", description: "불만 접수 또는 부정적인 피드백이 많은 VIP 고객을 찾습니다." },
+  { index: 6, category: "전환 유도", tone: "yellow", title: "캠페인 참여 후 구매하지 않은 고객", description: "캠페인에 참여했지만 구매로 전환되지 않은 고객을 찾습니다." },
+  { index: 4, category: "관심 상품", tone: "blue", title: "같은 카테고리의 다른 상품을 구매한 고객", description: "인기 상품 대신 같은 카테고리 상품을 구매한 고객을 찾습니다." },
+];
+
 export function StepPrompt({
   prompt,
   setPrompt,
@@ -153,6 +164,8 @@ export function StepPrompt({
   setStructuringModel: (v: string) => void;
 }) {
   const modelSelectId = useId();
+  const promptRef = useRef<HTMLTextAreaElement>(null);
+  const [showAllExamples, setShowAllExamples] = useState(false);
   const [clientElapsedMs, setClientElapsedMs] = useState(0);
   useEffect(() => {
     if (!isExtracting) return;
@@ -180,43 +193,31 @@ export function StepPrompt({
   const showProgress = isExtracting || Boolean(error && failedStage);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>캠페인 목표를 입력하세요</CardTitle>
-        <CardDescription>
-          원하는 고객 조건을 자연어로 설명하면 검증된 타겟 SQL과 오디언스를
-          제공합니다.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-6">
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="prompt">프롬프트</Label>
+    <div className="target-prompt-view">
+      <div className="target-input-grid">
+      <section className="target-input-card" aria-labelledby="target-condition-label">
+        <div className="target-card-heading">
+          <Label htmlFor="prompt" id="target-condition-label">타겟 조건</Label>
+          <span>자연어로 원하는 고객 조건을 입력하세요.</span>
+        </div>
+        <div className="target-textarea-wrap">
           <Textarea
+            ref={promptRef}
             id="prompt"
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             disabled={isExtracting}
-            placeholder="예) 장바구니를 남겨둔 고객에게 할인 쿠폰으로 구매를 유도하고 싶어요"
-            className="min-h-32 resize-none"
+            placeholder="예) 지난 90일간 구매하지 않은 캠페인 참여 고객"
+            aria-describedby="prompt-help prompt-count"
+            className="target-textarea"
           />
-          <div className="flex flex-wrap gap-2 pt-1">
-            {EXAMPLES.map((ex, index) => (
-              <button
-                key={`${index}-${ex}`}
-                type="button"
-                onClick={() => setPrompt(ex)}
-                disabled={isExtracting}
-                className="rounded-full border border-border bg-secondary px-3 py-1 text-left text-xs text-secondary-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {ex}
-              </button>
-            ))}
-          </div>
+          <span id="prompt-count" className="prompt-count">{prompt.length.toLocaleString()}자</span>
         </div>
+        <p id="prompt-help" className="prompt-help"><Info size={17} aria-hidden />기간, 구매 이력, 캠페인 참여 조건을 함께 입력해 보세요.</p>
 
         {showProgress && (
           <section
-            className="rounded-lg border border-border bg-muted/40 p-4"
+            className="mt-5 rounded-lg border border-border bg-muted/40 p-4"
             aria-label="타겟 추출 진행 상황"
           >
             <div className="mb-3 flex items-center justify-between gap-3">
@@ -323,48 +324,81 @@ export function StepPrompt({
           </section>
         )}
 
-        <div className="flex flex-wrap items-center justify-end gap-3">
-          {error && <p className="mr-auto text-sm text-destructive">{error}</p>}
-          {shouldOfferChoice(modelChoices) && (
-            <div className="mr-auto flex flex-col gap-1">
+        {error && <p role="alert" className="mt-4 text-sm text-destructive">{error}</p>}
+        <div className="target-form-actions">
+            <div className="target-model-field">
               <label
                 htmlFor={modelSelectId}
-                className="text-xs font-medium text-muted-foreground"
+                className="text-sm font-medium"
               >
                 해석 모델
               </label>
-              <select
+              <div className="target-model-select">
+              <Brain size={20} aria-hidden />
+              {shouldOfferChoice(modelChoices) ? <select
                 id={modelSelectId}
                 value={structuringModel}
                 onChange={(event) => setStructuringModel(event.target.value)}
                 disabled={isExtracting}
-                className="rounded-md border border-border bg-background px-2.5 py-1.5 font-mono text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                title={describeChoice(structuringModel, modelChoices)}
               >
                 <option value={DEFAULT_MODEL_OPTION}>
                   {modelChoices.fallback
-                    ? `배포 기본값 (${modelChoices.fallback})`
-                    : "배포 기본값"}
+                    ? `기본 모델 · ${modelChoices.fallback}`
+                    : "기본 모델"}
                 </option>
                 {modelChoices.choices.map((model) => (
                   <option key={model} value={model}>
                     {model}
                   </option>
                 ))}
-              </select>
-              <span className="text-[11px] text-muted-foreground">
-                {describeChoice(structuringModel, modelChoices)}
-              </span>
+              </select> : <span id={modelSelectId}>기본 모델{modelChoices.fallback ? ` · ${modelChoices.fallback}` : " 사용"}</span>}
+              {shouldOfferChoice(modelChoices) && <ChevronDown size={17} className="model-chevron" aria-hidden />}
+              </div>
             </div>
-          )}
           <Button
             onClick={onExtract}
             disabled={!prompt.trim() || isExtracting}
             size="lg"
+            className="target-extract-button"
           >
             {isExtracting ? "타겟 추출 중..." : "타겟 추출하기"}
+            {isExtracting ? <LoaderCircle className="size-5 animate-spin" aria-hidden /> : <ArrowRight className="size-5" aria-hidden />}
           </Button>
         </div>
-      </CardContent>
-    </Card>
+      </section>
+      <aside className="target-guide" aria-labelledby="target-guide-title">
+        <h2 id="target-guide-title">이렇게 입력해 보세요</h2>
+        <p>아래 항목을 참고해 원하는 고객을<br className="hidden xl:block" /> 자연어로 설명해 보세요.</p>
+        <ul className="target-guide-list">
+          {[
+            { icon: Users, title: "대상 고객", description: "고객의 특성, 멤버십 등" },
+            { icon: CalendarDays, title: "조회 기간", description: "특정 기간의 구매 이력, 캠페인 참여 등" },
+            { icon: ShoppingCart, title: "행동 조건", description: "구매, 미구매, 캠페인 참여, 상품 조회 등" },
+          ].map(({ icon: Icon, title, description }) => (
+            <li key={title}><span className="guide-icon"><Icon size={23} strokeWidth={1.8} aria-hidden /></span><div><h3>{title}</h3><p>{description}</p></div></li>
+          ))}
+        </ul>
+        <div className="guide-example"><span>입력 예시</span><p>“지난 90일간 구매하지 않은 캠페인 참여 고객”</p></div>
+      </aside>
+      </div>
+      <section className="target-examples" aria-labelledby="examples-title">
+        <div className="examples-heading">
+          <div><h2 id="examples-title">빠르게 시작하기</h2><p>예시를 선택하고 조건을 수정해 보세요.</p></div>
+          <button type="button" aria-expanded={showAllExamples} aria-controls="target-example-list" onClick={() => setShowAllExamples(!showAllExamples)}>
+            {showAllExamples ? "예시 접기" : "예시 더 보기"}<ArrowRight size={17} aria-hidden />
+          </button>
+        </div>
+        <div id="target-example-list" className="target-example-grid">
+          {EXAMPLE_CARDS.slice(0, showAllExamples ? undefined : 6).map((example) => (
+            <button type="button" key={example.index} className="target-example-card" disabled={isExtracting}
+              onClick={() => { setPrompt(EXAMPLES[example.index]); promptRef.current?.focus(); }}>
+              <span className={`example-tag tag-${example.tone}`}>{example.category}</span>
+              <h3>{example.title}</h3><p>{example.description}</p><ChevronRight className="example-arrow" size={19} aria-hidden />
+            </button>
+          ))}
+        </div>
+      </section>
+    </div>
   );
 }

@@ -118,7 +118,7 @@ export function HowItWorks() {
   const llmBoxX = Math.min(Math.max(nodeX(llmIndex) - 150, 20), VIEW_WIDTH - 320);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="admin-guide-content flex flex-col gap-6">
       <div className="flex flex-col gap-3 rounded-xl border border-border bg-card/60 p-4">
         <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2.5">
           <MessageSquareText

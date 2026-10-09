@@ -2,12 +2,13 @@ import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
+import { WorkspaceShell } from '@/components/workspace-shell'
 
 const geistSans = Geist({ subsets: ['latin'], variable: '--font-geist-sans' })
 const geistMono = Geist_Mono({ subsets: ['latin'], variable: '--font-geist-mono' })
 
 export const metadata: Metadata = {
-  title: '캠페인 자동 생성 시스템',
+  title: 'TARGET LAB | 캠페인 타겟팅',
   description: '자연어 조건을 검증된 타겟 SQL과 오디언스로 변환하는 도구',
   generator: 'v0.app',
   icons: {
@@ -30,11 +31,8 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  colorScheme: 'light dark',
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: 'white' },
-    { media: '(prefers-color-scheme: dark)', color: 'black' },
-  ],
+  colorScheme: 'light',
+  themeColor: '#111e2e',
 }
 
 export default function RootLayout({
@@ -43,9 +41,9 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="ko" className={`bg-background ${geistSans.variable} ${geistMono.variable}`}>
+    <html lang="ko" className={`light bg-background ${geistSans.variable} ${geistMono.variable}`}>
       <body className="antialiased font-sans">
-        {children}
+        <WorkspaceShell>{children}</WorkspaceShell>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>

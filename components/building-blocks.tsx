@@ -360,7 +360,7 @@ export function BuildingBlocks() {
   const boxH = showTechnical ? BOX_H + 14 : BOX_H;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="admin-guide-content flex flex-col gap-6">
       <div className="flex flex-col gap-3 rounded-xl border border-border bg-card/60 p-4">
         {/* 원래 문장 — 조건이 되는 말에 가지 색을 입힌다 */}
         <div className="rounded-lg border border-border bg-background px-3 py-2.5">

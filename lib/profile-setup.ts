@@ -3,19 +3,78 @@ export type ProfileField = {
   source: string; column: string; data_type: string; label?: string;
   allowed_operators?: string[]; unit?: string; value_domain?: string;
   expression?: string; semantic_visibility?: string; _onboarding_gaps?: Record<string, unknown>;
+  semantic_description?: string; setup_editable?: boolean;
 };
 export type Coverage = { expressible?: boolean; reason?: string; fields?: string[]; sources?: string[]; negated_sources?: string[] };
+export type DatabaseColumn = {
+  name: string; data_type: string | null; nullable: boolean | null; primary_key: boolean; field_ids: string[];
+  configured_field_ids?: string[]; draft_field_ids?: string[]; internal_field_ids?: string[]; structural_roles?: string[];
+};
+export type DatabaseColumnRow = DatabaseColumn & { key: string; table: string; database: string | null };
+export function databaseColumnStatus(column: DatabaseColumn, fields: Record<string, ProfileField>): string {
+  const configured = column.configured_field_ids ?? column.field_ids.filter((id) => fields[id] && !fields[id]._onboarding_gaps && fields[id].semantic_visibility !== "lowering_only");
+  if (configured.length) return `조건 설정 ${configured.length}개 연결`;
+  if (column.field_ids.some((id) => fields[id]?._onboarding_gaps)) return "필드 의미 설정 필요";
+  if (column.internal_field_ids?.length) return "내부 계산에 사용 중";
+  if (column.structural_roles?.length) return "관계·기준 키로 사용";
+  return "고객·사건 연결 필요";
+}
+export type FieldConnection = {
+  id: string; field_id: string; source: string; source_label: string; source_table: string;
+  table: string; column: string; data_type: string; nullable: boolean; kind: "direct" | "lookup";
+  keys: { source_column: string; target_column: string }[]; allowed_operators: string[];
+};
+export type NewField = {
+  binding_id: string; label: string; semantic_description: string; allowed_operators: string[];
+  unit: string | null; value_domain: string | null; negative_null_policy: "include_unknown" | "exclude_unknown";
+};
 export type SetupSnapshot = {
   apply?: { available: boolean; job: ApplyJob | null };
   profile: string; revision: string; restart_required: boolean;
   subject: { name?: string; table: string; key: string; label?: string };
   fields: Record<string, ProfileField>;
+  field_connections?: FieldConnection[];
+  database_schema?: {
+    tables: { name: string; database: string | null; columns: DatabaseColumn[] }[];
+    unmapped_field_ids: string[];
+  };
   domains: Record<string, { label: string; editable: boolean; values: ValueRow[] }>;
   sources: Record<string, { label: string; table: string }>;
   families: string[]; coverage: Record<string, Coverage>;
-  basics: { base_entity: { age_column: string }; active_state: { column?: string; value?: ValueRow["physical"]; _supported?: boolean } };
+  basics: { base_entity: { age_column?: string }; active_state: { column?: string; value?: ValueRow["physical"]; _supported?: boolean } };
   files: string[];
 };
+
+export function editableField(field: ProfileField): boolean {
+  return field.semantic_visibility !== "lowering_only" && (field.setup_editable ?? !("expression" in field));
+}
+
+export function connectionError(field: NewField, option: FieldConnection | undefined): string {
+  if (!option) return "연결할 고객·사건을 선택하세요.";
+  if (!field.label.trim() || !field.semantic_description.trim()) return "필드 이름과 저장된 값의 의미를 입력하세요.";
+  if (option.data_type === "number" && !field.unit?.trim()) return "숫자의 단위를 입력하세요.";
+  if (!field.allowed_operators.length) return "허용할 비교를 하나 이상 선택하세요.";
+  const allowed = field.value_domain ? option.allowed_operators.filter((op) => ["=", "!=", "in", "not_in"].includes(op)) : option.allowed_operators;
+  if (field.allowed_operators.some((op) => !allowed.includes(op))) return "자료형·값 목록에 맞는 비교를 선택하세요.";
+  if (option.data_type === "date" && ![">=", "<"].every((op) => field.allowed_operators.includes(op))) return "날짜 기간 조건에는 이상과 미만 비교가 필요합니다.";
+  return "";
+}
+
+export function databaseColumns(snapshot: SetupSnapshot): DatabaseColumnRow[] {
+  return (snapshot.database_schema?.tables ?? []).flatMap((table) => table.columns.map((column) => ({
+    ...column, key: JSON.stringify([table.name, column.name]), table: table.name, database: table.database,
+  })));
+}
+
+export function filterDatabaseColumns(
+  rows: DatabaseColumnRow[], fields: SetupSnapshot["fields"], query: string, table: string,
+  changes: FieldChange[] = [],
+): DatabaseColumnRow[] {
+  const term = query.trim().toLowerCase();
+  return rows.filter((row) => (!table || row.table === table) && [row.database, row.table, row.name,
+    ...row.field_ids.flatMap((id) => [id, fields[id]?.label, changes.find((item) => item.id === id)?.label]),
+  ].join(" ").toLowerCase().includes(term));
+}
 
 export type ApplyJob = {
   id: string; revision: string;
@@ -41,6 +100,7 @@ export function applyMessage(job: ApplyJob): string {
 export type FieldChange = {
   id: string; label: string; allowed_operators: string[];
   unit: string | null; value_domain: string | null; enable_draft: boolean;
+  semantic_description?: string;
 };
 export type CoverageChange = {
   family: string; mode: "supported" | "unsupported"; reason: string;
@@ -48,19 +108,21 @@ export type CoverageChange = {
 };
 export type SetupChanges = {
   fields: FieldChange[];
+  new_fields: NewField[];
   domains: { id: string; values: ValueRow[]; field_id?: string }[];
   coverage: CoverageChange[];
-  basics?: { age_column: string; active_column: string; active_value: ValueRow["physical"] };
+  basics?: { active_column: string; active_value: ValueRow["physical"] };
 };
 
-export const emptyChanges = (): SetupChanges => ({ fields: [], domains: [], coverage: [] });
+export const emptyChanges = (): SetupChanges => ({ fields: [], new_fields: [], domains: [], coverage: [] });
 export function replaceChange<T>(items: T[], updated: T, same: (item: T) => boolean): T[] {
   return [...items.filter((item) => !same(item)), updated];
 }
-export const editCount = (changes: SetupChanges) => changes.fields.length + changes.domains.length + changes.coverage.length + (changes.basics ? 1 : 0);
+export const editCount = (changes: SetupChanges) => changes.fields.length + changes.new_fields.length + changes.domains.length + changes.coverage.length + (changes.basics ? 1 : 0);
 export function fieldChange(id: string, field: ProfileField): FieldChange {
   return { id, label: field.label ?? "", allowed_operators: field.allowed_operators ?? [],
-    unit: field.unit ?? null, value_domain: field.value_domain ?? null, enable_draft: false };
+    unit: field.unit ?? null, value_domain: field.value_domain ?? null, enable_draft: false,
+    ...(field.semantic_description !== undefined ? { semantic_description: field.semantic_description } : {}) };
 }
 export function coverageChange(family: string, coverage?: Coverage): CoverageChange {
   return { family, mode: coverage?.expressible === false ? "unsupported" : "supported", reason: coverage?.reason ?? "",

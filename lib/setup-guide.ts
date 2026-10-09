@@ -218,10 +218,10 @@ export const SETUP_STEPS: readonly SetupStep[] = [
     fillIns: [
       {
         file: "member_target_filters.json",
-        where: "UNDECLARED__ 표지 두 개",
-        what: "나이 컬럼(base_entity.age_column)과 활성 회원 조건(active_state)",
+        where: "기본 고객 상태(active_state)",
+        what: "기본 조회 대상의 고객 상태 컬럼과 저장값",
         detail:
-          "고객 기본 조건 탭에서 실제 컬럼과 값을 입력합니다. 나이 컬럼과 기본 상태 조건은 전체 실행에 영향을 주므로 스키마 검사를 통과해야 합니다.",
+          "고객 기본 조건 탭에서 고객 상태 컬럼과 저장값을 입력합니다. 나이는 이 탭의 필수 입력이 아니며, 나이 등 개별 조건은 필드와 값 탭에서 확인합니다.",
       },
       {
         file: "audience_catalog.json",

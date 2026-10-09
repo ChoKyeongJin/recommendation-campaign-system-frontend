@@ -565,6 +565,7 @@ function ListView({
         <input
           className={`${inputClass} pl-9`}
           placeholder="검색 (name / 내용 / 설명)"
+          aria-label="프롬프트 검색"
           value={search}
           onChange={(event) => onSearch(event.target.value)}
         />

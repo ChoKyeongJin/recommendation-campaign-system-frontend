@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Sparkles } from "lucide-react";
-import { SettingsMenu } from "@/components/settings-menu";
 import { Stepper } from "@/components/stepper";
 import { StepPrompt } from "@/components/step-prompt";
 import {
@@ -227,24 +225,16 @@ export function CampaignWizard() {
   };
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-8 px-4 py-6">
-      <div className="flex items-center justify-end gap-2">
-        <SettingsMenu />
-      </div>
-
-      <header className="flex flex-col gap-2">
-        <div className="flex items-center gap-2">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Sparkles className="h-5 w-5" aria-hidden />
-          </span>
-          <h1 className="text-xl font-bold text-foreground">캠페인 타겟팅 시스템</h1>
+    <main className="target-workspace">
+      <header className="target-page-header">
+        <div>
+          <h1>{step === 0 ? "어떤 고객을 찾고 있나요?" : "타겟 결과를 확인해 보세요"}</h1>
+          <p>{step === 0
+            ? "자연어로 조건을 입력하면 타겟 SQL과 오디언스를 생성합니다."
+            : "입력한 조건으로 생성된 SQL과 오디언스를 확인하고 조건을 다듬어 보세요."}</p>
         </div>
-        <p className="text-sm text-muted-foreground">
-          자연어 조건을 검증 가능한 타겟 SQL과 오디언스 결과로 변환합니다.
-        </p>
+        <Stepper current={step} />
       </header>
-
-      <Stepper current={step} />
       {step === 0 && (
         <StepPrompt
           modelChoices={modelChoices}

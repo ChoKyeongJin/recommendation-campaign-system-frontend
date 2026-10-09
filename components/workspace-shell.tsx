@@ -1,0 +1,71 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Blocks, BookOpen, Crosshair, Menu, Settings, SlidersHorizontal, Workflow, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+
+const navigation = [
+  { href: "/", label: "타겟 만들기", icon: SlidersHorizontal },
+  { href: "/admin/how-it-works", label: "작동 방식", icon: Workflow },
+  { href: "/admin/building-blocks", label: "조건 구성", icon: Blocks },
+  { href: "/admin/setup", label: "설정", icon: Settings },
+];
+
+export function WorkspaceShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setMobileOpen(false);
+        menuButtonRef.current?.focus();
+      }
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [mobileOpen]);
+  const title = navigation.find((item) => item.href === pathname)?.label
+    ?? (pathname === "/admin/prompts" ? "프롬프트 관리" : "참조 데이터");
+  const activeHref = ["/admin/prompts", "/admin/reference"].includes(pathname) ? "/admin/setup" : pathname;
+
+  return (
+    <div className="workspace-shell">
+      <a href="#workspace-content" className="skip-link">본문으로 바로가기</a>
+      {mobileOpen && <button className="sidebar-backdrop" aria-label="메뉴 닫기" onClick={() => setMobileOpen(false)} />}
+      <aside id="workspace-navigation" className={`workspace-sidebar ${mobileOpen ? "is-open" : ""}`}>
+        <Link href="/" className="workspace-brand" onClick={() => setMobileOpen(false)}>
+          <Crosshair size={33} strokeWidth={1.8} aria-hidden />
+          <span>TARGET LAB</span>
+        </Link>
+        <nav aria-label="주 메뉴" className="workspace-nav">
+          {navigation.map(({ href, label, icon: Icon }) => (
+            <Link key={href} href={href} onClick={() => setMobileOpen(false)}
+              aria-current={activeHref === href ? "page" : undefined}
+              className={`workspace-nav-link ${activeHref === href ? "is-active" : ""}`}>
+              <Icon size={23} strokeWidth={1.7} aria-hidden />
+              <span>{label}</span>
+            </Link>
+          ))}
+        </nav>
+        <div className="sidebar-footer">
+          <span className="sidebar-footer-icon"><BookOpen size={18} aria-hidden /></span>
+          <div><p>조건부터 오디언스까지</p><span>더 쉬운 타겟팅의 시작</span></div>
+        </div>
+      </aside>
+      <div className="workspace-body">
+        <header className="workspace-topbar">
+          <button ref={menuButtonRef} type="button" className="mobile-menu-button" aria-label={mobileOpen ? "메뉴 닫기" : "메뉴 열기"}
+            aria-expanded={mobileOpen} aria-controls="workspace-navigation" onClick={() => setMobileOpen(!mobileOpen)}>
+            {mobileOpen ? <X size={22} /> : <Menu size={22} />}
+          </button>
+          <div className="workspace-breadcrumb"><span>워크스페이스</span><span aria-hidden>/</span><strong>{title}</strong></div>
+          <div className="workspace-identity"><span className="workspace-avatar" aria-hidden>T</span><span>내 워크스페이스</span></div>
+        </header>
+        <div id="workspace-content" tabIndex={-1}>{children}</div>
+      </div>
+    </div>
+  );
+}
