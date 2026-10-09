@@ -1,0 +1,22 @@
+{
+    "capturedAt":  "2026-10-09T03:24:01.258Z",
+    "origin":  "http://localhost:3000",
+    "viewport":  {
+                     "width":  1440,
+                     "height":  800
+                 },
+    "clips":  {
+                  "targeting":  {
+                                    "file":  "raw\\page@e537b99a34f29a18e56bff378938ff1a.webm",
+                                    "marks":  {
+                                                  "ready":  1.862,
+                                                  "typing":  3.883,
+                                                  "submit":  7.18,
+                                                  "result":  31.218,
+                                                  "resultScroll":  36.812,
+                                                  "resultReturn":  41.374,
+                                                  "end":  43.654
+                                              }
+                                }
+              }
+}

@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ko"><meta charset="utf-8"><title>TARGET LAB — Portfolio Film</title>
+<style>
+@font-face{font-family:Pretendard;src:url('/font.woff2');font-weight:100 900}
+*{box-sizing:border-box}html,body{margin:0;width:1920px;height:1080px;overflow:hidden;background:#0b1420;color:#f7f9fc;font-family:Pretendard,sans-serif}
+.background{position:absolute;inset:0;background:radial-gradient(ellipse at 90% 5%,#bdea4310,transparent 44%),radial-gradient(ellipse at 2% 100%,#233d613d,transparent 54%),#0b1420}
+.grid{position:absolute;inset:0;background-image:linear-gradient(#ffffff03 1px,transparent 1px),linear-gradient(90deg,#ffffff03 1px,transparent 1px);background-size:80px 80px;mask-image:linear-gradient(to bottom,black,transparent)}
+.brand{position:absolute;left:76px;top:42px;display:flex;align-items:center;gap:14px;letter-spacing:1.6px;font-size:25px;font-weight:850}.brand svg{width:36px;height:36px;color:#d4f64a}
+.edition{position:absolute;right:80px;top:52px;letter-spacing:3.5px;font-size:13px;color:#8795a7;font-weight:600}
+.hero{position:absolute;inset:0}.hero .eyebrow{position:absolute;left:120px;top:260px;color:#d4f64a;letter-spacing:4px;font-size:17px;font-weight:650}
+.hero h1{position:absolute;left:112px;top:298px;margin:0;font-size:92px;font-weight:770;letter-spacing:-4.6px;line-height:1.2}.hero h1 em{font-style:normal;color:#d4f64a}
+.hero .description{position:absolute;left:120px;top:566px;color:#a7b4c4;font-size:28px;line-height:1.7;font-weight:420;letter-spacing:-.4px}
+.hero .chips{position:absolute;left:120px;top:721px;display:flex;gap:12px}.chip{padding:12px 19px;border:1px solid #52607870;border-radius:40px;color:#c5cfd9;font-size:16px;font-weight:550;background:#18253690}
+.hero-rule{position:absolute;left:120px;bottom:110px;width:710px;height:1px;background:#344253}.hero-note{position:absolute;left:120px;bottom:70px;font-size:14px;letter-spacing:2.2px;color:#738399}
+.orbit{position:absolute;left:1090px;top:130px;width:700px;height:700px;border:1px solid #b9da5720;border-radius:50%}.orbit:before,.orbit:after{content:'';position:absolute;border:1px solid #b9da5713;border-radius:50%;inset:80px}.orbit:after{inset:165px}
+.orbit-dot{position:absolute;width:12px;height:12px;left:344px;top:-6px;background:#d4f64a;border-radius:50%;box-shadow:0 0 40px #d4f64965}
+.demo-card{position:absolute;left:1090px;width:654px;padding:28px 34px;border:1px solid #40536a;border-radius:20px;background:linear-gradient(130deg,#233347,#131f30);box-shadow:0 32px 95px #0004}
+.demo-label{color:#a1b3c4;letter-spacing:3px;font-size:14px;font-weight:600;margin-bottom:19px}.demo-main{font-size:31px;font-weight:650;letter-spacing:-.7px}.card-input{top:270px}.card-sql{top:449px;left:1130px;width:614px}.card-audience{top:628px;left:1170px;width:574px;border-color:#cbe85160;background:linear-gradient(130deg,#293b32,#152722)}.card-audience .demo-main{color:#d4f64a}.card-arrow{font-size:27px;color:#d4f64a;float:right}
+.shot{position:absolute;inset:0;opacity:0}.chapter{position:absolute;left:240px;top:49px;font-size:28px;font-weight:650;letter-spacing:-.5px}.chapter span{color:#d4f64a;margin-right:19px;font-size:16px;letter-spacing:2px;font-weight:650}
+.shot .brand{left:76px;top:46px}.shot .brand span{display:none}.window{position:absolute;left:240px;top:108px;width:1440px;height:834px;overflow:hidden;border-radius:16px;box-shadow:0 24px 110px #0007;outline:1px solid #52616d70;background:#f9fafb;transform-origin:50% 50%}
+.chrome{height:34px;background:#e8ecf0;display:flex;align-items:center;justify-content:center;color:#617080;font-size:12px;font-weight:500;letter-spacing:.15px;position:relative;border-bottom:1px solid #d6dce2}.dots{position:absolute;left:16px;display:flex;gap:6px}.dots i{width:7px;height:7px;border-radius:50%;background:#bcc6cf}.chrome .live-dot{width:5px;height:5px;border-radius:50%;background:#638839;display:inline-block;margin-right:7px}
+.screen{height:800px;width:1440px;overflow:hidden;position:relative;background:#fafbfc}video{position:absolute;width:1440px;height:800px;object-fit:fill;display:none;transform-origin:70% 53%}
+.side-mark{position:absolute;left:82px;top:458px;writing-mode:vertical-rl;transform:rotate(180deg);font-size:12px;color:#78899c;letter-spacing:4px}.scene-number{position:absolute;right:85px;top:466px;color:#d4f64a;font-size:18px;font-weight:600;writing-mode:vertical-rl;letter-spacing:4px}
+.caption{position:absolute;top:977px;left:200px;width:1520px;text-align:center;font-size:27px;font-weight:520;letter-spacing:-.45px;line-height:1.55;color:#eef1f4}.caption b{font-weight:650;color:#d4f64a}.footnote{position:absolute;right:246px;top:955px;font-size:11px;letter-spacing:.5px;color:#8190a0}.progress-track{position:absolute;left:240px;right:240px;bottom:23px;display:flex;gap:5px;height:3px}.progress-track div{height:3px;background:#304051;flex:1;position:relative;overflow:hidden}.progress-track i{display:block;height:100%;background:#d4f64a;width:0}
+.outro{position:absolute;inset:0;text-align:center;opacity:0}.outro .kicker{position:absolute;top:269px;left:0;width:100%;font-size:16px;letter-spacing:4px;color:#d4f64a}.outro h2{position:absolute;top:330px;left:0;width:100%;font-size:79px;line-height:1.25;letter-spacing:-3.8px;margin:0;font-weight:730}.outro h2 em{color:#d4f64a;font-style:normal}.outro .sub{position:absolute;top:555px;left:0;width:100%;color:#9babbc;font-size:27px;letter-spacing:-.3px}.outro .steps{position:absolute;top:678px;left:0;width:100%;display:flex;align-items:center;justify-content:center;gap:27px}.outro .steps span{padding:15px 27px;border:1px solid #3a4c60;border-radius:13px;font-size:21px;background:#192739}.outro .steps i{color:#d4f64a;font-style:normal}.outro .footer{position:absolute;bottom:95px;left:0;width:100%;font-size:16px;letter-spacing:4px;color:#8294a7}
+.flash{position:absolute;inset:0;background:#0b1420;opacity:0;pointer-events:none}
+</style>
+<div class="background"></div><div class="grid"></div>
+<div class="brand" id="brand"><svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2"><circle cx="20" cy="20" r="15"/><path d="M20 0v12m0 16v12M0 20h12m16 0h12"/></svg><span>TARGET LAB</span></div>
+<div class="edition">PRODUCT WALKTHROUGH &nbsp; / &nbsp; PORTFOLIO</div>
+<div class="hero" id="hero">
+  <div class="eyebrow reveal">NATURAL LANGUAGE → AUDIENCE</div>
+  <h1 class="reveal">한 문장으로,<br><em>타겟 고객을 찾다.</em></h1>
+  <div class="description reveal">자연어 조건을 SQL과 오디언스로.<br>캠페인 타겟팅 도구, TARGET LAB</div>
+  <div class="chips reveal"><div class="chip">자연어 조건 입력</div><div class="chip">SQL 생성 · 검증</div><div class="chip">고객 분포 확인</div></div>
+  <div class="hero-rule"></div><div class="hero-note">DESIGNED FOR CLEARER TARGETING</div>
+  <div class="orbit"><div class="orbit-dot"></div></div>
+  <div class="demo-card card-input"><div class="demo-label">01 &nbsp; YOUR WORDS</div><div class="demo-main">“30대 여성 고객을 찾아줘”</div></div>
+  <div class="demo-card card-sql"><div class="demo-label">02 &nbsp; STRUCTURED QUERY</div><div class="demo-main">조건을 읽고, SQL로 연결 <span class="card-arrow">↗</span></div></div>
+  <div class="demo-card card-audience"><div class="demo-label">03 &nbsp; YOUR AUDIENCE</div><div class="demo-main">캠페인을 위한 고객 세그먼트 <span class="card-arrow">↗</span></div></div>
+</div>
+<div class="shot" id="shot">
+  <div class="chapter" id="chapter"></div>
+  <div class="window" id="window"><div class="chrome"><div class="dots"><i></i><i></i><i></i></div><span><i class="live-dot"></i><span id="address">localhost:3000</span></span></div><div class="screen" id="screen"></div></div>
+  <div class="side-mark" id="sideMark">TARGET LAB / LIVE CAPTURE</div><div class="scene-number" id="sceneNumber"></div>
+  <div class="caption" id="caption"></div><div class="footnote" id="footnote"></div>
+</div>
+<div class="outro" id="outro"><div class="kicker">TARGET LAB</div><h2>조건은 자연스럽게.<br><em>결과는 명확하게.</em></h2><div class="sub">자연어에서 시작해, 확인할 수 있는 타겟 결과까지.</div><div class="steps"><span>자연어</span><i>→</i><span>검증된 SQL</span><i>→</i><span>오디언스</span></div><div class="footer">NEXT.JS &nbsp; / &nbsp; REACT &nbsp; / &nbsp; TYPESCRIPT</div></div>
+<div class="progress-track" id="progressTrack"></div><div class="flash" id="flash"></div>
+<script>
+const $=id=>document.getElementById(id),clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x)),ease=x=>1-Math.pow(1-clamp(x),3);
+let edit, active=null;const videos={};
+window.init=async()=>{
+  edit=await (await fetch('/edit.json')).json();
+  await document.fonts.ready;
+  for(const [name,clip] of Object.entries(edit.clips)){
+    const v=document.createElement('video');v.muted=true;v.preload='auto';v.src='/'+clip.file.replaceAll('\\','/');$('screen').append(v);videos[name]=v;
+    await new Promise((r,j)=>{v.onloadeddata=r;v.onerror=()=>j(new Error('Video '+name));v.load()});
+  }
+  for(let i=0;i<edit.scenes.length;i++)$('progressTrack').innerHTML+='<div><i></i></div>';
+};
+async function seek(v,t){
+ t=clamp(t,0.02,Math.max(.02,v.duration-.08));
+ if(Math.abs(v.currentTime-t)<.005)return;
+ await new Promise((r,j)=>{let timeout=setTimeout(()=>j(new Error('Seek timeout')),6000);v.onseeked=()=>{clearTimeout(timeout);r()};v.currentTime=t});
+}
+window.renderFrame=async t=>{
+ const intro=t<edit.scenes[0].start,out=t>=edit.outroStart;
+ $('hero').style.opacity=intro?1:0;$('shot').style.opacity=!intro&&!out?1:0;$('outro').style.opacity=out?1:0;
+ $('brand').querySelector('span').style.opacity=intro||out?1:0;
+ $('progressTrack').style.opacity=intro||out?0:1;
+ if(intro){
+   document.querySelectorAll('.reveal').forEach((e,i)=>{let p=ease((t-.12-i*.12)/.8);e.style.opacity=p;e.style.transform=`translateY(${(1-p)*27}px)`});
+   document.querySelectorAll('.demo-card').forEach((e,i)=>{let p=ease((t-.42-i*.36)/.9);e.style.opacity=p;e.style.transform=`translate(${(1-p)*80}px,${Math.sin(t*.7+i)*4}px)`});
+   document.querySelector('.orbit').style.transform=`rotate(${t*7}deg)`;
+ }else if(out){
+   const p=ease((t-edit.outroStart)/.9);$('outro').style.opacity=p;$('outro').style.transform=`translateY(${(1-p)*24}px)`;
+ }else{
+   const s=edit.scenes.find(s=>t>=s.start&&t<s.end),i=edit.scenes.indexOf(s),local=t-s.start,duration=s.end-s.start;
+   if(active!==s.id){
+     active=s.id;Object.values(videos).forEach(v=>v.style.display='none');videos[s.clip].style.display='block';
+     $('chapter').innerHTML=`<span>${s.number} / ${s.tag}</span>${s.title}`;
+     $('caption').innerHTML=s.caption;$('footnote').textContent=s.note||'';$('address').textContent='localhost:3000'+s.route;
+     $('sceneNumber').textContent=`${String(i+1).padStart(2,'0')} — ${String(edit.scenes.length).padStart(2,'0')}`;
+   }
+   let source=s.from+(s.to-s.from)*local/duration;
+   await seek(videos[s.clip],source);
+   const zoom=1+(s.zoom||0)*ease(local/duration);videos[s.clip].style.transform=`scale(${zoom})`;
+   const p=ease(local/.5);$('window').style.transform=`translateY(${(1-p)*10}px)`;
+   document.querySelectorAll('.progress-track i').forEach((e,k)=>e.style.width=(k<i?100:k===i?100*local/duration:0)+'%');
+ }
+ let fade=0;
+ const boundaries=[...edit.scenes.map(s=>s.start),edit.outroStart];
+ for(const boundary of boundaries){if(t>=boundary-.18&&t<boundary)fade=Math.max(fade,(t-boundary+.18)/.18*.65);if(t>=boundary&&t<boundary+.22)fade=Math.max(fade,(1-(t-boundary)/.22)*.65)}
+ if(t>edit.duration-.7)fade=Math.max(fade,(t-edit.duration+.7)/.7);
+ $('flash').style.opacity=clamp(fade);
+};
+</script>
+</html>

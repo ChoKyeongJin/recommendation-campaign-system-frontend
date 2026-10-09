@@ -1,0 +1,41 @@
+TARGET LAB — 타겟 만들기 포트폴리오 영상
+
+최종 파일
+- target-lab-targeting-1080p.mp4: 45초 / 1920×1080 / 30fps / H.264 + AAC
+- target-lab-thumbnail.png: 1920×1080 썸네일
+- target-lab-targeting.ko.srt: 별도 한국어 자막
+
+구성
+00:00–00:05  서비스 소개
+00:05–00:15  자연어 조건 입력
+00:15–00:22  타겟 추출 진행 (대기 구간 축약)
+00:22–00:32  실제 SQL과 조회 결과
+00:32–00:40  오디언스 분포
+00:40–00:45  마무리
+
+제작 정보
+- localhost:3000에서 실제 브라우저 화면을 녹화했습니다.
+- '30대 여성 고객을 찾아줘' 요청의 실제 결과 24명을 사용했습니다.
+- 처리 대기 구간과 화면 탐색 속도를 편집했습니다. 성능 측정 영상이 아닙니다.
+- 화면 데이터와 API 응답을 대체하거나 결과를 합성하지 않았습니다.
+- 브라우저 촬영 환경에만 커서 강조와 개발 도구 표시 숨김을 적용했습니다.
+- 프로젝트의 애플리케이션 소스와 설정은 변경하지 않았습니다.
+- 타겟 만들기 화면만 사용했습니다. 작동 방식·조건 구성·설정 화면은 제외했습니다.
+- 한국어 자막은 영상에도 포함되어 있습니다. SRT는 별도 사용을 위한 파일입니다.
+- 배경음악은 이 영상용으로 코드로 합성한 연주입니다. 내레이션은 없습니다.
+
+편집 소스
+- film.html: 타이틀, 자막, 전환 효과
+- render.cjs: 타임라인, 음원 합성, MP4 렌더링
+- capture.cjs: 실제 화면 녹화
+- capture.json: 사용한 녹화 파일과 장면 시간
+- edit.json: 최종 편집 타임라인
+- raw/: 사용한 원본 화면 녹화
+
+이 PC에서 재렌더링
+  node artifacts\portfolio-video\render.cjs
+
+렌더 도구는 프로젝트 의존성 대신 %TEMP%\rcs-portfolio-video-tools에 설치했습니다.
+도구 폴더가 지워진 경우 PowerShell에서 다음 명령으로 다시 설치할 수 있습니다.
+  npm install --prefix "$env:TEMP\rcs-portfolio-video-tools" --no-audit --no-fund playwright@1.64.0 ffmpeg-static sharp
+Chrome 기본 설치 경로를 사용합니다. 새로 촬영하려면 localhost:3000과 백엔드가 필요합니다.

@@ -1,0 +1,19 @@
+{
+  "verifiedAt": "2026-10-09T03:54:07.394Z",
+  "file": "target-lab-targeting-1080p.mp4",
+  "bytes": 7262570,
+  "checks": {
+    "fullDecode": true,
+    "duration45": true,
+    "resolution1080": true,
+    "fps30": true,
+    "h264": true,
+    "aac": true,
+    "frames1350": true,
+    "targetCreationOnly": true
+  },
+  "audio": [
+    "mean_volume: -23.2 dB",
+    "max_volume: -8.7 dB"
+  ]
+}

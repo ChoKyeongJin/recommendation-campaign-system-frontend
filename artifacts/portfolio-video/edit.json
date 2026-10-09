@@ -1,0 +1,75 @@
+{
+    "duration":  45,
+    "outroStart":  40,
+    "fps":  30,
+    "clips":  {
+                  "targeting":  {
+                                    "file":  "raw\\page@e537b99a34f29a18e56bff378938ff1a.webm",
+                                    "marks":  {
+                                                  "ready":  1.862,
+                                                  "typing":  3.883,
+                                                  "submit":  7.18,
+                                                  "result":  31.218,
+                                                  "resultScroll":  36.812,
+                                                  "resultReturn":  41.374,
+                                                  "end":  43.654
+                                              }
+                                }
+              },
+    "scenes":  [
+                   {
+                       "id":  "input",
+                       "number":  "01",
+                       "tag":  "INPUT",
+                       "start":  5,
+                       "end":  15,
+                       "clip":  "targeting",
+                       "from":  1.862,
+                       "to":  7.43,
+                       "route":  "",
+                       "title":  "찾고 싶은 고객을 한 문장으로",
+                       "caption":  "원하는 고객 조건을 \u003cb\u003e자연어로 입력\u003c/b\u003e합니다."
+                   },
+                   {
+                       "id":  "processing",
+                       "number":  "02",
+                       "tag":  "PROCESS",
+                       "start":  15,
+                       "end":  22,
+                       "clip":  "targeting",
+                       "from":  7.4799999999999995,
+                       "to":  31.118,
+                       "route":  "",
+                       "title":  "조건 해석부터 SQL 생성·검증까지",
+                       "caption":  "요청이 처리되는 과정을 \u003cb\u003e단계별로 확인\u003c/b\u003e합니다.",
+                       "note":  "실제 화면 녹화 · 처리 대기 구간 축약"
+                   },
+                   {
+                       "id":  "result",
+                       "number":  "03",
+                       "tag":  "RESULT",
+                       "start":  22,
+                       "end":  32,
+                       "clip":  "targeting",
+                       "from":  31.818,
+                       "to":  36.611999999999995,
+                       "route":  "",
+                       "title":  "생성된 SQL과 추출 결과를 함께",
+                       "caption":  "\u003cb\u003e타겟 고객 수와 실행된 SQL\u003c/b\u003e을 한 화면에서 확인합니다.",
+                       "zoom":  0.025
+                   },
+                   {
+                       "id":  "audience",
+                       "number":  "03",
+                       "tag":  "AUDIENCE",
+                       "start":  32,
+                       "end":  40,
+                       "clip":  "targeting",
+                       "from":  37.611999999999995,
+                       "to":  41.174,
+                       "route":  "",
+                       "title":  "선택된 고객을 더 깊이 이해하기",
+                       "caption":  "연령·지역·등급별 분포로 \u003cb\u003e오디언스의 특성\u003c/b\u003e을 살펴봅니다."
+                   }
+               ]
+}
