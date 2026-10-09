@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Blocks, BookOpen, Crosshair, Menu, Settings, SlidersHorizontal, Workflow, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { SettingsPasswordGate } from "@/components/settings-password-gate";
 
 const navigation = [
   { href: "/", label: "타겟 만들기", icon: SlidersHorizontal },
@@ -29,7 +30,8 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
   }, [mobileOpen]);
   const title = navigation.find((item) => item.href === pathname)?.label
     ?? (pathname === "/admin/prompts" ? "프롬프트 관리" : "참조 데이터");
-  const activeHref = ["/admin/prompts", "/admin/reference"].includes(pathname) ? "/admin/setup" : pathname;
+  const isSettingsPage = ["/admin/setup", "/admin/prompts", "/admin/reference"].includes(pathname);
+  const activeHref = isSettingsPage ? "/admin/setup" : pathname;
 
   return (
     <div className="workspace-shell">
@@ -64,7 +66,9 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
           <div className="workspace-breadcrumb"><span>워크스페이스</span><span aria-hidden>/</span><strong>{title}</strong></div>
           <div className="workspace-identity"><span className="workspace-avatar" aria-hidden>T</span><span>내 워크스페이스</span></div>
         </header>
-        <div id="workspace-content" tabIndex={-1}>{children}</div>
+        <div id="workspace-content" tabIndex={-1}>
+          {isSettingsPage ? <SettingsPasswordGate>{children}</SettingsPasswordGate> : children}
+        </div>
       </div>
     </div>
   );
