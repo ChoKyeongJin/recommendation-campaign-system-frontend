@@ -10,6 +10,7 @@ import {
   LLM_EXCHANGE,
   llmStageIndex,
   PIPELINE_STAGES,
+  SEARCH_OVERVIEW,
   stageAtProgress,
   TECHNICAL_NOTE,
 } from "./how-it-works.ts";
@@ -79,8 +80,8 @@ test("모델을 부르는 단계와 막히는 단계가 실재한다", () => {
   assert.ok(failCloseIndex() >= 0, "막히는 단계를 못 찾았다");
 });
 
-test("여섯 단계가 저마다 라벨·쉬운 설명·예시를 들고 있고 id 가 겹치지 않는다", () => {
-  assert.equal(PIPELINE_STAGES.length, 6);
+test("초기 후보 검색을 펼친 일곱 단계에 라벨·설명·예시가 있고 id 가 겹치지 않는다", () => {
+  assert.equal(PIPELINE_STAGES.length, 7);
   const ids = new Set<string>();
   for (const stage of PIPELINE_STAGES) {
     assert.ok(stage.label.trim(), `라벨이 빈 단계: ${stage.id}`);
@@ -102,6 +103,7 @@ test("설명 문단이 비어 있지 않다", () => {
   for (const [name, lines] of [
     ["보내는 것", LLM_EXCHANGE.sends],
     ["돌려받는 것", LLM_EXCHANGE.returns],
+    ["검색하는 것", SEARCH_OVERVIEW],
     ["호출 횟수", CALL_BUDGET],
     ["모델이 정하는 것", AUTHORITY_BOUNDARY.model],
     ["프로그램이 정하는 것", AUTHORITY_BOUNDARY.program],

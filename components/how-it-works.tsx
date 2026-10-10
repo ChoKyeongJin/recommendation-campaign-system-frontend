@@ -12,6 +12,7 @@ import {
   LLM_EXCHANGE,
   llmStageIndex,
   PIPELINE_STAGES,
+  SEARCH_OVERVIEW,
   stageAtProgress,
   TECHNICAL_NOTE,
 } from "@/lib/how-it-works";
@@ -32,7 +33,7 @@ const FIRST_X = 80;
 const LAST_X = 920;
 const NODE_R = 20;
 /** 한 바퀴 도는 데 걸리는 시간. 읽으면서 따라갈 수 있는 속도로 둔다. */
-const CYCLE_MS = 13_000;
+const CYCLE_MS = 15_000;
 
 function nodeX(index: number): number {
   const gaps = PIPELINE_STAGES.length - 1;
@@ -180,7 +181,7 @@ export function HowItWorks() {
             role="img"
             aria-label={`요청이 지나는 ${PIPELINE_STAGES.length}단계. 지금 ${activeStage.label} 단계입니다.`}
           >
-            {/* AI 에게 묻는 상자 — 이 배포에서 AI 를 부르는 유일한 자리 */}
+            {/* 의미 해석의 AI 호출 안내. 검증·재해석을 포함한 호출 수는 요청마다 다르다. */}
             <g>
               <rect
                 x={llmBoxX}
@@ -230,7 +231,7 @@ export function HowItWorks() {
                   : "fill-muted-foreground text-[13px]"
               }
             >
-              ↑ 문장과 조건 목록을 보냄
+              ↑ 문장·조건 목록·검색 후보를 보냄
             </text>
             <text
               x={nodeX(llmIndex) + 12}
@@ -382,6 +383,8 @@ export function HowItWorks() {
           </p>
         </div>
       </div>
+
+      <Panel title="벡터 검색으로 무엇을 찾나요" lines={SEARCH_OVERVIEW} />
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Panel title="AI에게 보내는 것" lines={LLM_EXCHANGE.sends} />
