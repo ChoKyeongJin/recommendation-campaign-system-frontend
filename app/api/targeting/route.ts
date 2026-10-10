@@ -19,6 +19,7 @@ import {
 import { mapSupportLimit } from "@/lib/support-limit";
 import { getTargetingResponseTransport } from "@/lib/targeting-progress";
 import { createTargetingProxyStream } from "@/lib/targeting-stream-proxy";
+import { requestLimitErrorResponse } from "@/lib/sql-request-limit";
 
 const PYTHON_TARGET_SQL_URL =
   process.env.PYTHON_TARGET_SQL_URL ?? "http://127.0.0.1:8000/target-sql";
@@ -1184,6 +1185,8 @@ export async function POST(request: Request) {
     const data = parsePythonResponse(rawText);
 
     if (!pythonResponse.ok) {
+      const limitError = requestLimitErrorResponse(pythonResponse, data);
+      if (limitError) return limitError;
       return NextResponse.json(
         {
           error: "Python 타겟팅 API 호출에 실패했습니다.",

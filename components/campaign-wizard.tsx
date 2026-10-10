@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Stepper } from "@/components/stepper";
 import { StepPrompt } from "@/components/step-prompt";
+import { SqlRequestUsage } from "@/components/sql-request-usage";
 import {
   chosenStructuringModel,
   DEFAULT_MODEL_OPTION,
@@ -39,6 +40,7 @@ function mergeClarificationAnswers(
 
 export function CampaignWizard() {
   const [step, setStep] = useState(0);
+  const [quotaRefresh, setQuotaRefresh] = useState(0);
   const [prompt, setPrompt] = useState("");
   const [targeting, setTargeting] = useState<TargetingResult | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
@@ -131,6 +133,7 @@ export function CampaignWizard() {
         signal: requestController.signal,
       });
       const contentType = response.headers.get("content-type") ?? "";
+      setQuotaRefresh((value) => value + 1);
       const responseTransport = getTargetingResponseTransport(contentType);
       if (response.ok && responseTransport === "ndjson") {
         if (!response.body) {
@@ -207,6 +210,7 @@ export function CampaignWizard() {
         error instanceof Error ? error.message : "타겟 추출에 실패했습니다.",
       );
     } finally {
+      setQuotaRefresh((value) => value + 1);
       if (activeRequestRef.current === requestController) {
         activeRequestRef.current = null;
         if (!requestController.signal.aborted) {
@@ -235,6 +239,8 @@ export function CampaignWizard() {
         </div>
         <Stepper current={step} />
       </header>
+      <SqlRequestUsage refreshKey={quotaRefresh} />
+      {step === 1 && targetingError && <p className="mb-4 text-sm text-destructive" role="alert">{targetingError}</p>}
       {step === 0 && (
         <StepPrompt
           modelChoices={modelChoices}
