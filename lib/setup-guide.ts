@@ -270,6 +270,7 @@ export const SETUP_STEPS: readonly SetupStep[] = [
 
 /** 세팅 중 자주 걸리는 자리 — 단계가 아니라 "막혔을 때" 읽는 줄이다. */
 export const SETUP_TROUBLESHOOTING: readonly string[] = [
+  "같은 스키마의 외부 DB와 로컬 복원본은 위의 ‘조회 DB’에서 선택합니다. 배포 관리자가 PROFILE_DATABASE_TARGETS에 접속지를 등록하면 선택란이 표시됩니다. 로컬 DB는 docker compose -f docker-compose.yml -f docker-compose.local-db.yml up -d mss-local-db 로 시작합니다.",
   "고칠 자리는 한 번에 하나씩 드러납니다. 한 번에 다 나오지 않아도 정상입니다.",
   "요청이 막히면 결과 화면이 어느 축이 아직 선언되지 않았는지와 적을 자리를 함께 알려 줍니다.",
   "등급·지역·연령대처럼 이 시스템이 자동으로 가리지 못하는 축은 자리를 알려 주지 않습니다. 그때는 카탈로그를 직접 봅니다.",

@@ -71,6 +71,7 @@ export function ProfileSetupEditor() {
   const [message, setMessage] = useState("");
   const [validated, setValidated] = useState(false);
   const [applyJob, setApplyJob] = useState<ApplyJob | null>(null);
+  const [databaseTarget, setDatabaseTarget] = useState("");
   const applying = applyingSettings(applyJob);
   const count = editCount(changes);
 
@@ -82,6 +83,7 @@ export function ProfileSetupEditor() {
       if (!response.ok) throw new Error(errorMessage(payload));
       setSnapshot(payload); setChanges(emptyChanges()); setValidated(false);
       setApplyJob(payload.apply?.job ?? null);
+      setDatabaseTarget(payload.database?.selected ?? "");
       const nextSelected = selected && payload.fields[selected] ? selected : Object.keys(payload.fields).find((id) => payload.fields[id].label && editableField(payload.fields[id])) ?? "";
       const columns = databaseColumns(payload);
       if (!columns.some((column) => column.key === selectedColumn)) {
@@ -173,6 +175,21 @@ export function ProfileSetupEditor() {
   }
 
   const browsableFields = snapshot ? Object.entries(snapshot.fields).filter(([id]) => !id.startsWith("_")) : [];
+  async function selectDatabase() {
+    if (!snapshot?.database || count || applying || databaseTarget === snapshot.database.selected) return;
+    setBusy("database"); setError(""); setMessage("");
+    try {
+      const response = await fetch("/api/profile-setup/database", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ revision: snapshot.revision, database_revision: snapshot.database.revision, target: databaseTarget }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(errorMessage(payload));
+      setApplyJob(payload);
+    } catch (error) { setError(error instanceof Error ? error.message : "DB를 선택하지 못했습니다."); }
+    finally { setBusy(null); }
+  }
+
   const visibleFields = browsableFields.filter(([, field]) => editableField(field));
   const filteredFields = browsableFields.filter(([id, item]) => (!sourceFilter || item.source === sourceFilter) && `${id} ${item.label ?? ""} ${item.column}`.toLowerCase().includes(query.trim().toLowerCase()));
   const columns = snapshot ? databaseColumns(snapshot) : [];
@@ -230,6 +247,25 @@ export function ProfileSetupEditor() {
     {error && <p role="alert" className="whitespace-pre-wrap rounded-xl border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">{error}</p>}
     {message && <p role="status" className="flex gap-2 rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-950"><CheckCircle2 className="h-4 w-4 shrink-0" />{message}</p>}
     {busy === "load" && !snapshot && <p className="flex items-center gap-2 text-sm"><Loader2 className="h-4 w-4 animate-spin" />현재 설정을 불러오고 있습니다.</p>}
+
+    {snapshot?.database && <section className="rounded-xl border border-border bg-card p-5" aria-label="조회 DB 선택">
+      <h3 className="flex items-center gap-2 text-sm font-semibold"><Database size={18} aria-hidden />조회 DB</h3>
+      <p className="mt-2 text-sm">현재 연결: <strong>{snapshot.database.options.find((option) => option.id === snapshot.database?.selected)?.label ?? "확인 필요"}</strong></p>
+      <div className="mt-4 flex flex-wrap items-end gap-3">
+        <label className="flex min-w-60 flex-1 flex-col gap-1.5 text-sm">연결할 DB
+          <select className={input} value={databaseTarget} disabled={!!busy || applying || !!count || !snapshot.database.available || snapshot.restart_required}
+            onChange={(event) => setDatabaseTarget(event.target.value)}>
+            {snapshot.database.options.map((option) => <option key={option.id} value={option.id}>{option.label} · {option.database}</option>)}
+          </select>
+        </label>
+        <button type="button" className={button} onClick={() => void selectDatabase()}
+          disabled={!!busy || applying || !!count || !snapshot.database.available || snapshot.restart_required || databaseTarget === snapshot.database.selected}>
+          {busy === "database" ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}DB 연결 전환
+        </button>
+      </div>
+      <p className="mt-3 text-xs text-muted-foreground">연결과 데이터 구조를 검사한 뒤 전환합니다. 전환 중에는 조회가 잠시 중단됩니다.</p>
+      {(!!count || snapshot.restart_required) && <p className="mt-2 text-xs text-muted-foreground">편집한 설정을 저장하고 적용한 뒤 DB를 전환하세요.</p>}
+    </section>}
 
     {snapshot && <fieldset disabled={!!busy || applying} className="min-w-0 space-y-4 disabled:opacity-70">
       <nav aria-label="설정 종류" className="settings-editor-tabs">

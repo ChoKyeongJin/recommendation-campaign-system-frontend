@@ -91,6 +91,18 @@ test("인덱스 실패와 재시작 실패를 구분하고 다시 적용할 수 
   assert.match(applyMessage({ ...job, code: "restart_failed" }), /정상 동작을 확인하지 못/);
 });
 
+test("DB 전환은 검사가 끝나기 전에 완료를 표시하지 않고 복구 실패를 구분한다", () => {
+  const job: ApplyJob = { id: "job", revision: "revision", status: "queued", code: "", database_target: "local" };
+  for (const status of ["queued", "indexing", "restarting"] as const) {
+    assert.equal(applyingSettings({ ...job, status }), true);
+    assert.doesNotMatch(applyMessage({ ...job, status }), /전환했습니다/);
+  }
+  assert.match(applyMessage({ ...job, status: "ready" }), /전환했습니다/);
+  assert.match(applyMessage({ ...job, status: "failed", code: "database_check_failed" }), /기존 연결을 유지/);
+  assert.match(applyMessage({ ...job, status: "failed", code: "database_switch_failed" }), /기존 연결로 복구/);
+  assert.match(applyMessage({ ...job, status: "failed", code: "database_rollback_failed" }), /복구를 확인하지 못/);
+});
+
 test("수정하지 않은 항목은 저장 요청에 넣지 않는다", () => {
   assert.deepEqual(emptyChanges(), { fields: [], new_fields: [], domains: [], coverage: [] });
 });

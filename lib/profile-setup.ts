@@ -30,6 +30,10 @@ export type NewField = {
 };
 export type SetupSnapshot = {
   apply?: { available: boolean; job: ApplyJob | null };
+  database?: {
+    available: boolean; selected: string; revision: string;
+    options: { id: string; label: string; database: string }[];
+  } | null;
   profile: string; revision: string; restart_required: boolean;
   subject: { name?: string; table: string; key: string; label?: string };
   fields: Record<string, ProfileField>;
@@ -80,10 +84,25 @@ export type ApplyJob = {
   id: string; revision: string;
   status: "queued" | "indexing" | "restarting" | "ready" | "failed";
   code: string;
+  database_target?: string | null;
 };
 export const applyingSettings = (job: ApplyJob | null | undefined) =>
   !!job && ["queued", "indexing", "restarting"].includes(job.status);
 export function applyMessage(job: ApplyJob): string {
+  if (job.database_target) {
+    if (job.status === "queued") return "선택한 DB의 연결과 데이터 구조를 확인하고 있습니다.";
+    if (job.status === "indexing") return "선택한 DB의 검색 정보를 준비하고 있습니다.";
+    if (job.status === "restarting") return "DB 연결을 전환하고 정상 동작을 확인하고 있습니다.";
+    if (job.status === "ready") return "DB 연결을 전환했습니다.";
+    const errors: Record<string, string> = {
+      database_check_failed: "선택한 DB의 접속·스키마 검사를 통과하지 못했습니다. 기존 연결을 유지합니다.",
+      database_switch_failed: "DB 전환에 실패하여 기존 연결로 복구했습니다.",
+      database_rollback_failed: "DB 연결 복구를 확인하지 못했습니다. 서버 상태를 확인해 주세요.",
+      apply_interrupted: "DB 전환이 중단되었습니다. 현재 연결을 다시 확인해 주세요.",
+      revision_conflict: "DB 선택 설정이 변경되었습니다. 화면을 새로 불러와 주세요.",
+    };
+    return errors[job.code] ?? "DB 전환에 실패했습니다. 현재 연결을 다시 확인해 주세요.";
+  }
   if (job.status === "queued") return "설정 적용을 준비하고 있습니다.";
   if (job.status === "indexing") return "검색 인덱스를 갱신하고 있습니다. 잠시 기다려 주세요.";
   if (job.status === "restarting") return "API를 재시작하고 정상 동작을 확인하고 있습니다.";
