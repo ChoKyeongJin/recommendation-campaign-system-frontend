@@ -5,6 +5,8 @@ import { ArrowRight, CheckCircle2, Database, Layers3, ListFilter, Loader2, Refre
 import { ProfileFieldConnection } from "@/components/profile-field-connection";
 import { PolicyChangePreview, PolicySettingsEditor } from "@/components/policy-settings-editor";
 import { policyChangesValid, policyCreationsValid } from "@/lib/policy-settings";
+import { CompanyConditionPolicies } from "@/components/company-condition-policies";
+import { conditionPoliciesValid, conditionSummary } from "@/lib/company-policy-conditions";
 import {
   applyMessage, applyingSettings, coverageChange, databaseColumnStatus, databaseColumns, editableField, editCount, emptyChanges, errorMessage, fieldChange, filterDatabaseColumns, replaceChange, switchCoverageMode,
   type ApplyJob, type CoverageChange, type SetupChanges, type SetupSnapshot, type ValueRow,
@@ -76,7 +78,9 @@ export function ProfileSetupEditor() {
   const applying = applyingSettings(applyJob);
   const count = editCount(changes);
   const policiesValid = policyChangesValid(snapshot?.policies ?? [], changes.policies ?? [])
-    && policyCreationsValid(snapshot?.policies ?? [], changes.new_policies ?? []);
+    && policyCreationsValid(snapshot?.policies ?? [], changes.new_policies ?? [])
+    && conditionPoliciesValid(snapshot?.policy_conditions, snapshot?.policies ?? [], changes.new_condition_policies ?? [],
+      changes.condition_policies ?? [], changes.new_policies ?? []);
 
   async function load(preserveMessage = false) {
     setBusy("load"); setError("");
@@ -286,7 +290,13 @@ export function ProfileSetupEditor() {
 
       {tab === "policies" && <PolicySettingsEditor cards={snapshot.policies ?? []} changes={changes.policies ?? []}
         onChange={(policies) => update({ ...changes, policies })} creations={changes.new_policies ?? []}
-        onCreationsChange={(new_policies) => update({ ...changes, new_policies })} />}
+        onCreationsChange={(new_policies) => update({ ...changes, new_policies })}>
+        {snapshot.policy_conditions ? <CompanyConditionPolicies menu={snapshot.policy_conditions} cards={snapshot.policies ?? []}
+          creations={changes.new_condition_policies ?? []} changes={changes.condition_policies ?? []}
+          onCreationsChange={(new_condition_policies) => update({ ...changes, new_condition_policies })}
+          onChange={(condition_policies) => update({ ...changes, condition_policies })} />
+          : <p className="rounded-xl border border-border p-4 text-sm text-muted-foreground">조건을 조합하는 정책 추가 기능을 불러오지 못했습니다. 설정 서버를 업데이트하고 다시 불러와 주세요.</p>}
+      </PolicySettingsEditor>}
 
       {tab === "fields" && <div className="settings-fields-layout">
         <aside className="settings-field-list">
@@ -405,6 +415,15 @@ export function ProfileSetupEditor() {
 
     {snapshot && <PolicyChangePreview cards={snapshot.policies ?? []} changes={changes.policies ?? []}
       creations={changes.new_policies ?? []} />}
+    {snapshot?.policy_conditions && (!!changes.new_condition_policies?.length || !!changes.condition_policies?.length) &&
+      <section aria-label="조합 정책 변경 내용" className="space-y-3 rounded-xl border border-primary/25 bg-primary/5 p-5">
+        <h3 className="text-sm font-semibold">이렇게 바뀝니다</h3>
+        {(changes.new_condition_policies ?? []).map((item, index) => <div key={`new-${index}`} className="space-y-1 text-sm">
+          <p><strong>{item.name || "새 정책"}</strong> 추가</p><p className="text-muted-foreground">{conditionSummary(item.condition, snapshot.policy_conditions!)}</p></div>)}
+        {(changes.condition_policies ?? []).map((item) => <div key={item.id} className="space-y-1 text-sm">
+          <p><strong>{snapshot.policies?.find((card) => card.id === item.id)?.label}</strong> 조건 변경</p>
+          <p className="text-muted-foreground">{conditionSummary(item.condition, snapshot.policy_conditions!)}</p></div>)}
+      </section>}
 
     {snapshot && <div className="settings-save-bar">
       <div className="settings-save-status"><span className={count ? "has-changes" : ""} /><div><p className="text-sm font-medium" aria-live="polite">{count ? `${count}개 항목 변경 중` : "저장하지 않은 변경 없음"}</p><p className="text-xs text-muted-foreground">검사 후 관련 설정을 함께 저장합니다.</p></div></div>

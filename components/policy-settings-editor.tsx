@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronDown, Plus, RotateCcw, SlidersHorizontal, Trash2 } from "lucide-react";
+import type { ReactNode } from "react";
 import {
   changePolicy, newPolicy, newPolicyNameError, policyInputError, policyValue, policyValueLabel,
   type NewPolicy, type PolicyCard, type PolicyChange, type PolicySetting, type PolicyValue,
@@ -62,9 +63,10 @@ export function PolicyChangePreview({ cards, changes, creations = [] }: { cards:
   </section>;
 }
 
-export function PolicySettingsEditor({ cards, changes, onChange, creations, onCreationsChange }: {
+export function PolicySettingsEditor({ cards, changes, onChange, creations, onCreationsChange, children }: {
   cards: PolicyCard[]; changes: PolicyChange[]; onChange: (changes: PolicyChange[]) => void;
   creations: NewPolicy[]; onCreationsChange: (creations: NewPolicy[]) => void;
+  children?: ReactNode;
 }) {
   if (!cards.length) return <p className="rounded-xl border border-border p-6 text-sm text-muted-foreground">편집할 회사 정책을 불러오지 못했습니다. 설정 서버의 정책 연결을 확인해 주세요.</p>;
   const templates = cards.filter((card) => card.creatable);
@@ -76,11 +78,12 @@ export function PolicySettingsEditor({ cards, changes, onChange, creations, onCr
       <h2>우리 회사의 고객 선정 기준</h2>
       <p>정책을 추가하거나 기존 기준을 수정하세요. 변경 내용은 저장하고 적용한 뒤 반영됩니다.</p>
     </div></div>
+    {children}
     {!!templates.length && <div className="flex flex-wrap items-center justify-between gap-3">
       <p className="text-sm text-muted-foreground">지원하는 기준을 선택하고 이름과 숫자만 입력하면 새 정책을 만들 수 있습니다.</p>
       <button type="button" disabled={creations.length >= 20}
         className="inline-flex items-center gap-2 rounded-lg border border-primary/30 px-4 py-2 text-sm font-medium text-primary disabled:opacity-50"
-        onClick={() => onCreationsChange([...creations, newPolicy(templates[0])])}><Plus size={16} aria-hidden />정책 추가</button>
+        onClick={() => onCreationsChange([...creations, newPolicy(templates[0])])}><Plus size={16} aria-hidden />기존 기준으로 추가</button>
     </div>}
     {creations.map((creation, index) => {
       const template = templates.find((card) => card.id === creation.template_id);
@@ -112,10 +115,10 @@ export function PolicySettingsEditor({ cards, changes, onChange, creations, onCr
         </>}
       </section>;
     })}
-    {[...new Set(cards.map((card) => card.group))].map((group) => <section key={group} className="space-y-3" aria-label={group}>
+    {[...new Set(cards.filter((card) => !card.condition).map((card) => card.group))].map((group) => <section key={group} className="space-y-3" aria-label={group}>
       <h3 className="text-sm font-semibold text-muted-foreground">{group}</h3>
       <div className="grid items-start gap-3 xl:grid-cols-2">
-        {cards.filter((card) => card.group === group).map((card) => {
+        {cards.filter((card) => card.group === group && !card.condition).map((card) => {
           const changed = changes.some((item) => item.id === card.id);
           return <details key={card.id} className="group rounded-xl border border-border bg-card open:border-primary/40">
             <summary className="flex cursor-pointer list-none items-start gap-3 p-5 [&::-webkit-details-marker]:hidden">

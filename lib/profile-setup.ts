@@ -1,4 +1,5 @@
 import type { NewPolicy, PolicyCard, PolicyChange } from "./policy-settings.ts";
+import type { ConditionOptions, ConditionPolicyCreate, ConditionPolicyEdit } from "./company-policy-conditions.ts";
 
 export type ValueRow = { canonical: string; physical: string | number | boolean | null; label: string; description: string };
 export type ProfileField = {
@@ -50,6 +51,7 @@ export type SetupSnapshot = {
   basics: { base_entity: { age_column?: string }; active_state: { column?: string; value?: ValueRow["physical"]; _supported?: boolean } };
   files: string[];
   policies?: PolicyCard[];
+  policy_conditions?: ConditionOptions | null;
 };
 
 export function editableField(field: ProfileField): boolean {
@@ -136,13 +138,15 @@ export type SetupChanges = {
   basics?: { active_column: string; active_value: ValueRow["physical"] };
   policies?: PolicyChange[];
   new_policies?: NewPolicy[];
+  new_condition_policies?: ConditionPolicyCreate[];
+  condition_policies?: ConditionPolicyEdit[];
 };
 
 export const emptyChanges = (): SetupChanges => ({ fields: [], new_fields: [], domains: [], coverage: [] });
 export function replaceChange<T>(items: T[], updated: T, same: (item: T) => boolean): T[] {
   return [...items.filter((item) => !same(item)), updated];
 }
-export const editCount = (changes: SetupChanges) => changes.fields.length + changes.new_fields.length + changes.domains.length + changes.coverage.length + (changes.basics ? 1 : 0) + (changes.policies?.length ?? 0) + (changes.new_policies?.length ?? 0);
+export const editCount = (changes: SetupChanges) => changes.fields.length + changes.new_fields.length + changes.domains.length + changes.coverage.length + (changes.basics ? 1 : 0) + (changes.policies?.length ?? 0) + (changes.new_policies?.length ?? 0) + (changes.new_condition_policies?.length ?? 0) + (changes.condition_policies?.length ?? 0);
 export function fieldChange(id: string, field: ProfileField): FieldChange {
   return { id, label: field.label ?? "", allowed_operators: field.allowed_operators ?? [],
     unit: field.unit ?? null, value_domain: field.value_domain ?? null, enable_draft: false,

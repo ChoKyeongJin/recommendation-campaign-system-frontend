@@ -1,3 +1,5 @@
+import type { ConditionGroup } from "./company-policy-conditions.ts";
+
 export type PolicyValue = string | number | boolean;
 export type PolicySetting = {
   id: string; label: string; value: PolicyValue;
@@ -10,6 +12,7 @@ export type PolicyCard = {
   id: string; label: string; group: string; summary: string;
   settings: PolicySetting[]; notes: string[];
   creatable?: boolean;
+  condition?: ConditionGroup;
 };
 export type PolicyChange = { id: string; settings: { id: string; value: PolicyValue }[] };
 export type NewPolicy = { name: string; template_id: string; settings: PolicyChange["settings"] };
@@ -18,7 +21,7 @@ export function newPolicy(template: PolicyCard, name = ""): NewPolicy {
   return { name, template_id: template.id, settings: template.settings.map(({ id, value }) => ({ id, value })) };
 }
 
-export function newPolicyNameError(name: string, cards: PolicyCard[], others: NewPolicy[]): string {
+export function newPolicyNameError(name: string, cards: PolicyCard[], others: { name: string }[]): string {
   if (name.length < 2 || name.length > 50 || !/^[\p{L}\p{N}_]+(?: [\p{L}\p{N}_]+)*$/u.test(name) || !/\p{L}/u.test(name)) {
     return "정책 이름을 글자·숫자·띄어쓰기로 2~50자 입력하세요.";
   }
