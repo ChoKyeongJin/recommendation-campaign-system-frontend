@@ -16,6 +16,7 @@ const navigation = [
 export function WorkspaceShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [targetEntryKey, setTargetEntryKey] = useState(0);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (!mobileOpen) return;
@@ -45,6 +46,9 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
         <nav aria-label="주 메뉴" className="workspace-nav">
           {navigation.map(({ href, label, icon: Icon }) => (
             <Link key={href} href={href} onClick={() => setMobileOpen(false)}
+              onNavigate={() => {
+                if (href === "/") setTargetEntryKey((current) => current + 1);
+              }}
               aria-current={activeHref === href ? "page" : undefined}
               className={`workspace-nav-link ${activeHref === href ? "is-active" : ""}`}>
               <Icon size={23} strokeWidth={1.7} aria-hidden />
@@ -66,7 +70,8 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
           <div className="workspace-breadcrumb"><span>워크스페이스</span><span aria-hidden>/</span><strong>{title}</strong></div>
           <div className="workspace-identity"><span className="workspace-avatar" aria-hidden>T</span><span>내 워크스페이스</span></div>
         </header>
-        <div id="workspace-content" tabIndex={-1}>
+        {/* 같은 경로를 다시 눌러도 위저드를 새로 시작하고 기존 요청을 정리한다. */}
+        <div key={pathname === "/" ? targetEntryKey : "other-page"} id="workspace-content" tabIndex={-1}>
           {isSettingsPage ? <SettingsPasswordGate>{children}</SettingsPasswordGate> : children}
         </div>
       </div>

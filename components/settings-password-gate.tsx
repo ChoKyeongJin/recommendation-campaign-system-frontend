@@ -2,30 +2,61 @@
 
 import Link from "next/link";
 import { LockKeyhole } from "lucide-react";
-import { useId, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 
-const SETTINGS_PASSWORD = "4567";
-
-// 화면 진입 확인용 잠금입니다. 서버 API의 인증을 대신하지 않습니다.
 export function SettingsPasswordGate({ children }: { children: ReactNode }) {
   const [unlocked, setUnlocked] = useState(false);
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [checking, setChecking] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const inputId = useId();
   const errorId = useId();
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (password !== SETTINGS_PASSWORD) {
-      setError("비밀번호가 올바르지 않습니다. 다시 입력해 주세요.");
-      setPassword("");
-      inputRef.current?.focus();
-      return;
+  useEffect(() => {
+    const controller = new AbortController();
+    async function checkSession() {
+      try {
+        const response = await fetch("/api/settings-auth", { cache: "no-store", signal: controller.signal });
+        if (!response.ok) throw new Error("settings_auth_unavailable");
+        const body = await response.json();
+        if (!controller.signal.aborted) setUnlocked(body.authenticated === true);
+      } catch {
+        if (!controller.signal.aborted) setError("설정 인증 서버에 연결하지 못했습니다. 다시 시도해 주세요.");
+      } finally {
+        if (!controller.signal.aborted) setChecking(false);
+      }
     }
-    setPassword("");
+    void checkSession();
+    return () => controller.abort();
+  }, []);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (checking || submitting) return;
+    setSubmitting(true);
     setError("");
-    setUnlocked(true);
+    try {
+      const response = await fetch("/api/settings-auth", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }), cache: "no-store",
+      });
+      const body = await response.json();
+      if (response.ok && body.authenticated === true) {
+        setUnlocked(true);
+      } else {
+        setError(response.status === 401
+          ? "비밀번호가 올바르지 않습니다. 다시 입력해 주세요."
+          : "비밀번호 확인을 완료하지 못했습니다. 다시 시도해 주세요.");
+      }
+    } catch {
+      setError("설정 인증 서버에 연결하지 못했습니다. 다시 시도해 주세요.");
+    } finally {
+      setPassword("");
+      setSubmitting(false);
+      inputRef.current?.focus();
+    }
   }
 
   if (unlocked) return children;
@@ -50,6 +81,7 @@ export function SettingsPasswordGate({ children }: { children: ReactNode }) {
               autoComplete="off"
               autoFocus
               required
+              readOnly={checking || submitting}
               value={password}
               onChange={(event) => {
                 setPassword(event.target.value);
@@ -63,7 +95,7 @@ export function SettingsPasswordGate({ children }: { children: ReactNode }) {
           </div>
           <div className="flex gap-3">
             <Link href="/" className="inline-flex flex-1 items-center justify-center rounded-lg border border-border px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring">취소</Link>
-            <button type="submit" disabled={!password} className="flex-1 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-50">확인</button>
+            <button type="submit" disabled={!password || checking || submitting} className="flex-1 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-50">{checking || submitting ? "확인 중…" : "확인"}</button>
           </div>
         </form>
       </section>
