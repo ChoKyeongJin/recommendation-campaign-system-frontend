@@ -1,4 +1,5 @@
-import { BookOpen, ChevronDown } from "lucide-react";
+import Link from "next/link";
+import { Blocks, BookOpen, ChevronDown, Workflow } from "lucide-react";
 import { AdminPage } from "@/components/admin-page";
 import { SetupGuide } from "@/components/setup-guide";
 import { ProfileSetupEditor } from "@/components/profile-setup-editor";
@@ -18,6 +19,15 @@ export default function SetupAdminPage() {
         </summary>
         <div className="admin-setup-guide-content"><SetupGuide /></div>
       </details>
+      <nav className="-mt-3 flex w-full flex-nowrap items-center justify-end gap-4" aria-label="설정 도움말">
+        <Link href="/admin/how-it-works" className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md py-2 text-[13px] font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring">
+          <Workflow size={16} className="shrink-0" aria-hidden /><span>작동 방식</span>
+        </Link>
+        <span className="h-3 w-px shrink-0 bg-border" aria-hidden />
+        <Link href="/admin/building-blocks" className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md py-2 text-[13px] font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring">
+          <Blocks size={16} className="shrink-0" aria-hidden /><span>조건 구성</span>
+        </Link>
+      </nav>
     </AdminPage>
   );
 }

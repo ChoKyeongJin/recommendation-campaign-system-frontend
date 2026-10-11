@@ -2,15 +2,18 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Blocks, BookOpen, Crosshair, Menu, Settings, SlidersHorizontal, Workflow, X } from "lucide-react";
+import { BookOpen, Crosshair, Menu, Settings, SlidersHorizontal, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { SettingsPasswordGate } from "@/components/settings-password-gate";
 
 const navigation = [
   { href: "/", label: "타겟 만들기", icon: SlidersHorizontal },
-  { href: "/admin/how-it-works", label: "작동 방식", icon: Workflow },
-  { href: "/admin/building-blocks", label: "조건 구성", icon: Blocks },
   { href: "/admin/setup", label: "설정", icon: Settings },
+];
+
+const guidePages = [
+  { href: "/admin/how-it-works", label: "작동 방식" },
+  { href: "/admin/building-blocks", label: "조건 구성" },
 ];
 
 export function WorkspaceShell({ children }: { children: React.ReactNode }) {
@@ -31,9 +34,11 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
     return () => document.removeEventListener("keydown", closeOnEscape);
   }, [mobileOpen]);
   const title = navigation.find((item) => item.href === pathname)?.label
+    ?? guidePages.find((item) => item.href === pathname)?.label
     ?? (pathname === "/admin/prompts" ? "프롬프트 관리" : "참조 데이터");
   const isSettingsPage = ["/admin/setup", "/admin/prompts", "/admin/reference"].includes(pathname);
-  const activeHref = isSettingsPage ? "/admin/setup" : pathname;
+  const isGuidePage = guidePages.some((item) => item.href === pathname);
+  const activeHref = isSettingsPage || isGuidePage ? "/admin/setup" : pathname;
 
   return (
     <div className="workspace-shell">
