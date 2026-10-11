@@ -44,7 +44,7 @@ test("server sessions expire and cannot be forged or extended by the browser", (
 test("all settings APIs require a session while ordinary targeting and quota reads stay available", () => {
   for (const path of ["/api/profile-setup", "/api/profile-setup/", "/api/profile-setup/validate",
     "/api/profile-setup/apply", "/api/prompts", "/api/prompts/example", "/api/prompts/reload",
-    "/api/prompts/seed", "/api/reference", "/api/reference/data/example"]) {
+    "/api/prompts/seed", "/api/reference", "/api/reference/data/example", "/api/monitoring", "/api/monitoring/failures"]) {
     for (const method of ["GET", "POST", "PUT", "DELETE"]) assert.equal(settingsApiRequiresSession(path, method), true);
   }
   assert.equal(settingsApiRequiresSession("/api/request-limits", "PUT"), true);

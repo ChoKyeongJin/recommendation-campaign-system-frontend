@@ -21,5 +21,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/api/profile-setup/:path*", "/api/prompts/:path*", "/api/reference/:path*", "/api/request-limits/:path*"],
+  matcher: ["/api/profile-setup/:path*", "/api/prompts/:path*", "/api/reference/:path*", "/api/request-limits/:path*", "/api/monitoring/:path*"],
 };

@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, Crosshair, Menu, Settings, SlidersHorizontal, X } from "lucide-react";
+import { Activity, BookOpen, Crosshair, Menu, Settings, SlidersHorizontal, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { SettingsPasswordGate } from "@/components/settings-password-gate";
 
 const navigation = [
   { href: "/", label: "타겟 만들기", icon: SlidersHorizontal },
+  { href: "/admin/monitoring", label: "모니터링", icon: Activity },
   { href: "/admin/setup", label: "설정", icon: Settings },
 ];
 
@@ -38,6 +39,7 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
     ?? (pathname === "/admin/prompts" ? "프롬프트 관리" : "참조 데이터");
   const isSettingsPage = ["/admin/setup", "/admin/prompts", "/admin/reference"].includes(pathname);
   const isGuidePage = guidePages.some((item) => item.href === pathname);
+  const isProtectedPage = isSettingsPage || pathname === "/admin/monitoring";
   const activeHref = isSettingsPage || isGuidePage ? "/admin/setup" : pathname;
 
   return (
@@ -54,7 +56,7 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
             <Link key={href} href={href} onClick={() => setMobileOpen(false)}
               onNavigate={() => {
                 if (href === "/") setTargetEntryKey((current) => current + 1);
-                if (href === "/admin/setup") setSettingsEntryKey((current) => current + 1);
+                if (href === "/admin/setup" || href === "/admin/monitoring") setSettingsEntryKey((current) => current + 1);
               }}
               aria-current={activeHref === href ? "page" : undefined}
               className={`workspace-nav-link ${activeHref === href ? "is-active" : ""}`}>
@@ -79,7 +81,7 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
         </header>
         {/* 같은 경로를 다시 눌러도 위저드를 새로 시작하고 기존 요청을 정리한다. */}
         <div key={pathname === "/" ? targetEntryKey : "other-page"} id="workspace-content" tabIndex={-1}>
-          {isSettingsPage ? <SettingsPasswordGate key={settingsEntryKey}>{children}</SettingsPasswordGate> : children}
+          {isProtectedPage ? <SettingsPasswordGate key={settingsEntryKey} area={pathname === "/admin/monitoring" ? "모니터링" : "설정"}>{children}</SettingsPasswordGate> : children}
         </div>
       </div>
     </div>

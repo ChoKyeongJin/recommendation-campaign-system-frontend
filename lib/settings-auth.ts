@@ -44,7 +44,7 @@ export function validSettingsSession(token: string | undefined, credentials: Set
 }
 
 export function settingsApiRequiresSession(pathname: string, method: string): boolean {
-  if (["/api/profile-setup", "/api/prompts", "/api/reference"].some(
+  if (["/api/profile-setup", "/api/prompts", "/api/reference", "/api/monitoring"].some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
   )) return true;
   return pathname.replace(/\/$/, "") === "/api/request-limits" && !["GET", "HEAD", "OPTIONS"].includes(method);

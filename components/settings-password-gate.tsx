@@ -4,7 +4,7 @@ import Link from "next/link";
 import { LockKeyhole } from "lucide-react";
 import { useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 
-export function SettingsPasswordGate({ children }: { children: ReactNode }) {
+export function SettingsPasswordGate({ children, area = "설정" }: { children: ReactNode; area?: string }) {
   // 서버 세션이 남아 있어도 설정에 다시 들어올 때는 비밀번호를 확인한다.
   const [unlocked, setUnlocked] = useState(false);
   const [password, setPassword] = useState("");
@@ -49,8 +49,8 @@ export function SettingsPasswordGate({ children }: { children: ReactNode }) {
         <span className="mb-5 inline-flex rounded-xl bg-muted p-3 text-primary">
           <LockKeyhole size={24} aria-hidden />
         </span>
-        <h1 id={`${inputId}-title`} className="text-2xl font-semibold tracking-tight">설정 비밀번호 확인</h1>
-        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">설정 화면에 들어가려면 비밀번호를 입력해 주세요.</p>
+        <h1 id={`${inputId}-title`} className="text-2xl font-semibold tracking-tight">{area} 비밀번호 확인</h1>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{area} 화면에 들어가려면 설정 비밀번호를 입력해 주세요.</p>
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <div className="space-y-2">
             <label htmlFor={inputId} className="text-sm font-medium">비밀번호</label>
