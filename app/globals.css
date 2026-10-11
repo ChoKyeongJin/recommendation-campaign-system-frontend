@@ -178,6 +178,11 @@
   :focus-visible { outline: 2px solid #839f47; outline-offset: 4px; }
 }
 
+/* Keep mobile textareas at 16px to prevent automatic zoom on focus in iOS. */
+@media (max-width: 767px), (pointer: coarse) {
+  textarea { font-size: 16px; }
+}
+
 .workspace-shell { min-height: 100dvh; }
 .skip-link { position: fixed; top: -100px; left: 16px; z-index: 100; padding: 12px 20px; background: #d3f56a; border-radius: 8px; }
 .skip-link:focus { top: 12px; }
@@ -311,7 +316,6 @@
   .target-input-card { padding: 20px; }
   .target-card-heading label, .target-guide h2, .examples-heading h2 { font-size: 19px; }
   .target-card-heading > span { display: none; }
-  .target-textarea { font-size: 15px; }
   .target-form-actions { padding-top: 26px; }
   .target-model-field { max-width: none; flex: 1; min-width: 0; }
   .target-extract-button { height: 50px; }
