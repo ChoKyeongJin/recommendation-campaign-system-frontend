@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { ArrowRight, CheckCircle2, Database, Layers3, ListFilter, Loader2, RefreshCw, Save, Search, Settings2, ShieldCheck, Users } from "lucide-react";
 import { ProfileFieldConnection } from "@/components/profile-field-connection";
+import { PolicyChangePreview, PolicySettingsEditor } from "@/components/policy-settings-editor";
+import { policyChangesValid } from "@/lib/policy-settings";
 import {
   applyMessage, applyingSettings, coverageChange, databaseColumnStatus, databaseColumns, editableField, editCount, emptyChanges, errorMessage, fieldChange, filterDatabaseColumns, replaceChange, switchCoverageMode,
   type ApplyJob, type CoverageChange, type SetupChanges, type SetupSnapshot, type ValueRow,
@@ -65,15 +67,15 @@ export function ProfileSetupEditor() {
   const [tableFilter, setTableFilter] = useState("");
   const [query, setQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState("");
-  const [tab, setTab] = useState<"fields" | "coverage" | "basics">("fields");
+  const [tab, setTab] = useState<"policies" | "fields" | "coverage" | "basics">("policies");
   const [busy, setBusy] = useState<string | null>("load");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const [validated, setValidated] = useState(false);
   const [applyJob, setApplyJob] = useState<ApplyJob | null>(null);
   const [databaseTarget, setDatabaseTarget] = useState("");
   const applying = applyingSettings(applyJob);
   const count = editCount(changes);
+  const policiesValid = policyChangesValid(snapshot?.policies ?? [], changes.policies ?? []);
 
   async function load(preserveMessage = false) {
     setBusy("load"); setError("");
@@ -81,7 +83,7 @@ export function ProfileSetupEditor() {
       const response = await fetch("/api/profile-setup", { cache: "no-store" });
       const payload = await response.json();
       if (!response.ok) throw new Error(errorMessage(payload));
-      setSnapshot(payload); setChanges(emptyChanges()); setValidated(false);
+      setSnapshot(payload); setChanges(emptyChanges());
       setApplyJob(payload.apply?.job ?? null);
       setDatabaseTarget(payload.database?.selected ?? "");
       const nextSelected = selected && payload.fields[selected] ? selected : Object.keys(payload.fields).find((id) => payload.fields[id].label && editableField(payload.fields[id])) ?? "";
@@ -136,10 +138,10 @@ export function ProfileSetupEditor() {
     return () => window.removeEventListener("beforeunload", warn);
   }, [count]);
 
-  function update(next: SetupChanges) { setChanges(next); setValidated(false); setMessage(""); setError(""); }
+  function update(next: SetupChanges) { setChanges(next); setMessage(""); setError(""); }
 
   async function submit(save: boolean) {
-    if (!snapshot) return;
+    if (!snapshot || !policiesValid) return;
     setBusy(save ? "save" : "validate"); setError(""); setMessage("");
     try {
       const response = await fetch(save ? "/api/profile-setup" : "/api/profile-setup/validate", {
@@ -149,13 +151,22 @@ export function ProfileSetupEditor() {
       const payload = await response.json();
       if (!response.ok) throw new Error(errorMessage(payload));
       if (save) {
-        setMessage(payload.restart_required ? "관련 설정을 저장했습니다. ‘설정 갱신·적용’을 누르면 조회에 반영됩니다." : "변경할 내용이 없습니다.");
+        const shouldApply = payload.restart_required && snapshot.apply?.available;
+        setMessage(shouldApply ? "설정을 검사하고 저장했습니다. 적용을 시작합니다." : payload.restart_required ? "설정을 검사하고 저장했습니다. 서버 재시작 후 조회에 반영됩니다." : "변경할 내용이 없습니다.");
         await load(true);
+        if (shouldApply) {
+          setBusy("apply");
+          const applied = await fetch("/api/profile-setup/apply", {
+            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ revision: payload.revision }),
+          });
+          const job = await applied.json();
+          if (!applied.ok) throw new Error(`저장은 완료했습니다. ${errorMessage(job)} 상단의 ‘설정 갱신·적용’으로 다시 시도할 수 있습니다.`);
+          setApplyJob(job);
+        }
       } else {
-        setValidated(true);
         setMessage(payload.changed_files.length ? `검사를 통과했습니다. 관련 설정 ${payload.changed_files.length}개 파일을 함께 저장할 수 있습니다.` : "현재 설정과 같습니다.");
       }
-    } catch (error) { setError(error instanceof Error ? error.message : "요청을 처리하지 못했습니다."); setValidated(false); }
+    } catch (error) { setError(error instanceof Error ? error.message : "요청을 처리하지 못했습니다."); }
     finally { setBusy(null); }
   }
 
@@ -232,9 +243,8 @@ export function ProfileSetupEditor() {
     </div>
 
     <div className="settings-workflow" aria-label="설정 작업 순서">
-      <span><b>01</b>필드와 조건 편집</span><ArrowRight size={15} aria-hidden />
-      <span><b>02</b>변경 검사 및 저장</span><ArrowRight size={15} aria-hidden />
-      <span><b>03</b>설정 갱신·적용</span>
+      <span><b>01</b>정책과 조건 편집</span><ArrowRight size={15} aria-hidden />
+      <span><b>02</b>내용 확인 후 저장·적용</span>
     </div>
 
     {snapshot?.restart_required && <div role="status" className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
@@ -269,9 +279,12 @@ export function ProfileSetupEditor() {
 
     {snapshot && <fieldset disabled={!!busy || applying} className="min-w-0 space-y-4 disabled:opacity-70">
       <nav aria-label="설정 종류" className="settings-editor-tabs">
-        {([ ["fields", "필드와 값", Layers3], ["coverage", "지원하는 조건", ShieldCheck], ["basics", "고객 기본 조건", Users] ] as const).map(([id, label, Icon]) =>
+        {([ ["policies", "회사 정책", Settings2], ["fields", "필드와 값", Layers3], ["coverage", "지원하는 조건", ShieldCheck], ["basics", "고객 기본 조건", Users] ] as const).map(([id, label, Icon]) =>
           <button key={id} type="button" aria-pressed={tab === id} onClick={() => setTab(id)}><Icon size={17} aria-hidden />{label}</button>)}
       </nav>
+
+      {tab === "policies" && <PolicySettingsEditor cards={snapshot.policies ?? []} changes={changes.policies ?? []}
+        onChange={(policies) => update({ ...changes, policies })} />}
 
       {tab === "fields" && <div className="settings-fields-layout">
         <aside className="settings-field-list">
@@ -388,10 +401,12 @@ export function ProfileSetupEditor() {
       </div>}
     </fieldset>}
 
+    {snapshot && <PolicyChangePreview cards={snapshot.policies ?? []} changes={changes.policies ?? []} />}
+
     {snapshot && <div className="settings-save-bar">
       <div className="settings-save-status"><span className={count ? "has-changes" : ""} /><div><p className="text-sm font-medium" aria-live="polite">{count ? `${count}개 항목 변경 중` : "저장하지 않은 변경 없음"}</p><p className="text-xs text-muted-foreground">검사 후 관련 설정을 함께 저장합니다.</p></div></div>
-      <div className="flex gap-2"><button type="button" className={button} disabled={!!busy || applying || count === 0} onClick={() => void submit(false)}>{busy === "validate" && <Loader2 className="h-4 w-4 animate-spin" />}변경 검사</button>
-        <button type="button" className={`${button} bg-primary text-primary-foreground hover:bg-primary/90`} disabled={!!busy || applying || !validated || count === 0} onClick={() => void submit(true)}>{busy === "save" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}설정 저장</button></div>
+      <div className="flex gap-2"><button type="button" className={button} disabled={!!busy || applying || count === 0 || !policiesValid} onClick={() => void submit(false)}>{busy === "validate" && <Loader2 className="h-4 w-4 animate-spin" />}변경 검사</button>
+        <button type="button" className={`${button} bg-primary text-primary-foreground hover:bg-primary/90`} disabled={!!busy || applying || count === 0 || !policiesValid} onClick={() => void submit(true)}>{busy === "save" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}{snapshot.apply?.available ? "저장하고 적용" : "검사하고 저장"}</button></div>
     </div>}
   </section>;
 }

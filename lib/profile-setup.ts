@@ -1,3 +1,5 @@
+import type { PolicyCard, PolicyChange } from "./policy-settings.ts";
+
 export type ValueRow = { canonical: string; physical: string | number | boolean | null; label: string; description: string };
 export type ProfileField = {
   source: string; column: string; data_type: string; label?: string;
@@ -47,6 +49,7 @@ export type SetupSnapshot = {
   families: string[]; coverage: Record<string, Coverage>;
   basics: { base_entity: { age_column?: string }; active_state: { column?: string; value?: ValueRow["physical"]; _supported?: boolean } };
   files: string[];
+  policies?: PolicyCard[];
 };
 
 export function editableField(field: ProfileField): boolean {
@@ -131,13 +134,14 @@ export type SetupChanges = {
   domains: { id: string; values: ValueRow[]; field_id?: string }[];
   coverage: CoverageChange[];
   basics?: { active_column: string; active_value: ValueRow["physical"] };
+  policies?: PolicyChange[];
 };
 
 export const emptyChanges = (): SetupChanges => ({ fields: [], new_fields: [], domains: [], coverage: [] });
 export function replaceChange<T>(items: T[], updated: T, same: (item: T) => boolean): T[] {
   return [...items.filter((item) => !same(item)), updated];
 }
-export const editCount = (changes: SetupChanges) => changes.fields.length + changes.new_fields.length + changes.domains.length + changes.coverage.length + (changes.basics ? 1 : 0);
+export const editCount = (changes: SetupChanges) => changes.fields.length + changes.new_fields.length + changes.domains.length + changes.coverage.length + (changes.basics ? 1 : 0) + (changes.policies?.length ?? 0);
 export function fieldChange(id: string, field: ProfileField): FieldChange {
   return { id, label: field.label ?? "", allowed_operators: field.allowed_operators ?? [],
     unit: field.unit ?? null, value_domain: field.value_domain ?? null, enable_draft: false,
