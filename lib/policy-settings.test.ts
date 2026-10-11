@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { changePolicy, policyChangesValid, policyInputError, policyValue, policyValueLabel, type PolicyCard, type PolicySetting } from "./policy-settings.ts";
+import { changePolicy, newPolicy, newPolicyNameError, policyChangesValid, policyCreationsValid, policyInputError, policyValue, policyValueLabel, type PolicyCard, type PolicySetting } from "./policy-settings.ts";
 import { editCount, emptyChanges } from "./profile-setup.ts";
 
 const setting: PolicySetting = { id: "percent", label: "선정 비율", value: "20", kind: "decimal", unit: "%", minimum: "0.0001", maximum: "100", disabled: false, hint: "", options: [] };
@@ -46,4 +46,36 @@ test("사용 안 함과 0을 빈 값으로 바꾸지 않는다", () => {
   changes = changePolicy(changes, card, questions, 0);
   assert.equal(policyValue(card, toggle, changes), false);
   assert.equal(policyValue(card, questions, changes), 0);
+});
+
+test("새 정책은 기준의 모든 값을 확인하게 하고 기존 기준을 수정하지 않는다", () => {
+  const template = { ...card, creatable: true };
+  const created = newPolicy(template, "패밀리 고객");
+  created.settings[0].value = "10";
+  assert.equal(template.settings[0].value, "20");
+  assert.equal(policyCreationsValid([template], [created]), true);
+  assert.equal(editCount({ ...emptyChanges(), new_policies: [created] }), 1);
+  assert.equal(policyCreationsValid([template], [{ ...created, settings: [] }]), false);
+});
+
+test("빈 이름·중복 이름·지원하지 않는 기준으로 새 정책을 저장하지 않는다", () => {
+  const template = { ...card, creatable: true };
+  for (const name of ["", " ", "123", "우수 고객", "우수고객", "고객\n조건"]) {
+    assert.ok(newPolicyNameError(name, [template], []));
+    assert.equal(policyCreationsValid([template], [newPolicy(template, name)]), false);
+  }
+  const created = newPolicy(template, "패밀리 고객");
+  assert.equal(policyCreationsValid([card], [created]), false);
+  assert.equal(policyCreationsValid([template], [created, { ...created, name: "패밀리고객" }]), false);
+  assert.equal(policyCreationsValid([template], [{ ...created, template_id: "unknown" }]), false);
+});
+
+test("새 정책의 기준 값도 저장 전에 검사하고 소수 정밀도를 보존한다", () => {
+  const template = { ...card, creatable: true };
+  const created = newPolicy(template, "패밀리 고객");
+  created.settings[0].value = "12.34567890123456789";
+  assert.equal(policyCreationsValid([template], [created]), true);
+  assert.equal(created.settings[0].value, "12.34567890123456789");
+  created.settings[0].value = "101";
+  assert.equal(policyCreationsValid([template], [created]), false);
 });

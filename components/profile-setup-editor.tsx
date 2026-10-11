@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { ArrowRight, CheckCircle2, Database, Layers3, ListFilter, Loader2, RefreshCw, Save, Search, Settings2, ShieldCheck, Users } from "lucide-react";
 import { ProfileFieldConnection } from "@/components/profile-field-connection";
 import { PolicyChangePreview, PolicySettingsEditor } from "@/components/policy-settings-editor";
-import { policyChangesValid } from "@/lib/policy-settings";
+import { policyChangesValid, policyCreationsValid } from "@/lib/policy-settings";
 import {
   applyMessage, applyingSettings, coverageChange, databaseColumnStatus, databaseColumns, editableField, editCount, emptyChanges, errorMessage, fieldChange, filterDatabaseColumns, replaceChange, switchCoverageMode,
   type ApplyJob, type CoverageChange, type SetupChanges, type SetupSnapshot, type ValueRow,
@@ -75,7 +75,8 @@ export function ProfileSetupEditor() {
   const [databaseTarget, setDatabaseTarget] = useState("");
   const applying = applyingSettings(applyJob);
   const count = editCount(changes);
-  const policiesValid = policyChangesValid(snapshot?.policies ?? [], changes.policies ?? []);
+  const policiesValid = policyChangesValid(snapshot?.policies ?? [], changes.policies ?? [])
+    && policyCreationsValid(snapshot?.policies ?? [], changes.new_policies ?? []);
 
   async function load(preserveMessage = false) {
     setBusy("load"); setError("");
@@ -284,7 +285,8 @@ export function ProfileSetupEditor() {
       </nav>
 
       {tab === "policies" && <PolicySettingsEditor cards={snapshot.policies ?? []} changes={changes.policies ?? []}
-        onChange={(policies) => update({ ...changes, policies })} />}
+        onChange={(policies) => update({ ...changes, policies })} creations={changes.new_policies ?? []}
+        onCreationsChange={(new_policies) => update({ ...changes, new_policies })} />}
 
       {tab === "fields" && <div className="settings-fields-layout">
         <aside className="settings-field-list">
@@ -401,7 +403,8 @@ export function ProfileSetupEditor() {
       </div>}
     </fieldset>}
 
-    {snapshot && <PolicyChangePreview cards={snapshot.policies ?? []} changes={changes.policies ?? []} />}
+    {snapshot && <PolicyChangePreview cards={snapshot.policies ?? []} changes={changes.policies ?? []}
+      creations={changes.new_policies ?? []} />}
 
     {snapshot && <div className="settings-save-bar">
       <div className="settings-save-status"><span className={count ? "has-changes" : ""} /><div><p className="text-sm font-medium" aria-live="polite">{count ? `${count}개 항목 변경 중` : "저장하지 않은 변경 없음"}</p><p className="text-xs text-muted-foreground">검사 후 관련 설정을 함께 저장합니다.</p></div></div>

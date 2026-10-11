@@ -9,8 +9,35 @@ export type PolicySetting = {
 export type PolicyCard = {
   id: string; label: string; group: string; summary: string;
   settings: PolicySetting[]; notes: string[];
+  creatable?: boolean;
 };
 export type PolicyChange = { id: string; settings: { id: string; value: PolicyValue }[] };
+export type NewPolicy = { name: string; template_id: string; settings: PolicyChange["settings"] };
+
+export function newPolicy(template: PolicyCard, name = ""): NewPolicy {
+  return { name, template_id: template.id, settings: template.settings.map(({ id, value }) => ({ id, value })) };
+}
+
+export function newPolicyNameError(name: string, cards: PolicyCard[], others: NewPolicy[]): string {
+  if (name.length < 2 || name.length > 50 || !/^[\p{L}\p{N}_]+(?: [\p{L}\p{N}_]+)*$/u.test(name) || !/\p{L}/u.test(name)) {
+    return "정책 이름을 글자·숫자·띄어쓰기로 2~50자 입력하세요.";
+  }
+  const key = (value: string) => value.normalize("NFKC").toLocaleLowerCase().replace(/\s/g, "");
+  if ([...cards.map((card) => card.label), ...others.map((item) => item.name)].some((label) => key(label) === key(name))) {
+    return "같은 이름의 정책이 있습니다. 다른 이름을 입력하세요.";
+  }
+  return "";
+}
+
+export function policyCreationsValid(cards: PolicyCard[], creations: NewPolicy[]): boolean {
+  return creations.length <= 20 && creations.every((creation, index) => {
+    const template = cards.find((card) => card.id === creation.template_id && card.creatable);
+    return !!template && !newPolicyNameError(creation.name, cards, creations.filter((_, i) => i !== index))
+      && creation.settings.length === template.settings.length
+      && new Set(creation.settings.map((item) => item.id)).size === creation.settings.length
+      && policyChangesValid(cards, [{ id: template.id, settings: creation.settings }]);
+  });
+}
 
 export function policyValue(card: PolicyCard, setting: PolicySetting, changes: PolicyChange[]): PolicyValue {
   return changes.find((item) => item.id === card.id)?.settings.find((item) => item.id === setting.id)?.value ?? setting.value;
