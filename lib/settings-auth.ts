@@ -51,7 +51,19 @@ export function settingsApiRequiresSession(pathname: string, method: string): bo
 }
 
 export function settingsRequestIsSameOrigin(request: Request): boolean {
+  if (request.headers.get("sec-fetch-site") === "cross-site") return false;
   const origin = request.headers.get("origin");
-  return request.headers.get("sec-fetch-site") !== "cross-site"
-    && (origin === null || origin === new URL(request.url).origin);
+  if (origin === null) return true;
+  const url = new URL(request.url);
+  const host = request.headers.get("host");
+  if (host === null) return origin === url.origin;
+  // Next.js may construct request.url from its internal container address.
+  // Docker preserves the browser's Host; forwarded-host is not a trusted source.
+  if (!host || /[\s/@\\?#,]/.test(host)) return false;
+  try {
+    return origin === new URL(`${url.protocol}//${host}`).origin;
+  } catch (error) {
+    if (error instanceof TypeError) return false;
+    throw error;
+  }
 }

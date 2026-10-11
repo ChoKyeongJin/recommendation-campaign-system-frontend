@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { promptApiUrl, proxyPromptResponse } from "@/lib/prompt-api";
+import { settingsRequestIsSameOrigin } from "@/lib/settings-auth";
 
 export async function GET() {
   try {
@@ -10,8 +11,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  if (request.headers.get("sec-fetch-site") === "cross-site" ||
-      (request.headers.get("origin") && request.headers.get("origin") !== new URL(request.url).origin)) {
+  if (!settingsRequestIsSameOrigin(request)) {
     return NextResponse.json({ detail: "설정 화면에서 적용하세요." }, { status: 403 });
   }
   try {

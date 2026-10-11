@@ -28,9 +28,15 @@ export function SettingsPasswordGate({ children, area = "설정" }: { children: 
       if (response.ok && body.authenticated === true) {
         setUnlocked(true);
       } else {
-        setError(response.status === 401
-          ? "비밀번호가 올바르지 않습니다. 다시 입력해 주세요."
-          : "비밀번호 확인을 완료하지 못했습니다. 다시 시도해 주세요.");
+        if (response.status === 401) {
+          setError("비밀번호가 올바르지 않습니다. 다시 입력해 주세요.");
+        } else if (response.status === 403) {
+          setError("접속 주소 확인에 실패했습니다. 관리자에게 문의해 주세요.");
+        } else if (response.status === 503) {
+          setError("서버의 설정 인증 구성이 올바르지 않습니다. 관리자에게 문의해 주세요.");
+        } else {
+          setError("비밀번호 확인을 완료하지 못했습니다. 다시 시도해 주세요.");
+        }
       }
     } catch {
       setError("설정 인증 서버에 연결하지 못했습니다. 다시 시도해 주세요.");
