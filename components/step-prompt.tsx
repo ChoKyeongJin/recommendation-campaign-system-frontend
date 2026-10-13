@@ -153,6 +153,7 @@ export function StepPrompt({
   modelChoices,
   structuringModel,
   setStructuringModel,
+  onRequestSettled,
 }: {
   prompt: string;
   setPrompt: (v: string) => void;
@@ -163,6 +164,8 @@ export function StepPrompt({
   modelChoices: StructuringModelChoices;
   structuringModel: string;
   setStructuringModel: (v: string) => void;
+  /** 호출 한도를 쓰는 요청이 끝났다 — 남은 횟수 표시를 다시 읽을 때다. */
+  onRequestSettled?: () => void;
 }) {
   const modelSelectId = useId();
   const promptRef = useRef<HTMLTextAreaElement>(null);
@@ -199,6 +202,7 @@ export function StepPrompt({
       <section className="target-input-card" aria-labelledby="target-condition-label">
         <TopicSuggester
           disabled={isExtracting}
+          onSettled={onRequestSettled}
           onPick={(text) => {
             setPrompt(text);
             promptRef.current?.focus();

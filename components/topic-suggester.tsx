@@ -18,14 +18,17 @@ const FAILURE = "문장을 생성하지 못했습니다. 잠시 후 다시 시�
  * 주제 한 줄로 타겟 조건 문장의 초안을 받아 입력칸에 넣는다.
  *
  * 초안은 실행되지 않는다. `onPick` 은 입력칸을 채우기만 하고, 타겟 추출은 사용자가 문장을
- * 확인한 뒤 직접 누른다.
+ * 확인한 뒤 직접 누른다. 생성 요청은 호출 한도에서 한 번을 쓰므로, 요청이 끝날 때마다
+ * `onSettled` 로 알려 남은 횟수 표시를 다시 읽게 한다.
  */
 export function TopicSuggester({
   disabled,
   onPick,
+  onSettled,
 }: {
   disabled: boolean;
   onPick: (prompt: string) => void;
+  onSettled?: () => void;
 }) {
   const inputId = useId();
   const [topic, setTopic] = useState("");
@@ -75,6 +78,8 @@ export function TopicSuggester({
       setResult(null);
       setError(caught instanceof Error ? caught.message : FAILURE);
     } finally {
+      // 실패하거나 취소한 요청도 서버에서는 이미 한 번을 예약했을 수 있다.
+      onSettled?.();
       if (activeRequest.current === controller) {
         activeRequest.current = null;
         setIsLoading(false);
@@ -90,7 +95,7 @@ export function TopicSuggester({
         <label htmlFor={inputId} id={`${inputId}-label`}>
           주제로 문장 만들기
         </label>
-        <span>주제를 적으면 데이터 항목에 맞는 타겟 조건 문장을 만들어 드립니다.</span>
+        <span>주제에 맞는 타겟 조건 문장을 만들어 드립니다. 생성할 때마다 호출 한도 1회를 씁니다.</span>
       </div>
       <div className="topic-suggest-row">
         <input
@@ -141,6 +146,12 @@ export function TopicSuggester({
           <p role="status" className="topic-suggest-message">
             초안을 아래 입력칸에 넣었습니다. 내용을 확인하고 고친 뒤 타겟 추출하기를 눌러 주세요.
           </p>
+          {result.analysis && (
+            <p className="topic-suggest-note">
+              <span>주제 해석</span>
+              {result.analysis}
+            </p>
+          )}
           {result.suggestions.length > 1 && (
             <ul className="topic-suggest-options" aria-label="다른 초안">
               {result.suggestions.map((suggestion, index) => (
@@ -161,6 +172,12 @@ export function TopicSuggester({
                 </li>
               ))}
             </ul>
+          )}
+          {active.rationale && (
+            <p className="topic-suggest-note is-rationale">
+              <span>이 초안의 근거</span>
+              {active.rationale}
+            </p>
           )}
           {active.grounding.length > 0 && (
             <ul className="topic-suggest-grounding" aria-label="이 초안이 쓴 데이터 항목">

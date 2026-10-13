@@ -28,6 +28,11 @@ export type TopicSuggestion = {
 export type TopicSuggestionResult = {
   topic: string;
   status: "suggested" | "no_grounded_suggestion";
+  /**
+   * 모델이 주제를 어떻게 읽었는가(대상 고객과 그 이유). 초안을 고르는 사람이 읽는 설명이고
+   * 제안이 없으면 `null` 이다.
+   */
+  analysis: string | null;
   suggestions: TopicSuggestion[];
   /** 제안이 없을 때의 안내. 제안이 있으면 `null`. */
   message: string | null;
@@ -99,6 +104,8 @@ export function readTopicSuggestions(
   return {
     topic: text(record.topic),
     status,
+    // 해석은 문장에 딸린 설명이다 — 문장 없이 해석만 온 응답에서는 보여 주지 않는다.
+    analysis: read.length > 0 ? text(record.analysis) || null : null,
     suggestions: read,
     message: text(record.message) || null,
   };

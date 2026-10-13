@@ -252,6 +252,7 @@ export function CampaignWizard() {
           isExtracting={isExtracting}
           progress={progress}
           error={targetingError}
+          onRequestSettled={() => setQuotaRefresh((value) => value + 1)}
         />
       )}
       {step === 1 && targeting && (

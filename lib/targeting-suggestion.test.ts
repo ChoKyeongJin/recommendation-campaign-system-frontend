@@ -14,6 +14,7 @@ const SUGGESTED = {
   topic: "첫구매 유도",
   status: "suggested",
   message: null,
+  analysis: "가입하고  아직 사지 않은 고객이 대상이다",
   suggestions: [
     {
       prompt: "가입 후  아직 구매한 적이 없는 고객",
@@ -47,6 +48,8 @@ test("제안과 근거를 그대로 읽는다", () => {
   const read = readTopicSuggestions(SUGGESTED);
   assert.ok(read);
   assert.equal(read.status, "suggested");
+  assert.equal(read.analysis, "가입하고 아직 사지 않은 고객이 대상이다");
+  assert.equal(read.suggestions[0].rationale, "첫 구매 전 고객이다");
   assert.equal(read.suggestions[0].prompt, "가입 후 아직 구매한 적이 없는 고객");
   assert.deepEqual(read.suggestions[0].grounding, [
     { role: "field", label: "첫 구매일", table: "cust_repurchase_summary", column: "first_purchase_date" },
@@ -60,10 +63,13 @@ test("제안 없음은 오류가 아니라 안내가 붙은 빈 결과다", () =
     topic: "날씨 좋은 날",
     status: "no_grounded_suggestion",
     suggestions: [],
+    // 문장 없이 해석만 온 응답에서는 해석을 보여 주지 않는다.
+    analysis: "날씨는 고객을 고르는 조건이 아니다",
     message: "이 주제를 현재 데이터 항목으로 표현하지 못했습니다.",
   });
   assert.ok(read);
   assert.deepEqual(read.suggestions, []);
+  assert.equal(read.analysis, null);
   assert.equal(read.message, "이 주제를 현재 데이터 항목으로 표현하지 못했습니다.");
 });
 
@@ -108,6 +114,8 @@ test("읽을 수 없는 근거 항목은 버리되 문장은 남긴다", () => {
     { role: "field", label: "성별", table: null, column: null },
   ]);
   assert.equal(read.suggestions[0].rationale, "");
+  // 해석을 싣지 않던 서버의 응답도 읽는다 — 그때는 해석 자리를 비운다.
+  assert.equal(read.analysis, null);
 });
 
 test("거절은 서버가 말한 사유와 조치로 보여 준다", () => {
@@ -116,11 +124,11 @@ test("거절은 서버가 말한 사유와 조치로 보여 준다", () => {
     code: "suggestion_llm_unavailable",
     path: "provider",
     reason: "문장 제안에 쓸 모델이 설정되어 있지 않습니다.",
-    action: "배포 환경의 OPENAI_FAST_MODEL 을 확인해 주세요.",
+    action: "배포 환경의 OPENAI_MODEL 을 확인해 주세요.",
   };
   assert.equal(
     suggestionFailureMessage(503, { detail }),
-    "문장 제안에 쓸 모델이 설정되어 있지 않습니다. 배포 환경의 OPENAI_FAST_MODEL 을 확인해 주세요.",
+    "문장 제안에 쓸 모델이 설정되어 있지 않습니다. 배포 환경의 OPENAI_MODEL 을 확인해 주세요.",
   );
   assert.equal(
     suggestionFailureMessage(503, { detail: { reason: "배포 설정을 적용하는 중입니다." } }),
