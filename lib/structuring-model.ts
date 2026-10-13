@@ -76,15 +76,19 @@ export function shouldOfferChoice(available: StructuringModelChoices): boolean {
   return available.choices.length > 0;
 }
 
-/** 칸 옆에 붙는 한 줄. 지금 무엇으로 나가는지를 말한다. */
+/**
+ * 칸 옆에 붙는 한 줄. 지금 무엇으로 나가는지를 말한다.
+ *
+ * 주제로 문장을 만드는 요청도 같은 선택을 따른다 — 그래서 둘을 함께 말한다.
+ */
 export function describeChoice(
   selected: string,
   available: StructuringModelChoices,
 ): string {
   const chosen = chosenStructuringModel(selected, available);
-  if (chosen) return `이 요청만 ${chosen} 로 해석합니다.`;
+  if (chosen) return `이 화면의 문장 생성과 해석을 ${chosen} 로 합니다.`;
   if (available.fallback) {
-    return `배포 기본값(${available.fallback})으로 해석합니다.`;
+    return `배포 기본값(${available.fallback})으로 문장을 생성하고 해석합니다.`;
   }
-  return "배포 기본값으로 해석합니다.";
+  return "배포 기본값으로 문장을 생성하고 해석합니다.";
 }

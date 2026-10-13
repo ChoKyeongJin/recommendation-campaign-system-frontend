@@ -19,14 +19,17 @@ const FAILURE = "문장을 생성하지 못했습니다. 잠시 후 다시 시�
  *
  * 초안은 실행되지 않는다. `onPick` 은 입력칸을 채우기만 하고, 타겟 추출은 사용자가 문장을
  * 확인한 뒤 직접 누른다. 생성 요청은 호출 한도에서 한 번을 쓰므로, 요청이 끝날 때마다
- * `onSettled` 로 알려 남은 횟수 표시를 다시 읽게 한다.
+ * `onSettled` 로 알려 남은 횟수 표시를 다시 읽게 한다. 문장은 화면이 고른 해석 모델로 만든다 —
+ * `structuringModel` 이 `null` 이면 배포의 해석 모델이다.
  */
 export function TopicSuggester({
   disabled,
+  structuringModel,
   onPick,
   onSettled,
 }: {
   disabled: boolean;
+  structuringModel: string | null;
   onPick: (prompt: string) => void;
   onSettled?: () => void;
 }) {
@@ -59,7 +62,10 @@ export function TopicSuggester({
       const response = await fetch("/api/targeting/suggestions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic: sendable }),
+        body: JSON.stringify({
+          topic: sendable,
+          ...(structuringModel ? { structuringModel } : {}),
+        }),
         signal: controller.signal,
       });
       const payload = await response.json().catch(() => null);

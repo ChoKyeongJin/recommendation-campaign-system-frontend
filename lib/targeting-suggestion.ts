@@ -60,6 +60,21 @@ export function readTopic(value: unknown): string | null {
   return /[\p{L}\p{N}]/u.test(topic) ? topic : null;
 }
 
+/**
+ * Python 에 보낼 요청 본문.
+ *
+ * 화면이 고른 해석 모델이 있으면 함께 싣는다 — 문장도 타겟 추출과 같은 모델로 만든다. 고르지
+ * 않았으면 칸을 싣지 않고, Python 은 그때 배포의 해석 모델을 쓴다. 이름이 선언 목록에 있는지는
+ * 여기서 보지 않는다 — 그 판정은 선언을 가진 Python 이 한다.
+ */
+export function suggestionRequestBody(
+  topic: string,
+  structuringModel: unknown,
+): { topic: string; structuring_model?: string } {
+  const model = typeof structuringModel === "string" ? structuringModel.trim() : "";
+  return model ? { topic, structuring_model: model } : { topic };
+}
+
 function readGrounding(value: unknown): SuggestionGrounding | null {
   const record = asRecord(value);
   const role = text(record?.role);

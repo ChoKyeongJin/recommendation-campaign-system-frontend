@@ -8,6 +8,7 @@ import {
   readTopic,
   readTopicSuggestions,
   suggestionFailureMessage,
+  suggestionRequestBody,
 } from "./targeting-suggestion.ts";
 
 const SUGGESTED = {
@@ -42,6 +43,17 @@ test("한도를 넘는 주제는 잘라 보내지 않고 막는다", () => {
   // 잘린 주제로 만든 문장은 사용자가 적은 주제의 문장이 아니다.
   assert.equal(readTopic("가".repeat(MAX_TOPIC_LENGTH)), "가".repeat(MAX_TOPIC_LENGTH));
   assert.equal(readTopic("가".repeat(MAX_TOPIC_LENGTH + 1)), null);
+});
+
+test("화면이 고른 해석 모델을 함께 보내고, 고르지 않았으면 칸을 싣지 않는다", () => {
+  assert.deepEqual(suggestionRequestBody("첫구매 유도", " gpt-5.4 "), {
+    topic: "첫구매 유도",
+    structuring_model: "gpt-5.4",
+  });
+  // 칸이 없어야 Python 이 배포의 해석 모델을 쓴다 — 빈 이름을 실으면 그 이름이 거절된다.
+  for (const value of [null, undefined, "", "   ", 7]) {
+    assert.deepEqual(suggestionRequestBody("첫구매 유도", value), { topic: "첫구매 유도" });
+  }
 });
 
 test("제안과 근거를 그대로 읽는다", () => {

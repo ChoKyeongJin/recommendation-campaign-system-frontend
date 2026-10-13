@@ -23,6 +23,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { TopicSuggester } from "@/components/topic-suggester";
 import {
+  chosenStructuringModel,
   DEFAULT_MODEL_OPTION,
   describeChoice,
   shouldOfferChoice,
@@ -202,6 +203,7 @@ export function StepPrompt({
       <section className="target-input-card" aria-labelledby="target-condition-label">
         <TopicSuggester
           disabled={isExtracting}
+          structuringModel={chosenStructuringModel(structuringModel, modelChoices)}
           onSettled={onRequestSettled}
           onPick={(text) => {
             setPrompt(text);
