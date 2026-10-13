@@ -21,6 +21,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { TopicSuggester } from "@/components/topic-suggester";
 import {
   DEFAULT_MODEL_OPTION,
   describeChoice,
@@ -196,6 +197,13 @@ export function StepPrompt({
     <div className="target-prompt-view">
       <div className="target-input-grid">
       <section className="target-input-card" aria-labelledby="target-condition-label">
+        <TopicSuggester
+          disabled={isExtracting}
+          onPick={(text) => {
+            setPrompt(text);
+            promptRef.current?.focus();
+          }}
+        />
         <div className="target-card-heading">
           <Label htmlFor="prompt" id="target-condition-label">타겟 조건</Label>
           <span>자연어로 원하는 고객 조건을 입력하세요.</span>
