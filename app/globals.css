@@ -356,6 +356,7 @@
   .target-page-header h1 { font-size: 25px; }
   .target-form-actions { align-items: stretch; flex-direction: column; }
   .topic-suggest-row { flex-direction: column; }
+  .topic-suggest-input { flex: none; }
   .topic-suggest-button { width: 100%; }
   .target-model-field { width: 100%; }
   .target-extract-button { width: 100%; }
