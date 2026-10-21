@@ -1,5 +1,6 @@
 import type { NewPolicy, PolicyCard, PolicyChange } from "./policy-settings.ts";
 import type { ConditionOptions, ConditionPolicyCreate, ConditionPolicyEdit } from "./company-policy-conditions.ts";
+import type { EventConnection, EventView, MetricView, NewEvent, NewMetric, RankingPolicyChange, RankingPolicyView } from "./profile-declarations.ts";
 
 export type ValueRow = { canonical: string; physical: string | number | boolean | null; label: string; description: string };
 export type ProfileField = {
@@ -35,7 +36,7 @@ export type SetupSnapshot = {
   apply?: { available: boolean; job: ApplyJob | null };
   database?: {
     available: boolean; selected: string; revision: string;
-    options: { id: string; label: string; database: string }[];
+    options: { id: string; label: string; database: string; profile?: string; ready?: boolean }[];
   } | null;
   profile: string; revision: string; restart_required: boolean;
   subject: { name?: string; table: string; key: string; label?: string };
@@ -45,13 +46,18 @@ export type SetupSnapshot = {
     tables: { name: string; database: string | null; columns: DatabaseColumn[] }[];
     unmapped_field_ids: string[];
   };
-  domains: Record<string, { label: string; editable: boolean; values: ValueRow[] }>;
+  domains: Record<string, { label: string; editable: boolean; values: ValueRow[]; ordered?: boolean; orderable?: boolean }>;
   sources: Record<string, { label: string; table: string }>;
   families: string[]; coverage: Record<string, Coverage>;
   basics: { base_entity: { age_column?: string }; active_state: { column?: string; value?: ValueRow["physical"]; _supported?: boolean } };
   files: string[];
   policies?: PolicyCard[];
   policy_conditions?: ConditionOptions | null;
+  events?: Record<string, EventView>;
+  event_connections?: EventConnection[];
+  event_timezone?: string | null;
+  metrics?: Record<string, MetricView>;
+  ranking_policy?: RankingPolicyView | null;
 };
 
 export function editableField(field: ProfileField): boolean {
@@ -133,20 +139,23 @@ export type CoverageChange = {
 export type SetupChanges = {
   fields: FieldChange[];
   new_fields: NewField[];
-  domains: { id: string; values: ValueRow[]; field_id?: string }[];
+  domains: { id: string; values: ValueRow[]; field_id?: string; ordered?: boolean }[];
   coverage: CoverageChange[];
   basics?: { active_column: string; active_value: ValueRow["physical"] };
   policies?: PolicyChange[];
   new_policies?: NewPolicy[];
   new_condition_policies?: ConditionPolicyCreate[];
   condition_policies?: ConditionPolicyEdit[];
+  new_events?: NewEvent[];
+  new_metrics?: NewMetric[];
+  ranking_policy?: RankingPolicyChange;
 };
 
 export const emptyChanges = (): SetupChanges => ({ fields: [], new_fields: [], domains: [], coverage: [] });
 export function replaceChange<T>(items: T[], updated: T, same: (item: T) => boolean): T[] {
   return [...items.filter((item) => !same(item)), updated];
 }
-export const editCount = (changes: SetupChanges) => changes.fields.length + changes.new_fields.length + changes.domains.length + changes.coverage.length + (changes.basics ? 1 : 0) + (changes.policies?.length ?? 0) + (changes.new_policies?.length ?? 0) + (changes.new_condition_policies?.length ?? 0) + (changes.condition_policies?.length ?? 0);
+export const editCount = (changes: SetupChanges) => changes.fields.length + changes.new_fields.length + changes.domains.length + changes.coverage.length + (changes.basics ? 1 : 0) + (changes.policies?.length ?? 0) + (changes.new_policies?.length ?? 0) + (changes.new_condition_policies?.length ?? 0) + (changes.condition_policies?.length ?? 0) + (changes.new_events?.length ?? 0) + (changes.new_metrics?.length ?? 0) + (changes.ranking_policy ? 1 : 0);
 export function fieldChange(id: string, field: ProfileField): FieldChange {
   return { id, label: field.label ?? "", allowed_operators: field.allowed_operators ?? [],
     unit: field.unit ?? null, value_domain: field.value_domain ?? null, enable_draft: false,

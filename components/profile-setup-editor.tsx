@@ -1,8 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowRight, CheckCircle2, Database, Layers3, ListFilter, Loader2, RefreshCw, Save, Search, Settings2, ShieldCheck, Users } from "lucide-react";
+import { ArrowDown, ArrowRight, ArrowUp, BarChart3, CalendarClock, CheckCircle2, Database, Layers3, ListFilter, Loader2, RefreshCw, Save, Search, Settings2, ShieldCheck, Users } from "lucide-react";
 import { ProfileFieldConnection } from "@/components/profile-field-connection";
+import { ProfileCreationPanel } from "@/components/profile-creation-panel";
+import { ProfileSetupEvents } from "@/components/profile-setup-events";
+import { ProfileSetupMetrics } from "@/components/profile-setup-metrics";
+import { moveValue, newDomainId, rankingPolicyError } from "@/lib/profile-declarations";
 import { PolicyChangePreview, PolicySettingsEditor } from "@/components/policy-settings-editor";
 import { policyChangesValid, policyCreationsValid } from "@/lib/policy-settings";
 import { CompanyConditionPolicies } from "@/components/company-condition-policies";
@@ -69,7 +73,7 @@ export function ProfileSetupEditor() {
   const [tableFilter, setTableFilter] = useState("");
   const [query, setQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState("");
-  const [tab, setTab] = useState<"policies" | "fields" | "coverage" | "basics">("policies");
+  const [tab, setTab] = useState<"policies" | "fields" | "events" | "metrics" | "coverage" | "basics">("policies");
   const [busy, setBusy] = useState<string | null>("load");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -77,7 +81,8 @@ export function ProfileSetupEditor() {
   const [databaseTarget, setDatabaseTarget] = useState("");
   const applying = applyingSettings(applyJob);
   const count = editCount(changes);
-  const policiesValid = policyChangesValid(snapshot?.policies ?? [], changes.policies ?? [])
+  const policiesValid = (!changes.ranking_policy || !snapshot || !rankingPolicyError(changes.ranking_policy, snapshot))
+    && policyChangesValid(snapshot?.policies ?? [], changes.policies ?? [])
     && policyCreationsValid(snapshot?.policies ?? [], changes.new_policies ?? [])
     && conditionPoliciesValid(snapshot?.policy_conditions, snapshot?.policies ?? [], changes.new_condition_policies ?? [],
       changes.condition_policies ?? [], changes.new_policies ?? []);
@@ -221,6 +226,7 @@ export function ProfileSetupEditor() {
   const pendingDomain = changes.domains.find((item) => item.id === domainId);
   const domain = domainId ? snapshot?.domains[domainId] ?? (pendingDomain ? { label: current?.label || "새 값 목록", editable: true, values: pendingDomain.values } : null) : null;
   const domainValues = domainId ? changes.domains.find((item) => item.id === domainId)?.values ?? domain?.values ?? [] : [];
+  const ordered = !!(pendingDomain?.ordered ?? (domain && "ordered" in domain ? domain.ordered : false));
   const basics = changes.basics ?? (snapshot ? {
     active_column: snapshot.basics.active_state.column ?? "", active_value: snapshot.basics.active_state.value ?? null } : undefined);
 
@@ -270,7 +276,7 @@ export function ProfileSetupEditor() {
         <label className="flex min-w-60 flex-1 flex-col gap-1.5 text-sm">연결할 DB
           <select className={input} value={databaseTarget} disabled={!!busy || applying || !!count || !snapshot.database.available || snapshot.restart_required}
             onChange={(event) => setDatabaseTarget(event.target.value)}>
-            {snapshot.database.options.map((option) => <option key={option.id} value={option.id}>{option.label} · {option.database}</option>)}
+            {snapshot.database.options.map((option) => <option key={option.id} value={option.id} disabled={option.ready === false}>{option.label} · {option.database}{option.ready === false ? " (프로필 없음)" : ""}</option>)}
           </select>
         </label>
         <button type="button" className={button} onClick={() => void selectDatabase()}
@@ -280,11 +286,13 @@ export function ProfileSetupEditor() {
       </div>
       <p className="mt-3 text-xs text-muted-foreground">연결과 데이터 구조를 검사한 뒤 전환합니다. 전환 중에는 조회가 잠시 중단됩니다.</p>
       {(!!count || snapshot.restart_required) && <p className="mt-2 text-xs text-muted-foreground">편집한 설정을 저장하고 적용한 뒤 DB를 전환하세요.</p>}
+      {snapshot.database.available && <ProfileCreationPanel snapshot={snapshot} disabled={!!busy || applying || !!count}
+        onCreated={(created) => { void load(true).then(() => setMessage(created)); }} />}
     </section>}
 
     {snapshot && <fieldset disabled={!!busy || applying} className="min-w-0 space-y-4 disabled:opacity-70">
       <nav aria-label="설정 종류" className="settings-editor-tabs">
-        {([ ["policies", "회사 정책", Settings2], ["fields", "필드와 값", Layers3], ["coverage", "지원하는 조건", ShieldCheck], ["basics", "고객 기본 조건", Users] ] as const).map(([id, label, Icon]) =>
+        {([ ["policies", "회사 정책", Settings2], ["fields", "필드와 값", Layers3], ["events", "사건", CalendarClock], ["metrics", "지표·순위", BarChart3], ["coverage", "지원하는 조건", ShieldCheck], ["basics", "고객 기본 조건", Users] ] as const).map(([id, label, Icon]) =>
           <button key={id} type="button" aria-pressed={tab === id} onClick={() => setTab(id)}><Icon size={17} aria-hidden />{label}</button>)}
       </nav>
 
@@ -358,15 +366,22 @@ export function ProfileSetupEditor() {
             {domain && domainId && <div className="space-y-3 border-t border-border pt-5">
               <div><h3 className="text-sm font-semibold">{domain.label} 값 목록</h3><p className="mt-1 text-xs text-muted-foreground">여기서 한 번 수정하면 이 값 목록을 쓰는 필드에 함께 반영됩니다. 값의 식별자와 기존 문법은 보존됩니다.</p></div>
               {!domain.editable && <p className="text-sm text-muted-foreground">이 목록은 읽기 전용입니다. 원본 선언에서 관리합니다.</p>}
+              {domain.orderable && <label className="flex gap-2 rounded-lg bg-muted p-3 text-sm"><input type="checkbox" checked={ordered} disabled={!!domain.ordered}
+                onChange={(event) => update({ ...changes, domains: replaceChange(changes.domains, { ...pendingDomain, id: domainId, values: domainValues, ordered: event.target.checked ? true : undefined }, (item) => item.id === domainId) })} />
+                <span>값에 순서가 있습니다(서열). 위가 낮고 아래가 높으며, ‘과장 이상’ 같은 비교에 이 순서를 씁니다.{domain.ordered ? " 이미 쓰는 서열은 이 화면에서 해제할 수 없습니다." : ""}</span></label>}
               {domainValues.map((value, index) => {
                 const changeValue = (row: ValueRow) => update({ ...changes, domains: replaceChange(changes.domains, { ...pendingDomain, id: domainId, values: domainValues.map((original, position) => position === index ? row : original) }, (item) => item.id === domainId) });
+                const move = (delta: -1 | 1) => update({ ...changes, domains: replaceChange(changes.domains, { ...pendingDomain, id: domainId, values: moveValue(domainValues, index, delta) }, (item) => item.id === domainId) });
+                const isNew = !snapshot.domains[domainId]?.values.some((row) => row.canonical === value.canonical);
                 return <fieldset key={index} disabled={!domain.editable} className="space-y-2 rounded-lg border border-border p-3">
-                  <legend className="px-1 text-xs text-muted-foreground">{value.canonical}</legend>
-                  {index >= (snapshot.domains[domainId]?.values.length ?? 0) && <TextField label="값 식별자" hint="이 값을 구분하는 고유한 이름입니다. 저장 후에는 유지됩니다." value={value.canonical} onChange={(canonical) => changeValue({ ...value, canonical })} />}
+                  <legend className="px-1 text-xs text-muted-foreground">{ordered ? `서열 ${index + 1} · ` : ""}{value.canonical}</legend>
+                  {ordered && <div className="flex gap-1"><button type="button" aria-label="한 단계 낮게" className={button} disabled={index === 0} onClick={() => move(-1)}><ArrowUp className="h-4 w-4" /></button>
+                    <button type="button" aria-label="한 단계 높게" className={button} disabled={index === domainValues.length - 1} onClick={() => move(1)}><ArrowDown className="h-4 w-4" /></button></div>}
+                  {isNew && <TextField label="값 식별자" hint="이 값을 구분하는 고유한 이름입니다. 저장 후에는 유지됩니다." value={value.canonical} onChange={(canonical) => changeValue({ ...value, canonical })} />}
                   <div className="grid gap-3 lg:grid-cols-2"><TextField label="값의 이름" hint="이 값의 뜻을 나타내는 대표 이름 하나를 입력하세요." value={value.label} onChange={(label) => changeValue({ ...value, label })} />
                     <div className="space-y-1.5"><p className="text-sm font-medium">DB 저장값</p><ValueInput value={value.physical} onChange={(physical) => changeValue({ ...value, physical })} /></div></div>
                   <TextField label="의미 설명 (선택)" hint="이름만으로 모호할 때 업무상 의미를 설명하세요. 동의어는 나열하지 않아도 됩니다." value={value.description} onChange={(description) => changeValue({ ...value, description })} />
-                  {index >= (snapshot.domains[domainId]?.values.length ?? 0) && <button type="button" className="text-xs text-destructive underline" onClick={() => update({ ...changes, domains: replaceChange(changes.domains, { ...pendingDomain, id: domainId, values: domainValues.filter((_, position) => position !== index) }, (item) => item.id === domainId) })}>추가한 값 취소</button>}
+                  {isNew && <button type="button" className="text-xs text-destructive underline" onClick={() => update({ ...changes, domains: replaceChange(changes.domains, { ...pendingDomain, id: domainId, values: domainValues.filter((_, position) => position !== index) }, (item) => item.id === domainId) })}>추가한 값 취소</button>}
                 </fieldset>;
               })}
               {domain.editable && <button type="button" className={button} onClick={() => update({ ...changes, domains: replaceChange(changes.domains, { ...pendingDomain, id: domainId, values: [...domainValues, { canonical: "", physical: "", label: "", description: "" }] }, (item) => item.id === domainId) })}>값 추가</button>}
@@ -376,7 +391,7 @@ export function ProfileSetupEditor() {
                 <option value="">기존 목록 선택</option>{Object.entries(snapshot.domains).map(([id, item]) => <option key={id} value={id}>{item.label}</option>)}
               </select>
               <button type="button" className={button} onClick={() => {
-                const id = `setup.${selected}`;
+                const id = newDomainId(selected);
                 update({ ...changes, fields: replaceChange(changes.fields, { ...current, value_domain: id }, (item) => item.id === selected),
                   domains: [...changes.domains, { id, field_id: selected, values: [{ canonical: "", physical: "", label: "", description: "" }] }] });
               }}>새 값 목록 만들기</button>
@@ -385,6 +400,13 @@ export function ProfileSetupEditor() {
           </div> : !(browseMode === "database" && column) && <p className="text-sm text-muted-foreground">확인할 필드나 컬럼을 선택하세요.</p>}
         </div>
       </div>}
+
+      {tab === "events" && <ProfileSetupEvents snapshot={snapshot} pending={changes.new_events ?? []}
+        onChange={(new_events) => update({ ...changes, new_events })} />}
+
+      {tab === "metrics" && <ProfileSetupMetrics snapshot={snapshot} metrics={changes.new_metrics ?? []}
+        onMetrics={(new_metrics) => update({ ...changes, new_metrics })} ranking={changes.ranking_policy}
+        onRanking={(ranking_policy) => update({ ...changes, ranking_policy })} />}
 
       {tab === "coverage" && <div className="settings-coverage space-y-3"><div className="settings-section-intro"><ShieldCheck size={23} aria-hidden /><div><h2>어떤 조건을 지원하나요?</h2><p>조건별 지원 여부와 근거가 되는 필드·사건을 설정하세요. 선택 전에는 미설정 상태를 유지합니다.</p></div></div>
         {snapshot.families.map((family) => {
