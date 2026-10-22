@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { promptApiUrl, proxyPromptResponse } from "@/lib/prompt-api";
+import { pythonFetch } from "@/lib/python-api";
 
 type Params = { params: Promise<{ category: string; name: string }> };
 
@@ -8,7 +9,7 @@ type Params = { params: Promise<{ category: string; name: string }> };
 export async function GET(_request: Request, { params }: Params) {
   const { category, name } = await params;
   try {
-    const response = await fetch(
+    const response = await pythonFetch(
       promptApiUrl(
         `/reference-files/${encodeURIComponent(category)}/${encodeURIComponent(name)}`,
       ),

@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 
 import { promptApiUrl, proxyPromptResponse } from "@/lib/prompt-api";
+import { pythonFetch } from "@/lib/python-api";
 
 // POST /api/prompts/seed → docs/prompts 파일 내용으로 DB 시딩
 export async function POST() {
   try {
-    const response = await fetch(promptApiUrl("/prompts/seed"), {
+    const response = await pythonFetch(promptApiUrl("/prompts/seed"), {
       method: "POST",
       cache: "no-store",
     });

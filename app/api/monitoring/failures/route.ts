@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { promptApiUrl, proxyPromptResponse } from "@/lib/prompt-api";
+import { pythonFetch } from "@/lib/python-api";
 
 export async function GET(request: Request) {
   try {
     const query = new URL(request.url).searchParams.toString();
-    const response = await proxyPromptResponse(await fetch(promptApiUrl(`/monitoring/failures?${query}`), {
+    const response = await proxyPromptResponse(await pythonFetch(promptApiUrl(`/monitoring/failures?${query}`), {
       cache: "no-store", signal: AbortSignal.timeout(15_000),
     }));
     response.headers.set("Cache-Control", "no-store");

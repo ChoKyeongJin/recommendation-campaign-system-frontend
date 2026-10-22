@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { pythonFetch } from "@/lib/python-api";
 
 /**
  * 이 배포가 요청마다 고르게 해 둔 구조화 모델.
@@ -14,7 +15,7 @@ const PYTHON_STRUCTURING_MODELS_URL =
 
 export async function GET() {
   try {
-    const response = await fetch(PYTHON_STRUCTURING_MODELS_URL, {
+    const response = await pythonFetch(PYTHON_STRUCTURING_MODELS_URL, {
       cache: "no-store",
     });
     if (!response.ok) {

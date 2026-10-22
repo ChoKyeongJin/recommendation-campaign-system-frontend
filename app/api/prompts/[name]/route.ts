@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { promptApiUrl, proxyPromptResponse } from "@/lib/prompt-api";
+import { pythonFetch } from "@/lib/python-api";
 
 type Params = { params: Promise<{ name: string }> };
 
@@ -21,7 +22,7 @@ function unreachable(error: unknown) {
 export async function GET(_request: Request, { params }: Params) {
   const { name } = await params;
   try {
-    const response = await fetch(targetUrl(name), { cache: "no-store" });
+    const response = await pythonFetch(targetUrl(name), { cache: "no-store" });
     return proxyPromptResponse(response);
   } catch (error) {
     return unreachable(error);
@@ -34,7 +35,7 @@ export async function PUT(request: Request, { params }: Params) {
   const body = await request.json().catch(() => null);
 
   try {
-    const response = await fetch(targetUrl(name), {
+    const response = await pythonFetch(targetUrl(name), {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body ?? {}),
@@ -50,7 +51,7 @@ export async function PUT(request: Request, { params }: Params) {
 export async function DELETE(_request: Request, { params }: Params) {
   const { name } = await params;
   try {
-    const response = await fetch(targetUrl(name), {
+    const response = await pythonFetch(targetUrl(name), {
       method: "DELETE",
       cache: "no-store",
     });

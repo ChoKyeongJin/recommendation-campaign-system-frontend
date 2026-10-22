@@ -9,6 +9,7 @@ import {
   suggestionFailureMessage,
   suggestionRequestBody,
 } from "@/lib/targeting-suggestion";
+import { pythonFetch } from "@/lib/python-api";
 
 /**
  * 주제 → 타겟 조건 문장 초안.
@@ -34,7 +35,7 @@ export async function POST(request: Request) {
 
   let upstream: Response;
   try {
-    upstream = await fetch(promptApiUrl("/target-sql/prompt-suggestions"), {
+    upstream = await pythonFetch(promptApiUrl("/target-sql/prompt-suggestions"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(suggestionRequestBody(topic, record?.structuringModel)),

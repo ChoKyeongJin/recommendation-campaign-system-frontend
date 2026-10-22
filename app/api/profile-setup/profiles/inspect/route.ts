@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { promptApiUrl, proxyPromptResponse } from "@/lib/prompt-api";
 import { settingsRequestIsSameOrigin } from "@/lib/settings-auth";
+import { pythonFetch } from "@/lib/python-api";
 
 export async function POST(request: Request) {
   if (!settingsRequestIsSameOrigin(request)) {
@@ -9,7 +10,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.text();
     if (body.length > 1000) return NextResponse.json({ detail: "입력이 너무 큽니다." }, { status: 413 });
-    return proxyPromptResponse(await fetch(promptApiUrl("/profile-setup/profiles/inspect"), {
+    return proxyPromptResponse(await pythonFetch(promptApiUrl("/profile-setup/profiles/inspect"), {
       method: "POST", headers: { "Content-Type": "application/json" }, body,
     }));
   } catch {

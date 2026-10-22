@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 
 import { promptApiUrl, proxyPromptResponse } from "@/lib/prompt-api";
+import { pythonFetch } from "@/lib/python-api";
 
 // GET /api/reference → 참조 파일(docs/data · docs/prompts) 목록 조회. 읽기 전용.
 export async function GET() {
   try {
-    const response = await fetch(promptApiUrl("/reference-files"), {
+    const response = await pythonFetch(promptApiUrl("/reference-files"), {
       cache: "no-store",
     });
     return proxyPromptResponse(response);

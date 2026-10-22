@@ -14,6 +14,8 @@ services:
       SETTINGS_SESSION_SECRET: "${SETTINGS_SESSION_SECRET:?Set a random server session secret}"
       PYTHON_PROMPT_API_BASE: "http://host.docker.internal:8000"
       PYTHON_TARGET_SQL_URL: "http://host.docker.internal:8000/target-sql"
+      # Python API 가 token 모드(API_ACCESS_TOKEN)면 같은 값을 둔다 — 서버 쪽 호출마다 Bearer 로 싣는다.
+      PYTHON_API_ACCESS_TOKEN: "${PYTHON_API_ACCESS_TOKEN:-}"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:

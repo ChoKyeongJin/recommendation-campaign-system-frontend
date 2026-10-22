@@ -20,6 +20,7 @@ import { mapSupportLimit } from "@/lib/support-limit";
 import { getTargetingResponseTransport } from "@/lib/targeting-progress";
 import { createTargetingProxyStream } from "@/lib/targeting-stream-proxy";
 import { requestLimitErrorResponse } from "@/lib/sql-request-limit";
+import { pythonFetch } from "@/lib/python-api";
 
 const PYTHON_TARGET_SQL_URL =
   process.env.PYTHON_TARGET_SQL_URL ?? "http://127.0.0.1:8000/target-sql";
@@ -1134,7 +1135,7 @@ export async function POST(request: Request) {
       ...(structuringModel ? { structuring_model: structuringModel } : {}),
     });
     let isStreamingResponse = wantsStream;
-    let pythonResponse = await fetch(
+    let pythonResponse = await pythonFetch(
       wantsStream ? pythonTargetSqlStreamUrl() : PYTHON_TARGET_SQL_URL,
       {
         method: "POST",
@@ -1152,7 +1153,7 @@ export async function POST(request: Request) {
     // 동일 JSON 경로로 한 번만 폴백한다. 처리 도중의 오류에는 재시도하지 않아 중복 실행을 막는다.
     if (wantsStream && [404, 405].includes(pythonResponse.status)) {
       isStreamingResponse = false;
-      pythonResponse = await fetch(PYTHON_TARGET_SQL_URL, {
+      pythonResponse = await pythonFetch(PYTHON_TARGET_SQL_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

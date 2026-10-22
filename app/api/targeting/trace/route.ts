@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { normalizeTargetingTrace, parsePythonResponse } from "@/lib/targeting-trace";
 import { requestLimitErrorResponse } from "@/lib/sql-request-limit";
+import { pythonFetch } from "@/lib/python-api";
 
 const PYTHON_TARGET_SQL_URL =
   process.env.PYTHON_TARGET_SQL_URL ?? "http://127.0.0.1:8000/target-sql";
@@ -21,7 +22,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const pythonResponse = await fetch(PYTHON_TARGET_SQL_TRACE_URL, {
+    const pythonResponse = await pythonFetch(PYTHON_TARGET_SQL_TRACE_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

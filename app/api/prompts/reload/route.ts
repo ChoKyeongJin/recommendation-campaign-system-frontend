@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 
 import { promptApiUrl, proxyPromptResponse } from "@/lib/prompt-api";
+import { pythonFetch } from "@/lib/python-api";
 
 // POST /api/prompts/reload → 실행 중인 서버 캐시 리로드("변경사항 적용")
 export async function POST() {
   try {
-    const response = await fetch(promptApiUrl("/prompts/reload"), {
+    const response = await pythonFetch(promptApiUrl("/prompts/reload"), {
       method: "POST",
       cache: "no-store",
     });

@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { promptApiUrl, proxyPromptResponse } from "@/lib/prompt-api";
 import { settingsRequestIsSameOrigin } from "@/lib/settings-auth";
+import { pythonFetch } from "@/lib/python-api";
 
 export async function GET() {
   try {
-    return proxyPromptResponse(await fetch(promptApiUrl("/profile-setup/apply"), { cache: "no-store" }));
+    return proxyPromptResponse(await pythonFetch(promptApiUrl("/profile-setup/apply"), { cache: "no-store" }));
   } catch {
     return NextResponse.json({ detail: "API가 재시작 중이거나 연결할 수 없습니다." }, { status: 502 });
   }
@@ -17,7 +18,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.text();
     if (body.length > 1000) return NextResponse.json({ detail: "입력이 너무 큽니다." }, { status: 413 });
-    return proxyPromptResponse(await fetch(promptApiUrl("/profile-setup/apply"), {
+    return proxyPromptResponse(await pythonFetch(promptApiUrl("/profile-setup/apply"), {
       method: "POST", headers: { "Content-Type": "application/json" }, body,
     }));
   } catch {

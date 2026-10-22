@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { promptApiUrl, proxyPromptResponse } from "@/lib/prompt-api";
 import { settingsRequestIsSameOrigin } from "@/lib/settings-auth";
+import { pythonFetch } from "@/lib/python-api";
 
 export async function GET() {
   try {
-    const response = await proxyPromptResponse(await fetch(promptApiUrl("/request-limits"), { cache: "no-store" }));
+    const response = await proxyPromptResponse(await pythonFetch(promptApiUrl("/request-limits"), { cache: "no-store" }));
     response.headers.set("Cache-Control", "no-store");
     return response;
   } catch {
@@ -19,7 +20,7 @@ export async function PUT(request: Request) {
   try {
     const body = await request.text();
     if (body.length > 4096) return NextResponse.json({ detail: "입력이 너무 큽니다." }, { status: 413 });
-    return proxyPromptResponse(await fetch(promptApiUrl("/request-limits"), {
+    return proxyPromptResponse(await pythonFetch(promptApiUrl("/request-limits"), {
       method: "PUT", headers: { "Content-Type": "application/json" }, body, cache: "no-store",
     }));
   } catch {
