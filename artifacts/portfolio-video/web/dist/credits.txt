@@ -1,0 +1,29 @@
+TARGET LAB piano soundtrack — sample attribution
+
+Piano samples: Salamander Grand Piano V3
+Sample author: Alexander Holm
+Instrument: Yamaha C5 acoustic grand piano
+Sample licence: Creative Commons Attribution 3.0 Unported (CC BY 3.0)
+Licence: https://creativecommons.org/licenses/by/3.0/
+Original library: https://archive.org/details/SalamanderGrandPianoV3
+Instrument information: https://sfzinstruments.github.io/pianos/salamander/
+
+Distributed sample package:
+@audio-samples/piano-velocity3, version 1.0.5
+https://www.npmjs.com/package/@audio-samples/piano-velocity3
+https://github.com/darosh/samples-piano
+
+The OGG files in piano-samples/ are unmodified copies of ten notes from the
+package's softly played velocity-3 layer. The distributor's sample information
+is preserved in sample-source-readme.txt.
+
+For this video, a new 45-second piano arrangement was sequenced from these
+individual notes. Playback includes pitch interpolation, note envelopes, stereo
+balance, light room reflections, equalization, and loudness adjustment. This is
+not an existing recorded musical performance or a claim of the sample author's
+endorsement. No percussion or continuous oscillator pad is used.
+
+Korean credit for use with the video:
+피아노 샘플: Salamander Grand Piano V3 / Alexander Holm / CC BY 3.0
+https://creativecommons.org/licenses/by/3.0/
+개별 샘플을 새로 편곡하고 음높이·잔향·음량을 조정했습니다.

@@ -9,12 +9,13 @@ const out=__dirname,FPS=30,DURATION=45,OUTRO_START=40;
 const capture=JSON.parse(fs.readFileSync(path.join(out,'capture.json'),'utf8'));
 const c=capture.clips,m=c.targeting.marks;
 const scenes=[
- {id:'input',number:'01',tag:'INPUT',start:5,end:15,clip:'targeting',from:m.ready,to:m.submit+.25,route:'',title:'찾고 싶은 고객을 한 문장으로',caption:'원하는 고객 조건을 <b>자연어로 입력</b>합니다.'},
- {id:'processing',number:'02',tag:'PROCESS',start:15,end:22,clip:'targeting',from:m.submit+.3,to:m.result-.1,route:'',title:'조건 해석부터 SQL 생성·검증까지',caption:'요청이 처리되는 과정을 <b>단계별로 확인</b>합니다.',note:'실제 화면 녹화 · 처리 대기 구간 축약'},
- {id:'result',number:'03',tag:'RESULT',start:22,end:32,clip:'targeting',from:m.result+.6,to:m.resultScroll-.2,route:'',title:'생성된 SQL과 추출 결과를 함께',caption:'<b>타겟 고객 수와 실행된 SQL</b>을 한 화면에서 확인합니다.',zoom:.025},
- {id:'audience',number:'03',tag:'AUDIENCE',start:32,end:40,clip:'targeting',from:m.resultScroll+.8,to:m.resultReturn-.2,route:'',title:'선택된 고객을 더 깊이 이해하기',caption:'연령·지역·등급별 분포로 <b>오디언스의 특성</b>을 살펴봅니다.'}
+ {id:'topic',number:'01',tag:'TOPIC',start:5,end:14,clip:'targeting',from:m.ready,to:m.draft+.3,route:'',title:'캠페인 주제로 타겟 조건 초안 만들기',caption:'주제를 입력하면 <b>타겟 조건 문장</b>을 생성합니다.',note:'실제 화면 녹화 · 생성 대기 구간 축약'},
+ {id:'input',number:'02',tag:'DRAFT',start:14,end:21,clip:'targeting',from:m.draft+.4,to:m.submit+.25,route:'',title:'생성된 조건과 해석 모델 확인',caption:'<b>조건 초안과 근거</b>를 검토한 뒤 타겟을 추출합니다.'},
+ {id:'processing',number:'03',tag:'PROCESS',start:21,end:28,clip:'targeting',from:m.submit+.3,to:m.result-.1,route:'',title:'조건 해석부터 SQL 생성·검증까지',caption:'요청이 처리되는 과정을 <b>단계별로 확인</b>합니다.',note:'실제 화면 녹화 · 처리 대기 구간 축약'},
+ {id:'result',number:'04',tag:'RESULT',start:28,end:35,clip:'targeting',from:m.result+.6,to:m.resultScroll-.2,route:'',title:'생성된 SQL과 추출 결과를 함께',caption:'<b>타겟 고객 수와 실행된 SQL</b>을 한 화면에서 확인합니다.',zoom:.025},
+ {id:'audience',number:'05',tag:'AUDIENCE',start:35,end:40,clip:'targeting',from:m.resultScroll+.8,to:m.resultReturn-.2,route:'',title:'선택된 고객을 더 깊이 이해하기',caption:'연령·지역·등급별 분포로 <b>오디언스의 특성</b>을 살펴봅니다.'}
 ];
-if(!audioOnly)fs.writeFileSync(path.join(out,'edit.json'),JSON.stringify({duration:DURATION,outroStart:OUTRO_START,fps:FPS,clips:{targeting:c.targeting},scenes},null,2));
+if(!audioOnly)fs.writeFileSync(path.join(out,'edit.json'),JSON.stringify({capturedAt:capture.capturedAt,sourceCommit:capture.sourceCommit,duration:DURATION,outroStart:OUTRO_START,fps:FPS,clips:{targeting:c.targeting},scenes},null,2));
 const time=t=>{const ms=Math.round(t*1000);return `${String(Math.floor(ms/3600000)).padStart(2,'0')}:${String(Math.floor(ms/60000)%60).padStart(2,'0')}:${String(Math.floor(ms/1000)%60).padStart(2,'0')},${String(ms%1000).padStart(3,'0')}`};
 const subs=[{start:0,end:5,caption:'한 문장으로, 타겟 고객을 찾다.\n자연어 조건을 SQL과 오디언스로.'},...scenes,{start:OUTRO_START,end:DURATION,caption:'조건은 자연스럽게. 결과는 명확하게.\nTARGET LAB'}];
 if(!audioOnly)fs.writeFileSync(path.join(out,'target-lab-targeting.ko.srt'),subs.map((s,i)=>`${i+1}\n${time(s.start)} --> ${time(s.end)}\n${s.caption.replace(/<[^>]*>/g,'')}\n`).join('\n'),'utf8');
@@ -45,7 +46,7 @@ const server=http.createServer((req,res)=>{
  page.on('pageerror',e=>console.error('PAGE',e.message));
  await page.goto(`http://127.0.0.1:${server.address().port}/film.html`);await page.evaluate(()=>window.init());
  fs.mkdirSync(path.join(out,'review'),{recursive:true});
- for(const t of [2.7,10,18,27,36,42]) {await page.evaluate(t=>window.renderFrame(t),t);await page.screenshot({path:path.join(out,'review',`targeting-frame-${String(t).replace('.','-')}.jpg`),type:'jpeg',quality:90});}
+ for(const t of [2.7,10,18,25,31,37,42]) {await page.evaluate(t=>window.renderFrame(t),t);await page.screenshot({path:path.join(out,'review',`targeting-frame-${String(t).replace('.','-')}.jpg`),type:'jpeg',quality:90});}
  await page.evaluate(()=>window.renderFrame(2.7));await page.screenshot({path:path.join(out,'target-lab-thumbnail.png')});
  if(process.argv.includes('--preview')){await browser.close();server.close();console.log('Preview frames ready');return}
  music();

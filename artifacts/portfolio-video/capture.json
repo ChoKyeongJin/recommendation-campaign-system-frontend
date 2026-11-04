@@ -1,22 +1,29 @@
 {
-    "capturedAt":  "2026-10-09T03:24:01.258Z",
-    "origin":  "http://localhost:3000",
-    "viewport":  {
-                     "width":  1440,
-                     "height":  800
-                 },
-    "clips":  {
-                  "targeting":  {
-                                    "file":  "raw\\page@e537b99a34f29a18e56bff378938ff1a.webm",
-                                    "marks":  {
-                                                  "ready":  1.862,
-                                                  "typing":  3.883,
-                                                  "submit":  7.18,
-                                                  "result":  31.218,
-                                                  "resultScroll":  36.812,
-                                                  "resultReturn":  41.374,
-                                                  "end":  43.654
-                                              }
-                                }
-              }
+  "capturedAt": "2026-11-04T15:56:27.705Z",
+  "sourceCommit": "0edd9d93175b29b5bd340e5f6067dbe74200e190",
+  "origin": "http://localhost:3000",
+  "viewport": {
+    "width": 1440,
+    "height": 800
+  },
+  "clips": {
+    "targeting": {
+      "file": "raw\\page@303f04304364891575c05d384cc7e70f.webm",
+      "marks": {
+        "ready": 1.828,
+        "typing": 3.857,
+        "suggest": 6.313,
+        "draft": 18.324,
+        "submit": 24.763,
+        "result": 69.094,
+        "resultScroll": 74.688,
+        "resultReturn": 79.272,
+        "end": 81.56
+      },
+      "topic": "30대 여성 고객",
+      "prompt": "나이가 30 이상 39 이하이고 성별이 여성인 활성 고객인 고객",
+      "resultText": "본문으로 바로가기\nTARGET LAB\n타겟 만들기\n모니터링\n설정\n\n조건부터 오디언스까지\n\n더 쉬운 타겟팅의 시작\n워크스페이스\n/\n타겟 만들기\nT\n내 워크스페이스\n타겟 결과를 확인해 보세요\n\n입력한 조건으로 생성된 SQL과 오디언스를 확인하고 조건을 다듬어 보세요.\n\n조건 입력\n02\n타겟 결과\n오늘 48회 남음\n2 / 50회 사용 · 전체 사용자 합산 · 한국시간 자정 초기화\n한도 설정\n타겟팅 결과\n타겟팅 프롬프트를 기준으로 SQL을 실행한 결과입니다.\nLLM 5회\n·\n캐시 0/152,264 토큰 (0.0%)\n·\n최소 $0.2448\n단가 미선언 gpt-4o-mini\n\n타겟팅 프롬프트\n\n나이가 30 이상 39 이하이고 성별이 여성인 활성 고객인 고객\n\n추출된 타겟 고객 수\n\n24명\n\n조회 결과 행 수\n\n24건\n\n실행된 SQL\n\nread-only\n복사\nSELECT DISTINCT B.customer_id AS CUST_ID, B.membership_level AS member_grade,\n  '나이 >= 30, 나이 <= 39, 성별 = F, 고객 상태 = ACTIVE' AS segment_label\nFROM cust_profile B\nWHERE B.customer_status = 'ACTIVE'\n  AND (\n    (B.age >= 30)\n      AND (B.age <= 39)\n      AND (B.gender = 'F')\n      AND (B.customer_status = 'ACTIVE')\n  )\n\n성별\n\n여성\n24명\n\n연령대\n\n30대\n24명\n\n지역\n\n강원\n4명\n전남\n4명\n제주\n3명\n충남\n3명\n경기\n2명\n전북\n2명\n외 6개 더보기\n\n등급\n\n브론즈\n11명\n실버\n8명\n골드\n3명\nVIP\n2명\n돌아가기",
+      "text": "본문으로 바로가기\nTARGET LAB\n타겟 만들기\n모니터링\n설정\n\n조건부터 오디언스까지\n\n더 쉬운 타겟팅의 시작\n워크스페이스\n/\n타겟 만들기\nT\n내 워크스페이스\n타겟 결과를 확인해 보세요\n\n입력한 조건으로 생성된 SQL과 오디언스를 확인하고 조건을 다듬어 보세요.\n\n조건 입력\n02\n타겟 결과\n오늘 48회 남음\n2 / 50회 사용 · 전체 사용자 합산 · 한국시간 자정 초기화\n한도 설정\n타겟팅 결과\n타겟팅 프롬프트를 기준으로 SQL을 실행한 결과입니다.\nLLM 5회\n·\n캐시 0/152,264 토큰 (0.0%)\n·\n최소 $0.2448\n단가 미선언 gpt-4o-mini\n\n타겟팅 프롬프트\n\n나이가 30 이상 39 이하이고 성별이 여성인 활성 고객인 고객\n\n추출된 타겟 고객 수\n\n24명\n\n조회 결과 행 수\n\n24건\n\n실행된 SQL\n\nread-only\n복사\nSELECT DISTINCT B.customer_id AS CUST_ID, B.membership_level AS member_grade,\n  '나이 >= 30, 나이 <= 39, 성별 = F, 고객 상태 = ACTIVE' AS segment_label\nFROM cust_profile B\nWHERE B.customer_status = 'ACTIVE'\n  AND (\n    (B.age >= 30)\n      AND (B.age <= 39)\n      AND (B.gender = 'F')\n      AND (B.customer_status = 'ACTIVE')\n  )\n\n성별\n\n여성\n24명\n\n연령대\n\n30대\n24명\n\n지역\n\n강원\n4명\n전남\n4명\n제주\n3명\n충남\n3명\n경기\n2명\n전북\n2명\n외 6개 더보기\n\n등급\n\n브론즈\n11명\n실버\n8명\n골드\n3명\nVIP\n2명\n돌아가기"
+    }
+  }
 }
