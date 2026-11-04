@@ -12,6 +12,8 @@ Dockerfile
 .env*.local
 *.md
 *.png
+!artifacts/portfolio-video/target-lab-thumbnail.png
+public/portfolio-video
 .DS_Store
 .claude
 tsconfig.tsbuildinfo

@@ -15,3 +15,10 @@ const htmlPath = path.join(out, 'index.html');
 fs.writeFileSync(htmlPath, fs.readFileSync(htmlPath, 'utf8').replace(/\d{4}\.\d{2}\.\d{2} 업데이트/, date + ' 업데이트'));
 fs.writeFileSync(path.join(out, 'version.json'), JSON.stringify({ capturedAt: capture.capturedAt, sourceCommit: capture.sourceCommit, duration: 45, resolution: '1920x1080' }, null, 2));
 console.log('Web assets prepared:', out);
+// Next.js serves public files directly, including in the standalone Docker image.
+const publicOut = path.resolve(__dirname, '../../public/portfolio-video');
+fs.mkdirSync(publicOut, { recursive: true });
+for (const name of ['index.html', 'target-lab-targeting-1080p.mp4', 'target-lab-thumbnail.png', 'target-lab-targeting.ko.vtt', 'credits.txt', 'font.woff2', 'version.json']) {
+  fs.copyFileSync(path.join(out, name), path.join(publicOut, name));
+}
+console.log('Next.js video page prepared: /portfolio-video/index.html');

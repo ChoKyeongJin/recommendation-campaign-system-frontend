@@ -5,7 +5,7 @@
   "packageManager": "pnpm@10.24.0",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node artifacts/portfolio-video/prepare-web.cjs && next build",
     "start": "next start",
     "lint": "eslint .",
     "test": "node --experimental-strip-types --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test lib/*.test.ts"

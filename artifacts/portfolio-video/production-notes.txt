@@ -47,6 +47,9 @@ TARGET LAB — 타겟 만들기 포트폴리오 영상
 - prepare-web.cjs: 웹 배포용 영상·폰트·WebVTT 자막·버전 정보 준비
 - web/dist/index.html: 반응형 웹 재생 페이지와 장면 바로가기
 - web/.openai/hosting.json: Sites 배포 대상
+- npm run build / pnpm build 시 public/portfolio-video/에 재생 파일을 자동 준비합니다.
+- 서버 배포 후 재생 주소: http://3.39.216.91/portfolio-video/index.html
+- public/portfolio-video/는 생성 파일이며 Docker standalone 이미지에도 포함됩니다.
 - 촬영 시각과 전체 소스 커밋은 capture.json 및 edit.json에 기록했습니다.
 
 이 PC에서 재렌더링
