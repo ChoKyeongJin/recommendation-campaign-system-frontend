@@ -5,9 +5,6 @@ import {
   Ban,
   Check,
   Copy,
-  Database,
-  MessageSquareText,
-  Users,
 } from "lucide-react";
 import {
   Card,
@@ -60,7 +57,7 @@ function CopyButton({ text }: { text: string }) {
       aria-label={label}
       aria-live="polite"
       title={label}
-      className="absolute right-2 top-2 z-10 inline-flex items-center gap-1 rounded-md bg-background/10 px-2 py-1 text-xs text-background transition-colors hover:bg-background/20"
+      className="absolute right-2 top-2 z-10 inline-flex min-h-9 items-center gap-1.5 rounded-md border border-background/25 px-2.5 text-xs text-background transition-colors hover:bg-background/10"
     >
       {copied ? (
         <>
@@ -89,8 +86,8 @@ function SegmentGroupCard({ group }: { group: TargetSegmentGroup }) {
   const overflowCount = sorted.length - visible.length;
 
   return (
-    <div className="rounded-lg border border-border bg-card p-4">
-      <p className="text-sm font-medium text-foreground">{group.title}</p>
+    <div className="rounded-lg border border-border bg-card p-5">
+      <p className="text-[15px] font-semibold text-foreground">{group.title}</p>
       {group.reason && (
         <p className="mb-3 mt-0.5 text-xs text-muted-foreground">
           {group.reason}
@@ -107,15 +104,15 @@ function SegmentGroupCard({ group }: { group: TargetSegmentGroup }) {
                 {segment.label}
               </span>
               {typeof segment.count === "number" && (
-                <span className="shrink-0 font-medium text-muted-foreground">
+                <span className="shrink-0 font-mono text-[13px] font-medium text-foreground">
                   {segment.count.toLocaleString()}명
                 </span>
               )}
             </div>
             {typeof segment.count === "number" && max > 0 && (
-              <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
+              <div className="h-1 w-full overflow-hidden bg-background">
                 <div
-                  className="h-full rounded-full bg-primary"
+                  className="h-full bg-foreground"
                   style={{ width: `${(segment.count / max) * 100}%` }}
                 />
               </div>
@@ -233,13 +230,11 @@ export function StepTargeting({
       label: "추출된 타겟 고객 수",
       value: result.total,
       suffix: "명",
-      icon: Users,
     },
     {
       label: "조회 결과 행 수",
       value: result.resultRowCount,
       suffix: "건",
-      icon: Database,
     },
   ];
 
@@ -247,7 +242,7 @@ export function StepTargeting({
     <div className="flex flex-col gap-6">
       <Card>
         <CardHeader>
-          <CardTitle>{awaitingClarification ? "타겟 조건 확인" : "타겟팅 결과"}</CardTitle>
+          <CardTitle className="text-2xl font-semibold tracking-[-0.02em]">{awaitingClarification ? "타겟 조건 확인" : "타겟팅 결과"}</CardTitle>
           <CardDescription>
             {awaitingClarification
               ? "아직 고객을 추출하지 않았습니다. 아래 조건을 확인해 주세요."
@@ -259,15 +254,12 @@ export function StepTargeting({
         <CardContent className="flex flex-col gap-6">
           <AccountingRow accounting={accounting} />
           {targetingPrompt && (
-            <div className="flex gap-3 rounded-lg border border-border bg-accent p-4">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <MessageSquareText className="h-5 w-5" aria-hidden />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-medium text-muted-foreground">
+            <div className="rounded-lg bg-background px-5 py-4">
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-muted-foreground">
                   타겟팅 프롬프트
                 </p>
-                <p className="mt-1 whitespace-pre-wrap break-words text-sm text-foreground">
+                <p className="mt-1.5 whitespace-pre-wrap break-words text-base leading-relaxed text-foreground">
                   {targetingPrompt}
                 </p>
                 {showOriginalPrompt && (
@@ -307,52 +299,44 @@ export function StepTargeting({
               {/* 건수를 먼저 보여 준다 — 사람이 먼저 확인하는 것은 몇 명이 뽑혔는가이고,
                   SQL 은 그 수가 어떻게 나왔는지 확인할 때 읽는다. */}
               {!isFailed && (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {metrics.map((metric) => {
-                    const Icon = metric.icon;
-                    return (
-                      <div
-                        key={metric.label}
-                        className="flex items-center gap-3 rounded-lg border border-border bg-accent p-4"
-                      >
-                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                          <Icon className="h-5 w-5" aria-hidden />
+                <div className="grid gap-px border-y border-border border-t-foreground bg-border sm:grid-cols-2">
+                  {metrics.map((metric, index) => (
+                    <div key={metric.label} className="min-w-0 bg-card px-5 pb-6 pt-4">
+                      <p className="flex justify-between gap-3 text-[13px] text-muted-foreground">
+                        <span>{metric.label}</span>
+                        <span className="font-mono text-[11px] tracking-[0.08em]" aria-hidden>{`0${index + 1}`}</span>
+                      </p>
+                      <p className="mt-3 flex flex-wrap items-baseline gap-x-2">
+                        <span className="font-display text-[clamp(3.5rem,6vw,6rem)] leading-[0.95] tracking-[-0.02em] text-foreground">
+                          {typeof metric.value === "number"
+                            ? metric.value.toLocaleString()
+                            : "-"}
                         </span>
-                        <div className="min-w-0">
-                          <p className="text-xs text-muted-foreground">
-                            {metric.label}
-                          </p>
-                          <p className="font-sans text-2xl font-bold text-foreground">
-                            {typeof metric.value === "number"
-                              ? metric.value.toLocaleString()
-                              : "-"}
-                            {typeof metric.value === "number" && (
-                              <span className="ml-1 text-sm font-medium text-muted-foreground">
-                                {metric.suffix}
-                              </span>
-                            )}
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })}
+                        {typeof metric.value === "number" && (
+                          <span className="text-lg font-medium text-muted-foreground">
+                            {metric.suffix}
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  ))}
                 </div>
               )}
 
               {/* 실패(failureStage)면 실행되지 않았으므로 "생성된 SQL(미실행)"로, 성공이면 "실행된 SQL"로 라벨링한다. */}
               <div className="flex flex-col gap-3">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-medium text-foreground">
+                  <p className="text-base font-semibold text-foreground">
                     {result.failureStage
                       ? "생성된 SQL (검증 실패 · 미실행)"
                       : "실행된 SQL"}
                   </p>
-                  <Badge variant="secondary">read-only</Badge>
+                  <Badge variant="outline" className="font-mono uppercase tracking-[0.08em]">read-only</Badge>
                 </div>
                 {formattedSql ? (
                   <div className="relative">
                     <CopyButton text={formattedSql} />
-                    <pre className="overflow-x-auto rounded-lg bg-foreground p-4 pr-20 text-xs leading-relaxed text-background">
+                    <pre className="overflow-x-auto rounded-lg bg-foreground p-5 pr-20 text-[13px] leading-relaxed text-sand">
                       <code className="font-mono">{formattedSql}</code>
                     </pre>
                   </div>

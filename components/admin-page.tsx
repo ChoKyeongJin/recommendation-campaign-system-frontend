@@ -19,11 +19,11 @@ export function AdminPage({ title, description, kind, children }: {
     <main className={`admin-workspace admin-${kind}`}>
       <header className="admin-page-header">
         <div>
-          <p className="admin-eyebrow"><span />{kind === "monitoring" ? "REQUEST MONITORING" : isSettings ? "WORKSPACE SETTINGS" : "TARGET LAB GUIDE"}</p>
+          <p className="admin-eyebrow">{kind === "monitoring" ? "Request monitoring" : isSettings ? "Workspace settings" : "Target Lab guide"}</p>
           <h1>{title}</h1>
           <p className="admin-page-description">{description}</p>
         </div>
-        <span className="admin-page-emblem"><Icon size={28} strokeWidth={1.6} aria-hidden /></span>
+        <span className="admin-page-emblem"><Icon size={24} strokeWidth={1.6} aria-hidden /></span>
       </header>
       {isSettings ? (
         <nav className="admin-section-nav" aria-label="설정 메뉴">

@@ -232,6 +232,7 @@ export function CampaignWizard() {
     <main className="target-workspace">
       <header className="target-page-header">
         <div>
+          <p className="target-eyebrow">Step 0{step + 1} / 02</p>
           <h1>{step === 0 ? "어떤 고객을 찾고 있나요?" : "타겟 결과를 확인해 보세요"}</h1>
           <p>{step === 0
             ? "자연어로 조건을 입력하면 타겟 SQL과 오디언스를 생성합니다."

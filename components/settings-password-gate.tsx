@@ -52,10 +52,10 @@ export function SettingsPasswordGate({ children, area = "설정" }: { children: 
   return (
     <main className="admin-workspace">
       <section aria-labelledby={`${inputId}-title`} className="mx-auto my-8 w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-sm sm:my-16 sm:p-8">
-        <span className="mb-5 inline-flex rounded-xl bg-muted p-3 text-primary">
-          <LockKeyhole size={24} aria-hidden />
+        <span className="mb-5 inline-flex rounded-xl border border-foreground p-3 text-foreground">
+          <LockKeyhole size={22} aria-hidden />
         </span>
-        <h1 id={`${inputId}-title`} className="text-2xl font-semibold tracking-tight">{area} 비밀번호 확인</h1>
+        <h1 id={`${inputId}-title`} className="text-2xl font-semibold tracking-[-0.02em]">{area} 비밀번호 확인</h1>
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{area} 화면에 들어가려면 설정 비밀번호를 입력해 주세요.</p>
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <div className="space-y-2">
@@ -83,7 +83,7 @@ export function SettingsPasswordGate({ children, area = "설정" }: { children: 
           </div>
           <div className="flex gap-3">
             <Link href="/" className="inline-flex flex-1 items-center justify-center rounded-lg border border-border px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring">취소</Link>
-            <button type="submit" disabled={!password || submitting} className="flex-1 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-50">{submitting ? "확인 중…" : "확인"}</button>
+            <button type="submit" disabled={!password || submitting} className="flex-1 rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-brand-foreground transition-colors hover:bg-brand/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:bg-border disabled:text-muted-foreground">{submitting ? "확인 중…" : "확인"}</button>
           </div>
         </form>
       </section>

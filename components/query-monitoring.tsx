@@ -19,7 +19,7 @@ function FailureRow({ item }: { item: FailureRecord }) {
       </div>
       <p className="line-clamp-2 min-w-0 whitespace-pre-wrap break-words text-sm font-semibold leading-6">{item.prompt || "자연어 내용 없음"}</p>
       <div className="min-w-0">
-        <span className="mb-1.5 inline-flex rounded-md bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">{failureStages[item.failure_stage] ?? item.failure_stage}</span>
+        <span className="mb-1.5 inline-flex rounded-full bg-brand-soft px-2.5 py-0.5 text-xs font-medium text-brand">{failureStages[item.failure_stage] ?? item.failure_stage}</span>
         <p className="line-clamp-2 break-words text-sm leading-6 text-muted-foreground">{failureSummary(item)}</p>
       </div>
       <span className="flex items-center gap-1 text-xs text-muted-foreground lg:self-center"><span className="lg:sr-only">상세 보기</span><ChevronDown size={18} className="shrink-0 transition group-open:rotate-180" aria-hidden /></span>
@@ -102,9 +102,10 @@ export function QueryMonitoring() {
   const hasFilters = Object.values(filters).some((value) => value.trim());
 
   return <section className="space-y-5" aria-label="실패 요청 모니터링">
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card px-5 py-4">
-      <div className="flex items-center gap-3"><span className="rounded-lg bg-red-50 p-2.5 text-red-600"><AlertCircle size={21} aria-hidden /></span>
-        <div><p className="text-sm font-semibold">실패한 자연어 요청</p><p className="mt-1 text-xs text-muted-foreground">저장된 실패 기록을 최신순으로 표시합니다.</p></div>
+    <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4 border-t border-foreground pt-4">
+      <div className="flex flex-wrap items-end gap-x-8 gap-y-3">
+        <div><p className="text-base font-semibold">실패한 자연어 요청</p><p className="mt-1 text-[13px] text-muted-foreground">저장된 실패 기록을 최신순으로 표시합니다.</p></div>
+        {data && <p className="flex items-baseline gap-2"><span className="font-display text-5xl leading-none tracking-[-0.02em]">{data.total.toLocaleString("ko-KR")}</span><span className="text-sm font-medium text-muted-foreground">건</span></p>}
       </div>
       <button type="button" onClick={() => setRefresh((value) => value + 1)} disabled={loading} className={buttonClass}>
         <RefreshCw size={15} className={loading ? "animate-spin" : ""} aria-hidden />새로고침
@@ -119,7 +120,7 @@ export function QueryMonitoring() {
         <label className="space-y-2 text-xs font-medium"><span>실패 단계</span><select className={inputClass} value={draft.stage} onChange={(event) => setDraft({ ...draft, stage: event.target.value })}>
           <option value="">전체 단계</option>{Object.entries(failureStages).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </select></label>
-        <div className="flex gap-2"><button className={`${buttonClass} !border-primary !bg-primary !text-primary-foreground`} type="submit"><Search size={15} aria-hidden />검색</button><button className={buttonClass} type="button" onClick={reset}>초기화</button></div>
+        <div className="flex gap-2"><button className={`${buttonClass} !border-brand !bg-brand !text-brand-foreground hover:!bg-brand/90`} type="submit"><Search size={15} aria-hidden />검색</button><button className={buttonClass} type="button" onClick={reset}>초기화</button></div>
       </div>
       {formError && <p role="alert" className="text-sm text-destructive">{formError}</p>}
       <p className="text-xs leading-5 text-muted-foreground">기간은 실패 기록일 기준이며, 모든 시각은 한국시간(KST)입니다.</p>
@@ -133,7 +134,7 @@ export function QueryMonitoring() {
       {loading ? <div role="status" className="flex items-center justify-center gap-2 p-16 text-sm text-muted-foreground"><Loader2 size={18} className="animate-spin" aria-hidden />실패 기록을 불러오는 중입니다.</div>
         : error ? <div role="alert" className="space-y-4 p-8 text-center"><AlertCircle className="mx-auto text-destructive" size={28} aria-hidden /><p className="text-sm">{error}</p><button type="button" className={buttonClass} onClick={() => setRefresh((value) => value + 1)}>다시 시도</button></div>
           : data?.items.length ? <>
-            <div className="hidden grid-cols-[180px_minmax(0,1.15fr)_minmax(0,1fr)_24px] gap-6 border-b border-border bg-muted/40 px-5 py-3 text-xs font-medium text-muted-foreground lg:grid" aria-hidden><span>시각</span><span>요청한 자연어</span><span>실패 단계 · 원인</span><span /></div>
+            <div className="hidden grid-cols-[180px_minmax(0,1.15fr)_minmax(0,1fr)_24px] gap-6 border-b border-border bg-muted px-5 py-3 font-mono text-[11px] font-medium tracking-[0.08em] text-muted-foreground lg:grid" aria-hidden><span>시각</span><span>요청한 자연어</span><span>실패 단계 · 원인</span><span /></div>
             <div>{data.items.map((item) => <FailureRow key={item.failure_log_id} item={item} />)}</div>
           </> : <div role="status" className="space-y-2 p-12 text-center"><Inbox size={30} className="mx-auto mb-3 text-muted-foreground" aria-hidden /><p className="text-sm font-medium">{hasFilters ? "검색 조건에 맞는 실패 기록이 없습니다." : "저장된 실패 기록이 없습니다."}</p><p className="text-xs text-muted-foreground">{hasFilters ? "기간이나 검색어를 바꿔 확인해 보세요." : "실패한 요청이 기록되면 이곳에서 확인할 수 있습니다."}</p></div>}
       {data && data.total > 0 && <nav className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-5 py-4" aria-label="실패 기록 페이지">

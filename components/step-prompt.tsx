@@ -9,13 +9,10 @@ import {
   Sparkles,
   XCircle,
   ArrowRight,
+  ArrowUpRight,
   Brain,
-  CalendarDays,
   ChevronDown,
-  ChevronRight,
   Info,
-  ShoppingCart,
-  Users,
 } from "lucide-react";
 
 import { Textarea } from "@/components/ui/textarea";
@@ -96,7 +93,7 @@ function LlmCallList({ calls }: { calls: TargetingLlmCallEvent[] }) {
             className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground"
           >
             <Icon
-              className={`h-3 w-3 shrink-0 ${waiting ? "animate-spin text-primary" : failed ? "text-destructive" : "text-violet-500"}`}
+              className={`h-3 w-3 shrink-0 ${waiting ? "animate-spin text-primary" : failed ? "text-destructive" : "text-brand"}`}
               aria-hidden
             />
             <span className="shrink-0 rounded bg-secondary px-1 font-mono text-[10px] text-secondary-foreground">
@@ -135,13 +132,19 @@ const EXAMPLES = [
 ];
 
 const EXAMPLE_CARDS = [
-  { index: 0, category: "구매 감소", tone: "blue", title: "이전 달보다 구매금액이 줄어든 고객", description: "두 달의 구매금액을 비교해 감소한 고객을 찾습니다." },
-  { index: 1, category: "충성 고객", tone: "teal", title: "3개월 연속 구매한 고객", description: "지정한 3개월 동안 연속으로 구매한 고객을 찾습니다." },
-  { index: 2, category: "인기 상품", tone: "orange", title: "판매 상위 상품을 구매한 고객", description: "특정 기간 동안 판매량 상위 상품을 구매한 고객을 찾습니다." },
-  { index: 3, category: "재활성화", tone: "purple", title: "90일간 구매하지 않은 고객", description: "최근 90일간 구매 이력이 없는 캠페인 참여 고객을 찾습니다." },
-  { index: 5, category: "고객 케어", tone: "pink", title: "부정적인 피드백이 많은 VIP 고객", description: "불만 접수 또는 부정적인 피드백이 많은 VIP 고객을 찾습니다." },
-  { index: 6, category: "전환 유도", tone: "yellow", title: "캠페인 참여 후 구매하지 않은 고객", description: "캠페인에 참여했지만 구매로 전환되지 않은 고객을 찾습니다." },
-  { index: 4, category: "관심 상품", tone: "blue", title: "같은 카테고리의 다른 상품을 구매한 고객", description: "인기 상품 대신 같은 카테고리 상품을 구매한 고객을 찾습니다." },
+  { index: 0, category: "구매 감소", title: "이전 달보다 구매금액이 줄어든 고객", description: "두 달의 구매금액을 비교해 감소한 고객을 찾습니다." },
+  { index: 1, category: "충성 고객", title: "3개월 연속 구매한 고객", description: "지정한 3개월 동안 연속으로 구매한 고객을 찾습니다." },
+  { index: 2, category: "인기 상품", title: "판매 상위 상품을 구매한 고객", description: "특정 기간 동안 판매량 상위 상품을 구매한 고객을 찾습니다." },
+  { index: 3, category: "재활성화", title: "90일간 구매하지 않은 고객", description: "최근 90일간 구매 이력이 없는 캠페인 참여 고객을 찾습니다." },
+  { index: 5, category: "고객 케어", title: "부정적인 피드백이 많은 VIP 고객", description: "불만 접수 또는 부정적인 피드백이 많은 VIP 고객을 찾습니다." },
+  { index: 6, category: "전환 유도", title: "캠페인 참여 후 구매하지 않은 고객", description: "캠페인에 참여했지만 구매로 전환되지 않은 고객을 찾습니다." },
+  { index: 4, category: "관심 상품", title: "같은 카테고리의 다른 상품을 구매한 고객", description: "인기 상품 대신 같은 카테고리 상품을 구매한 고객을 찾습니다." },
+];
+
+const GUIDE_ITEMS = [
+  { title: "대상 고객", description: "고객의 특성, 멤버십 등" },
+  { title: "조회 기간", description: "특정 기간의 구매 이력, 캠페인 참여 등" },
+  { title: "행동 조건", description: "구매, 미구매, 캠페인 참여, 상품 조회 등" },
 ];
 
 export function StepPrompt({
@@ -382,33 +385,35 @@ export function StepPrompt({
         </div>
       </section>
       <aside className="target-guide" aria-labelledby="target-guide-title">
-        <h2 id="target-guide-title">이렇게 입력해 보세요</h2>
-        <p>아래 항목을 참고해 원하는 고객을<br className="hidden xl:block" /> 자연어로 설명해 보세요.</p>
-        <ul className="target-guide-list">
-          {[
-            { icon: Users, title: "대상 고객", description: "고객의 특성, 멤버십 등" },
-            { icon: CalendarDays, title: "조회 기간", description: "특정 기간의 구매 이력, 캠페인 참여 등" },
-            { icon: ShoppingCart, title: "행동 조건", description: "구매, 미구매, 캠페인 참여, 상품 조회 등" },
-          ].map(({ icon: Icon, title, description }) => (
-            <li key={title}><span className="guide-icon"><Icon size={23} strokeWidth={1.8} aria-hidden /></span><div><h3>{title}</h3><p>{description}</p></div></li>
+        <div>
+          <p className="target-eyebrow">Guide</p>
+          <h2 id="target-guide-title">이렇게 입력해 보세요</h2>
+          <p>아래 항목을 참고해 원하는 고객을 자연어로 설명해 보세요.</p>
+        </div>
+        <ol className="target-guide-list">
+          {GUIDE_ITEMS.map(({ title, description }, index) => (
+            <li key={title}><span className="guide-index" aria-hidden>{`0${index + 1}`}</span><div><h3>{title}</h3><p>{description}</p></div></li>
           ))}
-        </ul>
-        <div className="guide-example"><span>입력 예시</span><p>“지난 90일간 구매하지 않은 캠페인 참여 고객”</p></div>
+        </ol>
+        <figure className="guide-example"><figcaption>입력 예시</figcaption><blockquote>“지난 90일간 구매하지 않은 캠페인 참여 고객”</blockquote></figure>
       </aside>
       </div>
       <section className="target-examples" aria-labelledby="examples-title">
         <div className="examples-heading">
-          <div><h2 id="examples-title">빠르게 시작하기</h2><p>예시를 선택하고 조건을 수정해 보세요.</p></div>
+          <div><p className="target-eyebrow">Quick start</p><h2 id="examples-title">빠르게 시작하기</h2><p>예시를 선택하고 조건을 수정해 보세요.</p></div>
           <button type="button" aria-expanded={showAllExamples} aria-controls="target-example-list" onClick={() => setShowAllExamples(!showAllExamples)}>
             {showAllExamples ? "예시 접기" : "예시 더 보기"}<ArrowRight size={17} aria-hidden />
           </button>
         </div>
         <div id="target-example-list" className="target-example-grid">
-          {EXAMPLE_CARDS.slice(0, showAllExamples ? undefined : 6).map((example) => (
+          {EXAMPLE_CARDS.slice(0, showAllExamples ? undefined : 6).map((example, order) => (
             <button type="button" key={example.index} className="target-example-card" disabled={isExtracting}
               onClick={() => { setPrompt(EXAMPLES[example.index]); promptRef.current?.focus(); }}>
-              <span className={`example-tag tag-${example.tone}`}>{example.category}</span>
-              <h3>{example.title}</h3><p>{example.description}</p><ChevronRight className="example-arrow" size={19} aria-hidden />
+              <span className="example-card-top">
+                <span className="example-tag">{example.category}</span>
+                <span className="example-index" aria-hidden>{String(order + 1).padStart(2, "0")}</span>
+              </span>
+              <h3>{example.title}</h3><p>{example.description}</p><ArrowUpRight className="example-arrow" size={18} aria-hidden />
             </button>
           ))}
         </div>

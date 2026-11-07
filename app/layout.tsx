@@ -1,11 +1,12 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
+import { Geist, IBM_Plex_Mono, Instrument_Serif } from 'next/font/google'
 import './globals.css'
 import { WorkspaceShell } from '@/components/workspace-shell'
 
 const geistSans = Geist({ subsets: ['latin'], variable: '--font-geist-sans' })
-const geistMono = Geist_Mono({ subsets: ['latin'], variable: '--font-geist-mono' })
+const plexMono = IBM_Plex_Mono({ subsets: ['latin'], weight: ['400', '500'], variable: '--font-plex-mono' })
+const instrumentSerif = Instrument_Serif({ subsets: ['latin'], weight: '400', variable: '--font-instrument-serif' })
 
 export const metadata: Metadata = {
   title: 'TARGET LAB | 캠페인 타겟팅',
@@ -32,7 +33,7 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   colorScheme: 'light',
-  themeColor: '#111e2e',
+  themeColor: '#262933',
 }
 
 export default function RootLayout({
@@ -41,7 +42,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="ko" className={`light bg-background ${geistSans.variable} ${geistMono.variable}`}>
+    <html lang="ko" className={`light bg-background ${geistSans.variable} ${plexMono.variable} ${instrumentSerif.variable}`}>
       <body className="antialiased font-sans">
         <WorkspaceShell>{children}</WorkspaceShell>
         {process.env.NODE_ENV === 'production' && <Analytics />}
