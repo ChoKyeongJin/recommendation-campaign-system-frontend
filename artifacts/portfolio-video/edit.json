@@ -1,27 +1,31 @@
 {
-  "capturedAt": "2026-11-04T15:56:27.705Z",
-  "sourceCommit": "0edd9d93175b29b5bd340e5f6067dbe74200e190",
+  "capturedAt": "2026-11-07T08:19:13.196Z",
+  "sourceCommit": "a97b9552845591b8859b5abff4a586db475f0d77",
+  "origin": "http://localhost:3001",
+  "design": {
+    "brand": "#911a46"
+  },
   "duration": 45,
   "outroStart": 40,
   "fps": 30,
   "clips": {
     "targeting": {
-      "file": "raw\\page@303f04304364891575c05d384cc7e70f.webm",
+      "file": "raw\\page@30c724abcff6394e9b9cd4e2eb30f7fe.webm",
       "marks": {
-        "ready": 1.828,
-        "typing": 3.857,
-        "suggest": 6.313,
-        "draft": 18.324,
-        "submit": 24.763,
-        "result": 69.094,
-        "resultScroll": 74.688,
-        "resultReturn": 79.272,
-        "end": 81.56
+        "ready": 2.57,
+        "typing": 4.586,
+        "suggest": 7.106,
+        "draft": 16.053,
+        "submit": 22.491,
+        "result": 72.838,
+        "resultScroll": 78.417,
+        "resultReturn": 83.384,
+        "end": 85.74
       },
       "topic": "30대 여성 고객",
       "prompt": "나이가 30 이상 39 이하이고 성별이 여성인 활성 고객인 고객",
-      "resultText": "본문으로 바로가기\nTARGET LAB\n타겟 만들기\n모니터링\n설정\n\n조건부터 오디언스까지\n\n더 쉬운 타겟팅의 시작\n워크스페이스\n/\n타겟 만들기\nT\n내 워크스페이스\n타겟 결과를 확인해 보세요\n\n입력한 조건으로 생성된 SQL과 오디언스를 확인하고 조건을 다듬어 보세요.\n\n조건 입력\n02\n타겟 결과\n오늘 48회 남음\n2 / 50회 사용 · 전체 사용자 합산 · 한국시간 자정 초기화\n한도 설정\n타겟팅 결과\n타겟팅 프롬프트를 기준으로 SQL을 실행한 결과입니다.\nLLM 5회\n·\n캐시 0/152,264 토큰 (0.0%)\n·\n최소 $0.2448\n단가 미선언 gpt-4o-mini\n\n타겟팅 프롬프트\n\n나이가 30 이상 39 이하이고 성별이 여성인 활성 고객인 고객\n\n추출된 타겟 고객 수\n\n24명\n\n조회 결과 행 수\n\n24건\n\n실행된 SQL\n\nread-only\n복사\nSELECT DISTINCT B.customer_id AS CUST_ID, B.membership_level AS member_grade,\n  '나이 >= 30, 나이 <= 39, 성별 = F, 고객 상태 = ACTIVE' AS segment_label\nFROM cust_profile B\nWHERE B.customer_status = 'ACTIVE'\n  AND (\n    (B.age >= 30)\n      AND (B.age <= 39)\n      AND (B.gender = 'F')\n      AND (B.customer_status = 'ACTIVE')\n  )\n\n성별\n\n여성\n24명\n\n연령대\n\n30대\n24명\n\n지역\n\n강원\n4명\n전남\n4명\n제주\n3명\n충남\n3명\n경기\n2명\n전북\n2명\n외 6개 더보기\n\n등급\n\n브론즈\n11명\n실버\n8명\n골드\n3명\nVIP\n2명\n돌아가기",
-      "text": "본문으로 바로가기\nTARGET LAB\n타겟 만들기\n모니터링\n설정\n\n조건부터 오디언스까지\n\n더 쉬운 타겟팅의 시작\n워크스페이스\n/\n타겟 만들기\nT\n내 워크스페이스\n타겟 결과를 확인해 보세요\n\n입력한 조건으로 생성된 SQL과 오디언스를 확인하고 조건을 다듬어 보세요.\n\n조건 입력\n02\n타겟 결과\n오늘 48회 남음\n2 / 50회 사용 · 전체 사용자 합산 · 한국시간 자정 초기화\n한도 설정\n타겟팅 결과\n타겟팅 프롬프트를 기준으로 SQL을 실행한 결과입니다.\nLLM 5회\n·\n캐시 0/152,264 토큰 (0.0%)\n·\n최소 $0.2448\n단가 미선언 gpt-4o-mini\n\n타겟팅 프롬프트\n\n나이가 30 이상 39 이하이고 성별이 여성인 활성 고객인 고객\n\n추출된 타겟 고객 수\n\n24명\n\n조회 결과 행 수\n\n24건\n\n실행된 SQL\n\nread-only\n복사\nSELECT DISTINCT B.customer_id AS CUST_ID, B.membership_level AS member_grade,\n  '나이 >= 30, 나이 <= 39, 성별 = F, 고객 상태 = ACTIVE' AS segment_label\nFROM cust_profile B\nWHERE B.customer_status = 'ACTIVE'\n  AND (\n    (B.age >= 30)\n      AND (B.age <= 39)\n      AND (B.gender = 'F')\n      AND (B.customer_status = 'ACTIVE')\n  )\n\n성별\n\n여성\n24명\n\n연령대\n\n30대\n24명\n\n지역\n\n강원\n4명\n전남\n4명\n제주\n3명\n충남\n3명\n경기\n2명\n전북\n2명\n외 6개 더보기\n\n등급\n\n브론즈\n11명\n실버\n8명\n골드\n3명\nVIP\n2명\n돌아가기"
+      "resultText": "본문으로 바로가기\nTARGET LAB\n01\n타겟 만들기\n02\n모니터링\n03\n설정\n\n조건부터 오디언스까지\n\n더 쉬운 타겟팅의 시작\nWORKSPACE\n/\n타겟 만들기\nT\n내 워크스페이스\n\nSTEP 02 / 02\n\n타겟 결과를 확인해 보세요\n\n입력한 조건으로 생성된 SQL과 오디언스를 확인하고 조건을 다듬어 보세요.\n\n01\n완료\n조건 입력\n02\n타겟 결과\n오늘 46회 남음\n4 / 50회 사용 · 전체 사용자 합산 · 한국시간 자정 초기화\n한도 설정\n타겟팅 결과\n타겟팅 프롬프트를 기준으로 SQL을 실행한 결과입니다.\nLLM 5회\n·\n캐시 130,048/152,262 토큰 (85.4%)\n·\n최소 $0.0460\n·\n요금 81.2% 절감 (캐시 없이 $0.2444)\n단가 미선언 gpt-4o-mini\n\n타겟팅 프롬프트\n\n나이가 30 이상 39 이하이고 성별이 여성인 활성 고객인 고객\n\n추출된 타겟 고객 수\n01\n\n24\n명\n\n조회 결과 행 수\n02\n\n24\n건\n\n실행된 SQL\n\nREAD-ONLY\n복사\nSELECT DISTINCT B.customer_id AS CUST_ID, B.membership_level AS member_grade,\n  '나이 >= 30, 나이 <= 39, 성별 = F, 고객 상태 = ACTIVE' AS segment_label\nFROM cust_profile B\nWHERE B.customer_status = 'ACTIVE'\n  AND (\n    (B.age >= 30)\n      AND (B.age <= 39)\n      AND (B.gender = 'F')\n      AND (B.customer_status = 'ACTIVE')\n  )\n\n성별\n\n여성\n24명\n\n연령대\n\n30대\n24명\n\n지역\n\n강원\n4명\n전남\n4명\n제주\n3명\n충남\n3명\n경기\n2명\n전북\n2명\n외 6개 더보기\n\n등급\n\n브론즈\n11명\n실버\n8명\n골드\n3명\nVIP\n2명\n돌아가기",
+      "text": "본문으로 바로가기\nTARGET LAB\n01\n타겟 만들기\n02\n모니터링\n03\n설정\n\n조건부터 오디언스까지\n\n더 쉬운 타겟팅의 시작\nWORKSPACE\n/\n타겟 만들기\nT\n내 워크스페이스\n\nSTEP 02 / 02\n\n타겟 결과를 확인해 보세요\n\n입력한 조건으로 생성된 SQL과 오디언스를 확인하고 조건을 다듬어 보세요.\n\n01\n완료\n조건 입력\n02\n타겟 결과\n오늘 46회 남음\n4 / 50회 사용 · 전체 사용자 합산 · 한국시간 자정 초기화\n한도 설정\n타겟팅 결과\n타겟팅 프롬프트를 기준으로 SQL을 실행한 결과입니다.\nLLM 5회\n·\n캐시 130,048/152,262 토큰 (85.4%)\n·\n최소 $0.0460\n·\n요금 81.2% 절감 (캐시 없이 $0.2444)\n단가 미선언 gpt-4o-mini\n\n타겟팅 프롬프트\n\n나이가 30 이상 39 이하이고 성별이 여성인 활성 고객인 고객\n\n추출된 타겟 고객 수\n01\n\n24\n명\n\n조회 결과 행 수\n02\n\n24\n건\n\n실행된 SQL\n\nREAD-ONLY\n복사\nSELECT DISTINCT B.customer_id AS CUST_ID, B.membership_level AS member_grade,\n  '나이 >= 30, 나이 <= 39, 성별 = F, 고객 상태 = ACTIVE' AS segment_label\nFROM cust_profile B\nWHERE B.customer_status = 'ACTIVE'\n  AND (\n    (B.age >= 30)\n      AND (B.age <= 39)\n      AND (B.gender = 'F')\n      AND (B.customer_status = 'ACTIVE')\n  )\n\n성별\n\n여성\n24명\n\n연령대\n\n30대\n24명\n\n지역\n\n강원\n4명\n전남\n4명\n제주\n3명\n충남\n3명\n경기\n2명\n전북\n2명\n외 6개 더보기\n\n등급\n\n브론즈\n11명\n실버\n8명\n골드\n3명\nVIP\n2명\n돌아가기"
     }
   },
   "scenes": [
@@ -32,8 +36,8 @@
       "start": 5,
       "end": 14,
       "clip": "targeting",
-      "from": 1.828,
-      "to": 18.624000000000002,
+      "from": 2.57,
+      "to": 16.353,
       "route": "",
       "title": "캠페인 주제로 타겟 조건 초안 만들기",
       "caption": "주제를 입력하면 <b>타겟 조건 문장</b>을 생성합니다.",
@@ -46,8 +50,8 @@
       "start": 14,
       "end": 21,
       "clip": "targeting",
-      "from": 18.724,
-      "to": 25.013,
+      "from": 16.453,
+      "to": 22.741,
       "route": "",
       "title": "생성된 조건과 해석 모델 확인",
       "caption": "<b>조건 초안과 근거</b>를 검토한 뒤 타겟을 추출합니다."
@@ -59,8 +63,8 @@
       "start": 21,
       "end": 28,
       "clip": "targeting",
-      "from": 25.063000000000002,
-      "to": 68.994,
+      "from": 22.791,
+      "to": 72.738,
       "route": "",
       "title": "조건 해석부터 SQL 생성·검증까지",
       "caption": "요청이 처리되는 과정을 <b>단계별로 확인</b>합니다.",
@@ -73,8 +77,8 @@
       "start": 28,
       "end": 35,
       "clip": "targeting",
-      "from": 69.69399999999999,
-      "to": 74.488,
+      "from": 73.43799999999999,
+      "to": 78.217,
       "route": "",
       "title": "생성된 SQL과 추출 결과를 함께",
       "caption": "<b>타겟 고객 수와 실행된 SQL</b>을 한 화면에서 확인합니다.",
@@ -87,8 +91,8 @@
       "start": 35,
       "end": 40,
       "clip": "targeting",
-      "from": 75.488,
-      "to": 79.072,
+      "from": 79.217,
+      "to": 83.184,
       "route": "",
       "title": "선택된 고객을 더 깊이 이해하기",
       "caption": "연령·지역·등급별 분포로 <b>오디언스의 특성</b>을 살펴봅니다."

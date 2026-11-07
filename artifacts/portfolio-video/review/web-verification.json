@@ -1,12 +1,42 @@
 {
-  "verifiedAt": "2026-11-04T16:04:19.675Z",
-  "url": "https://target-lab-portfolio-video.alkalidate.chatgpt.site/",
-  "anonymousPlayback": true,
-  "chapterSeeking": true,
-  "video": {
-    "duration": 45,
-    "width": 1920,
-    "height": 1080,
-    "currentTime": 28.321588
-  }
+  "verifiedAt": "2026-11-07T08:23:26.567Z",
+  "url": "http://localhost:3000/portfolio-video/index.html",
+  "sourceCommit": "a97b9552845591b8859b5abff4a586db475f0d77",
+  "design": {
+    "brand": "#911a46"
+  },
+  "videoSha256": "bb025ebe1faf0a11d18aae626b2cc6971857a827e0e282782b2d7ddb4130af72",
+  "deploymentVerified": false,
+  "checks": [
+    {
+      "viewport": "desktop",
+      "autoplay": true,
+      "muted": true,
+      "chapterSeeking": true,
+      "responsive": true,
+      "video": {
+        "duration": 45,
+        "width": 1920,
+        "height": 1080,
+        "muted": true,
+        "autoplay": true,
+        "inline": true
+      }
+    },
+    {
+      "viewport": "mobile",
+      "autoplay": true,
+      "muted": true,
+      "chapterSeeking": true,
+      "responsive": true,
+      "video": {
+        "duration": 45,
+        "width": 1920,
+        "height": 1080,
+        "muted": true,
+        "autoplay": true,
+        "inline": true
+      }
+    }
+  ]
 }

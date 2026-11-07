@@ -15,7 +15,7 @@ const scenes=[
  {id:'result',number:'04',tag:'RESULT',start:28,end:35,clip:'targeting',from:m.result+.6,to:m.resultScroll-.2,route:'',title:'생성된 SQL과 추출 결과를 함께',caption:'<b>타겟 고객 수와 실행된 SQL</b>을 한 화면에서 확인합니다.',zoom:.025},
  {id:'audience',number:'05',tag:'AUDIENCE',start:35,end:40,clip:'targeting',from:m.resultScroll+.8,to:m.resultReturn-.2,route:'',title:'선택된 고객을 더 깊이 이해하기',caption:'연령·지역·등급별 분포로 <b>오디언스의 특성</b>을 살펴봅니다.'}
 ];
-if(!audioOnly)fs.writeFileSync(path.join(out,'edit.json'),JSON.stringify({capturedAt:capture.capturedAt,sourceCommit:capture.sourceCommit,duration:DURATION,outroStart:OUTRO_START,fps:FPS,clips:{targeting:c.targeting},scenes},null,2));
+if(!audioOnly)fs.writeFileSync(path.join(out,'edit.json'),JSON.stringify({capturedAt:capture.capturedAt,sourceCommit:capture.sourceCommit,origin:capture.origin,design:capture.design,duration:DURATION,outroStart:OUTRO_START,fps:FPS,clips:{targeting:c.targeting},scenes},null,2));
 const time=t=>{const ms=Math.round(t*1000);return `${String(Math.floor(ms/3600000)).padStart(2,'0')}:${String(Math.floor(ms/60000)%60).padStart(2,'0')}:${String(Math.floor(ms/1000)%60).padStart(2,'0')},${String(ms%1000).padStart(3,'0')}`};
 const subs=[{start:0,end:5,caption:'한 문장으로, 타겟 고객을 찾다.\n자연어 조건을 SQL과 오디언스로.'},...scenes,{start:OUTRO_START,end:DURATION,caption:'조건은 자연스럽게. 결과는 명확하게.\nTARGET LAB'}];
 if(!audioOnly)fs.writeFileSync(path.join(out,'target-lab-targeting.ko.srt'),subs.map((s,i)=>`${i+1}\n${time(s.start)} --> ${time(s.end)}\n${s.caption.replace(/<[^>]*>/g,'')}\n`).join('\n'),'utf8');

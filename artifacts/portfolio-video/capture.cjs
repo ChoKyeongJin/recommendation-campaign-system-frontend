@@ -15,7 +15,7 @@ async function newShot(name,url) {
   await context.addInitScript(() => {
     document.addEventListener('DOMContentLoaded',()=>{
       const css=document.createElement('style');css.textContent='nextjs-portal{display:none!important}';document.head.append(css);
-      const cursor=document.createElement('div');cursor.id='portfolio-cursor';cursor.style.cssText='position:fixed;left:-90px;top:-90px;width:20px;height:20px;pointer-events:none;z-index:2147483647;border:3px solid #bfe93a;border-radius:50%;background:#bfe93a22;box-shadow:0 0 0 5px #10203422;transform:translate(-50%,-50%);transition:width .12s,height .12s';document.body.append(cursor);
+      const cursor=document.createElement('div');cursor.id='portfolio-cursor';cursor.style.cssText='position:fixed;left:-90px;top:-90px;width:20px;height:20px;pointer-events:none;z-index:2147483647;border:3px solid #911a46;border-radius:50%;background:#911a4622;box-shadow:0 0 0 5px #26293322;transform:translate(-50%,-50%);transition:width .12s,height .12s';document.body.append(cursor);
       document.addEventListener('mousemove',e=>{cursor.style.left=e.clientX+'px';cursor.style.top=e.clientY+'px'});
       document.addEventListener('mousedown',()=>{cursor.style.width='30px';cursor.style.height='30px'});
       document.addEventListener('mouseup',()=>{cursor.style.width='20px';cursor.style.height='20px'});
@@ -27,6 +27,8 @@ async function newShot(name,url) {
   const mark=key=>{clip.marks[key]=(Date.now()-start)/1000;console.log(name,key,clip.marks[key]);};
   await page.goto(metadata.origin+url,{waitUntil:'networkidle'});
   await page.evaluate(()=>document.fonts.ready);
+  metadata.design={brand:await page.evaluate(()=>getComputedStyle(document.documentElement).getPropertyValue('--brand').trim())};
+  if(metadata.design.brand!=='#911a46')throw new Error('The capture server is not serving the current burgundy design');
   await sleep(800);
   mark('ready');
   return {page,mark,clip,async close(){await page.screenshot({path:path.join(out,`inspect-${name}.png`)});clip.text=(await page.locator('body').innerText()).slice(0,14000);mark('end');await context.close();clip.file=path.relative(out,await page.video().path());fs.writeFileSync(path.join(out,'capture.json'),JSON.stringify(metadata,null,2));}};
@@ -55,11 +57,11 @@ async function point(page,locator) {
  await page.getByRole('region',{name:'타겟 추출 진행 상황'}).scrollIntoViewIfNeeded();
  await sleep(2500);await page.mouse.move(1015,180,{steps:20});
  await page.getByRole('heading',{name:'타겟 결과를 확인해 보세요'}).waitFor({timeout:240000});
- await page.evaluate(()=>window.scrollTo({top:0,behavior:'instant'}));mark('result');await sleep(2500);
+ await page.evaluate(()=>window.scrollTo({top:340,behavior:'instant'}));await sleep(350);mark('result');await sleep(2500);
  await page.screenshot({path:path.join(out,'inspect-result.png')});
  clip.resultText=(await page.locator('body').innerText()).slice(0,15000);
  console.log('RESULT',clip.resultText.slice(0,6500));
- await sleep(3000);mark('resultScroll');await page.mouse.wheel(0,460);await sleep(4500);await page.screenshot({path:path.join(out,'inspect-audience.png')});
+ await sleep(3000);mark('resultScroll');await page.evaluate(()=>window.scrollTo({top:document.documentElement.scrollHeight,behavior:'smooth'}));await sleep(4500);await page.screenshot({path:path.join(out,'inspect-audience.png')});
  mark('resultReturn');await page.evaluate(()=>window.scrollTo({top:0,behavior:'smooth'}));await sleep(1800);await shot.close();
  await browser.close();console.log('Capture complete');
 })().catch(async e=>{console.error(e);fs.writeFileSync(path.join(out,'capture.json'),JSON.stringify(metadata,null,2));if(browser)await browser.close();process.exit(1)});
